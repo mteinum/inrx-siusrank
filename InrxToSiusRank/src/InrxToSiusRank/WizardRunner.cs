@@ -78,7 +78,7 @@ public static class WizardRunner
         var includeTeam = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("Fyll Team/TeamDisplay med klubb?")
-                .AddChoices("No", "Yes")) == "Yes";
+                .AddChoices("Yes", "No")) == "Yes";
 
         var shooterGroupsPrompt = string.IsNullOrWhiteSpace(defaultShooterGroupsTemplatePath)
             ? "ShooterGroupsTemplate.xml for validering [grey](tom = ingen)[/]:"

@@ -63,6 +63,7 @@ public sealed class AppOptionsTests
         Assert.True(options.Wizard);
         Assert.Equal(db.Path, options.DatabasePath);
         Assert.Null(options.StevneId);
+        Assert.True(options.IncludeClubTeam);
     }
 
     [Fact]
@@ -114,6 +115,41 @@ public sealed class AppOptionsTests
         Assert.Equal("Å", options.KmNmClass);
         Assert.True(options.CopyToClipboard);
         Assert.Equal(template.Path, options.ShooterGroupsTemplatePath);
+    }
+
+    [Fact]
+    public void Include_club_team_defaults_to_true()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--klasse", "Å",
+            "--output", "out.csv"
+        ]);
+
+        Assert.True(options.IncludeClubTeam);
+    }
+
+    [Fact]
+    public void Include_club_team_can_be_disabled()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--klasse", "Å",
+            "--output", "out.csv",
+            "--no-include-club-team"
+        ]);
+
+        Assert.False(options.IncludeClubTeam);
     }
 
     [Fact]

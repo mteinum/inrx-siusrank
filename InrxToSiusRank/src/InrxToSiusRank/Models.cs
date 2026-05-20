@@ -69,7 +69,7 @@ public sealed record AppOptions(
                 OutputPath: null,
                 CopyToClipboard: false,
                 EncodingName: CsvEncoding.Utf8Bom,
-                IncludeClubTeam: false,
+                IncludeClubTeam: true,
                 AllClasses: false,
                 Wizard: true);
         }
@@ -156,6 +156,7 @@ public sealed record AppOptions(
         var encodingName = !string.IsNullOrWhiteSpace(encoding)
             ? CsvEncoding.NormalizeName(encoding)
             : CsvEncoding.Utf8Bom;
+        var includeClubTeam = ResolveIncludeClubTeam(parseResult, cli);
 
         return new AppOptions(
             databasePath,
@@ -172,9 +173,15 @@ public sealed record AppOptions(
             string.IsNullOrWhiteSpace(outputPath) ? null : outputPath,
             copyToClipboard,
             encodingName,
-            parseResult.GetValue(cli.IncludeClubTeamOption),
+            includeClubTeam,
             allClasses,
             Wizard: false);
+    }
+
+    private static bool ResolveIncludeClubTeam(ParseResult parseResult, AppCommandLine cli)
+    {
+        var noIncludeClubTeam = parseResult.GetValue(cli.NoIncludeClubTeamOption);
+        return !noIncludeClubTeam;
     }
 
     private static string? ResolveShooterGroupsTemplatePath(
@@ -279,7 +286,8 @@ public sealed record AppOptions(
         Option<string?> ShooterGroupsTemplateOption,
         Option<bool> ClipboardOption,
         Option<string?> EncodingOption,
-        Option<bool> IncludeClubTeamOption)
+        Option<bool> IncludeClubTeamOption,
+        Option<bool> NoIncludeClubTeamOption)
     {
         public static AppCommandLine Create()
         {
@@ -353,7 +361,11 @@ public sealed record AppOptions(
             };
             var includeClubTeamOption = new Option<bool>("--include-club-team")
             {
-                Description = "Fill Team and TeamDisplay from club name."
+                Description = "Fill Team and TeamDisplay from club name. This is the default."
+            };
+            var noIncludeClubTeamOption = new Option<bool>("--no-include-club-team")
+            {
+                Description = "Leave Team and TeamDisplay empty."
             };
 
             var rootCommand = new RootCommand("Export SIUS Rank starter import CSV from an inrX SQLite database.")
@@ -375,7 +387,8 @@ public sealed record AppOptions(
                 shooterGroupsTemplateOption,
                 clipboardOption,
                 encodingOption,
-                includeClubTeamOption
+                includeClubTeamOption,
+                noIncludeClubTeamOption
             };
 
             return new AppCommandLine(
@@ -397,7 +410,8 @@ public sealed record AppOptions(
                 shooterGroupsTemplateOption,
                 clipboardOption,
                 encodingOption,
-                includeClubTeamOption);
+                includeClubTeamOption,
+                noIncludeClubTeamOption);
         }
     }
 }

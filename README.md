@@ -49,7 +49,7 @@ Important mappings:
 - `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` are set to inrX `Resultat.Id`.
 - KM/NM class is read from `Resultat.MklasseId1`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
-- `Team` and `TeamDisplay` can be filled with the club short name by using `--include-club-team`.
+- `Team` and `TeamDisplay` are filled with the club short name by default. Use `--no-include-club-team` to leave them empty.
 - Names are kept at full length as shown in SIUS Rank.
 
 ## Interactive Run
@@ -72,8 +72,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --stevne-id 405 \
   --ovelse Fripistol \
   --klasse Å \
-  --output NM50FRI_APEN_import.csv \
-  --include-club-team
+  --output NM50FRI_APEN_import.csv
 ```
 
 Copy to clipboard instead of writing a file:
@@ -84,8 +83,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --stevne-id 405 \
   --ovelse Fripistol \
   --klasse Å \
-  --clipboard \
-  --include-club-team
+  --clipboard
 ```
 
 ## Create Import Files For All Classes
@@ -97,8 +95,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-id 405 \
   --all-classes \
-  --output-dir siusrank-import \
-  --include-club-team
+  --output-dir siusrank-import
 ```
 
 One file per KM/NM class for several events:
@@ -108,8 +105,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-ids 405-411 \
   --all-classes \
-  --output-dir siusrank-import \
-  --include-club-team
+  --output-dir siusrank-import
 ```
 
 `--stevne-ids` supports both comma-separated ids and ranges:
@@ -153,7 +149,6 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --stevne-ids 405-411 \
   --all-classes \
   --output-dir siusrank-import \
-  --include-club-team \
   --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
@@ -189,7 +184,7 @@ On Windows:
 Bulk export on Windows:
 
 ```powershell
-.\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --all-classes --output-dir .\siusrank-import --include-club-team
+.\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --all-classes --output-dir .\siusrank-import
 ```
 
 ## Create GitHub Release
@@ -237,7 +232,8 @@ linux-x64
 --output-dir <path>                 Directory for --all-classes.
 --clipboard                         Copy import data to clipboard.
 --copy-to-clipboard                 Same as --clipboard.
---include-club-team                 Fill Team and TeamDisplay with club short name.
+--include-club-team                 Fill Team and TeamDisplay with club short name. Default.
+--no-include-club-team              Leave Team and TeamDisplay empty.
 --sius-group <value>                Override Groups for normal export.
 --shooter-groups-template <path>    Validate Groups against SIUS Rank template.
 --encoding <utf8-bom|windows-1252>  Encoding. Default: utf8-bom.

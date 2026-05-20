@@ -154,7 +154,8 @@ internal static class Usage
           --clipboard                         Copy import data to clipboard for "Update starters from clipboard".
           --copy-to-clipboard                 Same as --clipboard.
           --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
-          --include-club-team                 Fill Team and TeamDisplay from club name.
+          --include-club-team                 Fill Team and TeamDisplay from club name. Default.
+          --no-include-club-team              Leave Team and TeamDisplay empty.
           --help                              Show help.
         """;
 }
