@@ -96,6 +96,99 @@ public sealed class AppOptionsTests
     }
 
     [Fact]
+    public void Database_path_can_be_resolved_from_appsettings_inrx_path()
+    {
+        using var directory = TempDirectory.Create();
+        var inrxDirectory = System.IO.Path.Combine(directory.Path, "inrx");
+        Directory.CreateDirectory(inrxDirectory);
+        var dbPath = System.IO.Path.Combine(inrxDirectory, "storage.db3");
+        File.WriteAllText(dbPath, string.Empty);
+
+        var settingsPath = WriteSettings(directory.Path, """
+            {
+              "Paths": {
+                "Inrx": "inrx"
+              }
+            }
+            """);
+
+        var options = AppOptions.Parse(
+        [
+            "--settings", settingsPath,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--klasse", "Å",
+            "--output", "out.csv"
+        ]);
+
+        Assert.Equal(dbPath, options.DatabasePath);
+    }
+
+    [Fact]
+    public void Command_line_database_path_overrides_appsettings()
+    {
+        using var directory = TempDirectory.Create();
+        var inrxDirectory = System.IO.Path.Combine(directory.Path, "inrx");
+        Directory.CreateDirectory(inrxDirectory);
+        File.WriteAllText(System.IO.Path.Combine(inrxDirectory, "storage.db3"), string.Empty);
+        using var explicitDb = TempDatabaseFile.Create();
+
+        var settingsPath = WriteSettings(directory.Path, """
+            {
+              "Paths": {
+                "Inrx": "inrx"
+              }
+            }
+            """);
+
+        var options = AppOptions.Parse(
+        [
+            "--settings", settingsPath,
+            "--db", explicitDb.Path,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--klasse", "Å",
+            "--output", "out.csv"
+        ]);
+
+        Assert.Equal(explicitDb.Path, options.DatabasePath);
+    }
+
+    [Fact]
+    public void Shooter_groups_template_path_can_be_resolved_from_appsettings_siusrank_path()
+    {
+        using var directory = TempDirectory.Create();
+        var inrxDirectory = System.IO.Path.Combine(directory.Path, "inrx");
+        Directory.CreateDirectory(inrxDirectory);
+        File.WriteAllText(System.IO.Path.Combine(inrxDirectory, "storage.db3"), string.Empty);
+
+        var templatesDirectory = System.IO.Path.Combine(directory.Path, "templates");
+        Directory.CreateDirectory(templatesDirectory);
+        var templatePath = System.IO.Path.Combine(templatesDirectory, "ShooterGroupsTemplate.xml");
+        File.WriteAllText(templatePath, "<ShooterGroups />");
+
+        var settingsPath = WriteSettings(directory.Path, """
+            {
+              "Paths": {
+                "Inrx": "inrx",
+                "SiusRankTemplates": "templates"
+              }
+            }
+            """);
+
+        var options = AppOptions.Parse(
+        [
+            "--settings", settingsPath,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--klasse", "Å",
+            "--output", "out.csv"
+        ]);
+
+        Assert.Equal(templatePath, options.ShooterGroupsTemplatePath);
+    }
+
+    [Fact]
     public void All_classes_accepts_stevne_id_range_and_output_directory()
     {
         using var db = TempDatabaseFile.Create();
@@ -147,6 +240,13 @@ public sealed class AppOptionsTests
         Assert.Contains("--klasse", ex.Message);
     }
 
+    private static string WriteSettings(string directoryPath, string content)
+    {
+        var settingsPath = System.IO.Path.Combine(directoryPath, "appsettings.json");
+        File.WriteAllText(settingsPath, content);
+        return settingsPath;
+    }
+
     private sealed class TempDatabaseFile : IDisposable
     {
         private TempDatabaseFile(string path)
@@ -165,6 +265,33 @@ public sealed class AppOptionsTests
         public void Dispose()
         {
             File.Delete(Path);
+        }
+    }
+
+    private sealed class TempDirectory : IDisposable
+    {
+        private TempDirectory(string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TempDirectory Create()
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"inrx-siusrank-tests-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            return new TempDirectory(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
         }
     }
 }

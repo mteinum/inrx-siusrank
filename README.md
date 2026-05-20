@@ -17,6 +17,25 @@ The tool does not create a separate SIUS Data start list. SIUS Rank creates the 
 - [inrX](https://inrx.org)
 - [SIUS Rank](https://www.sius.com/en/product-page/siusrank)
 
+## Configuration
+
+The application loads `appsettings.json` from the current directory or from the executable directory. You can also pass a specific file with `--settings`.
+
+Default `appsettings.json`:
+
+```json
+{
+  "Paths": {
+    "Inrx": "C:\\Program Files (x86)\\inrX",
+    "SiusRankTemplates": "C:\\SIUS\\SiusRank\\Resources\\Templates"
+  }
+}
+```
+
+`Paths.Inrx` is used to find `storage.db3` as `<Inrx>\storage.db3` when `--db` is not supplied. If your database is somewhere else, either pass `--db` or add `Paths.Database` to `appsettings.json`.
+
+`Paths.SiusRankTemplates` is used to find `ShooterGroupsTemplate.xml` when `--shooter-groups-template` is not supplied. Command-line options override values from `appsettings.json`.
+
 ## Export Format
 
 The CSV uses the SIUS Rank starter import format, with the same header style as `SiusRank_importExample.csv`:
@@ -38,10 +57,10 @@ Important mappings:
 From the repository root:
 
 ```bash
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard --db storage.db3
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard
 ```
 
-The wizard lets you select the event, exercise, KM/NM class, and whether the import data should be written to a file, copied to the clipboard, or both.
+The wizard lets you select the event, exercise, KM/NM class, and whether the import data should be written to a file, copied to the clipboard, or both. Use `--db storage.db3` if the database is not available through `appsettings.json`.
 
 ## Create One Import File
 
@@ -140,7 +159,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 
 This does not change the export. It only stops the run if a `Groups` value is not found in the template file.
 
-Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`.
+If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 
 ## Build Windows Exe
@@ -164,7 +183,7 @@ InrxToSiusRank/src/InrxToSiusRank/bin/Release/net8.0/win-x64/publish/InrxToSiusR
 On Windows:
 
 ```powershell
-.\InrxToSiusRank.exe --wizard --db .\storage.db3
+.\InrxToSiusRank.exe --wizard
 ```
 
 Bulk export on Windows:
@@ -202,7 +221,8 @@ linux-x64
 ## Options
 
 ```text
---db <path>                         Path to storage.db3.
+--settings <path>                   Path to appsettings.json.
+--db <path>                         Path to storage.db3. Overrides appsettings.
 --wizard                            Start interactive wizard.
 --stevne-id <id>                    Select one Stevne.Id.
 --stevne-ids <ids>                  Select several events, for example 405,406 or 405-411.

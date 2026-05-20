@@ -4,7 +4,7 @@ namespace InrxToSiusRank;
 
 public static class WizardRunner
 {
-    public static int Run(string databasePath)
+    public static int Run(string databasePath, string? defaultShooterGroupsTemplatePath = null)
     {
         using var repository = new InrxRepository(databasePath);
 
@@ -80,9 +80,17 @@ public static class WizardRunner
                 .Title("Fyll Team/TeamDisplay med klubb?")
                 .AddChoices("No", "Yes")) == "Yes";
 
-        var shooterGroupsTemplatePath = AnsiConsole.Prompt(
-            new TextPrompt<string>("ShooterGroupsTemplate.xml for validering [grey](tom = ingen)[/]:")
+        var shooterGroupsPrompt = string.IsNullOrWhiteSpace(defaultShooterGroupsTemplatePath)
+            ? "ShooterGroupsTemplate.xml for validering [grey](tom = ingen)[/]:"
+            : "ShooterGroupsTemplate.xml for validering [grey](tom = standard fra appsettings, '-' = ingen)[/]:";
+        var shooterGroupsTemplateInput = AnsiConsole.Prompt(
+            new TextPrompt<string>(shooterGroupsPrompt)
                 .AllowEmpty());
+        var shooterGroupsTemplatePath = shooterGroupsTemplateInput.Trim() == "-"
+            ? null
+            : string.IsNullOrWhiteSpace(shooterGroupsTemplateInput)
+                ? defaultShooterGroupsTemplatePath
+                : shooterGroupsTemplateInput;
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Panel(
@@ -110,9 +118,7 @@ public static class WizardRunner
             OvelseName: null,
             KmNmClass: selectedClass.Name,
             SiusGroupOverride: null,
-            ShooterGroupsTemplatePath: string.IsNullOrWhiteSpace(shooterGroupsTemplatePath)
-                ? null
-                : shooterGroupsTemplatePath,
+            ShooterGroupsTemplatePath: shooterGroupsTemplatePath,
             OutputDirectory: null,
             OutputPath: outputPath,
             CopyToClipboard: NeedsClipboard(destination),

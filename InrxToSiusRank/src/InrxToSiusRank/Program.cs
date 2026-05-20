@@ -20,7 +20,7 @@ public static class Program
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
-                return WizardRunner.Run(options.DatabasePath);
+                return WizardRunner.Run(options.DatabasePath, options.ShooterGroupsTemplatePath);
             }
 
             if (options.AllClasses)
@@ -119,11 +119,10 @@ internal static class Usage
         InrxToSiusRank - export SIUS Rank starter import CSV from an inrX SQLite database.
 
         Interactive:
-          InrxToSiusRank --wizard --db storage.db3
-          InrxToSiusRank wizard --db storage.db3
+          InrxToSiusRank --wizard
+          InrxToSiusRank wizard
 
         Required for direct export:
-          --db <path>                         Path to storage.db3.
           --stevne-id <id>                    inrX Stevne.Id. Use this or --event-date/--event-name.
           --ovelse <name>                     Exercise name, for example Fripistol. Use this or --ovelse-id.
           --output <path>                     Output CSV path. Optional when --clipboard is used.
@@ -133,7 +132,14 @@ internal static class Usage
           InrxToSiusRank --db storage.db3 --stevne-id 405 --ovelse Fripistol --klasse Å --clipboard
           InrxToSiusRank --db storage.db3 --stevne-ids 405-411 --all-classes --output-dir siusrank-import
 
+        appsettings.json:
+          Loaded from the current directory or executable directory.
+          Default Paths:Inrx is C:\Program Files (x86)\inrX.
+          Default Paths:SiusRankTemplates is C:\SIUS\SiusRank\Resources\Templates.
+
         Options:
+          --settings <path>                   Path to appsettings.json.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
           --wizard                            Start interactive Spectre.Console wizard.
           --event-date <yyyy-MM-dd>           Select event by date.
           --event-name <text>                 Select event by name text together with --event-date.

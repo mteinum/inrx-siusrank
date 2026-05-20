@@ -10,12 +10,31 @@ Small .NET console application for exporting SIUS Rank starter import CSV files 
 - [inrX](https://inrx.org)
 - [SIUS Rank](https://www.sius.com/en/product-page/siusrank)
 
+## Configuration
+
+The application loads `appsettings.json` from the current directory or from the executable directory. You can also pass a specific file with `--settings`.
+
+Default `appsettings.json`:
+
+```json
+{
+  "Paths": {
+    "Inrx": "C:\\Program Files (x86)\\inrX",
+    "SiusRankTemplates": "C:\\SIUS\\SiusRank\\Resources\\Templates"
+  }
+}
+```
+
+`Paths.Inrx` is used to find `storage.db3` as `<Inrx>\storage.db3` when `--db` is not supplied. If your database is stored elsewhere, either pass `--db` or add `Paths.Database` to `appsettings.json`.
+
+`Paths.SiusRankTemplates` is used to find `ShooterGroupsTemplate.xml` when `--shooter-groups-template` is not supplied. Command-line options override values from `appsettings.json`.
+
 ## Example
 
 From the repository root:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard --db storage.db3
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard
 ```
 
 The interactive wizard lets you filter and select:
@@ -88,8 +107,9 @@ The standard location in a SIUS Rank Windows installation is:
 C:\SIUS\SiusRank\Resources\Templates
 ```
 
-Both XML files are copied to the `Templates/` directory in `dotnet publish` output.
+Both XML files are copied to the `Templates/` directory in `dotnet publish` output, and `appsettings.json` is copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
+If `Paths.SiusRankTemplates` points to this directory, `ShooterGroupsTemplate.xml` is used automatically for validation.
 
 ## Windows executable
 
@@ -105,10 +125,10 @@ The executable is created at:
 InrxToSiusRank/src/InrxToSiusRank/bin/Release/net8.0/win-x64/publish/InrxToSiusRank.exe
 ```
 
-Copy `storage.db3` next to the executable or pass the full path:
+Use `appsettings.json` for the database path, or pass `--db` with the full path:
 
 ```powershell
-.\InrxToSiusRank.exe --wizard --db .\storage.db3
+.\InrxToSiusRank.exe --wizard
 ```
 
 Direct export:
@@ -126,7 +146,8 @@ For SIUS Rank's "Update starters from clipboard":
 ## Options
 
 ```text
---db <path>                         Path to storage.db3.
+--settings <path>                   Path to appsettings.json.
+--db <path>                         Path to storage.db3. Overrides appsettings.
 --wizard                            Start interactive wizard.
 --stevne-id <id>                    inrX Stevne.Id. Use this or --event-date/--event-name.
 --stevne-ids <ids>                  Bulk select stevner, for example 405,406,407 or 405-411.

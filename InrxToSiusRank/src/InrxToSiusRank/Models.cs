@@ -74,10 +74,18 @@ public sealed record AppOptions(
             values[name] = value;
         }
 
-        var databasePath = Require(values, "db");
+        values.TryGetValue("settings", out var settingsPath);
+        var settings = AppSettings.Load(settingsPath);
+
+        var databasePath = values.TryGetValue("db", out var configuredDatabasePath) &&
+                           !string.IsNullOrWhiteSpace(configuredDatabasePath)
+            ? configuredDatabasePath
+            : settings.ResolveDatabasePath();
         if (!File.Exists(databasePath))
         {
-            throw new ArgumentException($"Database file does not exist: {databasePath}");
+            throw new ArgumentException(
+                $"Database file does not exist: {databasePath}. " +
+                "Use --db or configure Paths:Inrx/Paths:Database in appsettings.json.");
         }
 
         if (flags.Contains("wizard"))
@@ -92,7 +100,7 @@ public sealed record AppOptions(
                 OvelseName: null,
                 KmNmClass: null,
                 SiusGroupOverride: null,
-                ShooterGroupsTemplatePath: null,
+                ShooterGroupsTemplatePath: ResolveShooterGroupsTemplatePath(values, settings),
                 OutputDirectory: null,
                 OutputPath: null,
                 CopyToClipboard: false,
@@ -162,16 +170,7 @@ public sealed record AppOptions(
             throw new ArgumentException("Do not use --sius-group together with --all-classes.");
         }
 
-        values.TryGetValue("shooter-groups-template", out var shooterGroupsTemplatePath);
-        if (string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
-        {
-            values.TryGetValue("shooter-groups", out shooterGroupsTemplatePath);
-        }
-
-        if (!string.IsNullOrWhiteSpace(shooterGroupsTemplatePath) && !File.Exists(shooterGroupsTemplatePath))
-        {
-            throw new ArgumentException($"Shooter groups template file does not exist: {shooterGroupsTemplatePath}");
-        }
+        var shooterGroupsTemplatePath = ResolveShooterGroupsTemplatePath(values, settings);
 
         values.TryGetValue("output", out var outputPath);
         values.TryGetValue("output-dir", out var outputDirectory);
@@ -217,14 +216,30 @@ public sealed record AppOptions(
             Wizard: false);
     }
 
-    private static string Require(IReadOnlyDictionary<string, string> values, string name)
+    private static string? ResolveShooterGroupsTemplatePath(
+        IReadOnlyDictionary<string, string> values,
+        AppSettings settings)
     {
-        if (!values.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+        values.TryGetValue("shooter-groups-template", out var shooterGroupsTemplatePath);
+        if (string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
         {
-            throw new ArgumentException($"Missing required option '--{name}'.");
+            values.TryGetValue("shooter-groups", out shooterGroupsTemplatePath);
         }
 
-        return value;
+        if (string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
+        {
+            var configuredShooterGroupsTemplatePath = settings.ResolveShooterGroupsTemplatePath();
+            return File.Exists(configuredShooterGroupsTemplatePath)
+                ? configuredShooterGroupsTemplatePath
+                : null;
+        }
+
+        if (!File.Exists(shooterGroupsTemplatePath))
+        {
+            throw new ArgumentException($"Shooter groups template file does not exist: {shooterGroupsTemplatePath}");
+        }
+
+        return shooterGroupsTemplatePath;
     }
 
     private static int? ParseNullableInt(IReadOnlyDictionary<string, string> values, string name)
