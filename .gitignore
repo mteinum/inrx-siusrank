@@ -1,0 +1,23 @@
+**/bin/
+**/obj/
+*.user
+*.suo
+.DS_Store
+
+# Local inrX/SIUS data and generated exports. Keep the public repo code-only.
+*.db
+*.db3
+*.sqlite
+*.sqlite3
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.srkl
+
+# Local Codex/task notes.
+codex_prompt_task*.md
