@@ -74,7 +74,14 @@ InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
 ```
 
+The standard location in a SIUS Rank Windows installation is:
+
+```text
+C:\SIUS\SiusRank\Resources\Templates
+```
+
 Both XML files are copied to the `Templates/` directory in `dotnet publish` output.
+For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 
 ## Windows executable
 

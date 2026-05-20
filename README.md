@@ -112,6 +112,12 @@ InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
 ```
 
+Standardplassering i en SIUS Rank-installasjon på Windows er:
+
+```text
+C:\SIUS\SiusRank\Resources\Templates
+```
+
 `ShooterGroupsTemplate.xml` kan brukes til å validere at `Groups`-verdiene i eksporten finnes i SIUS Rank-oppsettet:
 
 ```bash
@@ -127,6 +133,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 Dette endrer ikke eksporten. Det stopper bare kjøringen hvis en `Groups`-verdi ikke finnes i templatefilen.
 
 Ved `dotnet publish` blir begge XML-malene kopiert til `Templates/` ved siden av den publiserte exe-filen.
+For bruk i SIUS Rank kan filene kopieres til `C:\SIUS\SiusRank\Resources\Templates`.
 
 ## Bygg Windows exe
 
