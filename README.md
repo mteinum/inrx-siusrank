@@ -12,6 +12,11 @@ The program reads registrations and starter data from inrX and writes CSV files 
 
 The tool does not create a separate SIUS Data start list. SIUS Rank creates the SIUS Data start list from the imported starters.
 
+## Related Links
+
+- [inrX](https://inrx.org)
+- [SIUS Rank](https://www.sius.com/en/product-page/siusrank)
+
 ## Export Format
 
 The CSV uses the SIUS Rank starter import format, with the same header style as `SiusRank_importExample.csv`:

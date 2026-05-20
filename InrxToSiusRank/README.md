@@ -5,6 +5,11 @@
 
 Small .NET console application for exporting SIUS Rank starter import CSV files from an inrX `storage.db3` SQLite database.
 
+## Related Links
+
+- [inrX](https://inrx.org)
+- [SIUS Rank](https://www.sius.com/en/product-page/siusrank)
+
 ## Example
 
 From the repository root:
