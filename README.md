@@ -149,6 +149,32 @@ Bulk-eksport på Windows:
 .\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --all-classes --output-dir .\siusrank-import --include-club-team
 ```
 
+## Lag GitHub Release
+
+Workflowen `.github/workflows/release.yml` kan kjøres manuelt fra GitHub Actions med en versjon, for eksempel `v0.1.0`.
+
+Med GitHub CLI:
+
+```bash
+gh workflow run release.yml -f version=v0.1.0
+```
+
+Du kan også lage release ved å pushe en tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Workflowen kjører tester, bygger self-contained single-file binaries og publiserer release-assets for:
+
+```text
+win-x64
+osx-x64
+osx-arm64
+linux-x64
+```
+
 ## Viktige valg
 
 ```text
@@ -178,4 +204,3 @@ Bulk-eksport på Windows:
 ```bash
 dotnet test InrxToSiusRank/InrxToSiusRank.sln
 ```
-
