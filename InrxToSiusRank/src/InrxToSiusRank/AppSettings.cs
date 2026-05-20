@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace InrxToSiusRank;
 
@@ -66,33 +66,49 @@ public sealed record AppSettings(
 
     private static AppSettings Read(string path)
     {
-        using var document = ParseJson(path);
-        var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object)
-        {
-            throw new ArgumentException($"Settings file root must be a JSON object: {path}");
-        }
-
-        var paths = TryGetProperty(root, "Paths", out var pathsElement)
-            ? pathsElement
-            : root;
-        if (paths.ValueKind != JsonValueKind.Object)
-        {
-            throw new ArgumentException($"Settings Paths value must be a JSON object: {path}");
-        }
-
-        var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(path)) ?? Directory.GetCurrentDirectory();
+        var fullPath = Path.GetFullPath(path);
+        var baseDirectory = Path.GetDirectoryName(fullPath) ?? Directory.GetCurrentDirectory();
+        var fileName = Path.GetFileName(fullPath);
+        var configuration = BuildConfiguration(baseDirectory, fileName);
         var inrxPath = ResolveConfiguredPath(
-            ReadString(paths, "Inrx", "InrxPath", "InrxDirectory"),
+            ReadString(
+                configuration,
+                "Paths:Inrx",
+                "Paths:InrxPath",
+                "Paths:InrxDirectory",
+                "Inrx",
+                "InrxPath",
+                "InrxDirectory"),
             baseDirectory);
         var siusRankTemplatesPath = ResolveConfiguredPath(
-            ReadString(paths, "SiusRankTemplates", "SiusRankTemplatesPath", "SiusRankTemplatesDirectory"),
+            ReadString(
+                configuration,
+                "Paths:SiusRankTemplates",
+                "Paths:SiusRankTemplatesPath",
+                "Paths:SiusRankTemplatesDirectory",
+                "SiusRankTemplates",
+                "SiusRankTemplatesPath",
+                "SiusRankTemplatesDirectory"),
             baseDirectory);
         var databasePath = ResolveConfiguredPath(
-            ReadString(paths, "Database", "DatabasePath", "InrxDatabase", "StorageDatabase"),
+            ReadString(
+                configuration,
+                "Paths:Database",
+                "Paths:DatabasePath",
+                "Paths:InrxDatabase",
+                "Paths:StorageDatabase",
+                "Database",
+                "DatabasePath",
+                "InrxDatabase",
+                "StorageDatabase"),
             baseDirectory);
         var shooterGroupsTemplatePath = ResolveConfiguredPath(
-            ReadString(paths, "ShooterGroupsTemplate", "ShooterGroupsTemplatePath"),
+            ReadString(
+                configuration,
+                "Paths:ShooterGroupsTemplate",
+                "Paths:ShooterGroupsTemplatePath",
+                "ShooterGroupsTemplate",
+                "ShooterGroupsTemplatePath"),
             baseDirectory);
 
         return new AppSettings(
@@ -100,18 +116,23 @@ public sealed record AppSettings(
             siusRankTemplatesPath ?? string.Empty,
             databasePath,
             shooterGroupsTemplatePath,
-            Path.GetFullPath(path));
+            fullPath);
     }
 
-    private static JsonDocument ParseJson(string path)
+    private static IConfiguration BuildConfiguration(string baseDirectory, string fileName)
     {
         try
         {
-            return JsonDocument.Parse(File.ReadAllText(path));
+            return new ConfigurationBuilder()
+                .SetBasePath(baseDirectory)
+                .AddJsonFile(fileName, optional: false, reloadOnChange: false)
+                .Build();
         }
-        catch (JsonException ex)
+        catch (InvalidDataException ex)
         {
-            throw new ArgumentException($"Settings file is not valid JSON: {path}. {ex.Message}", ex);
+            throw new ArgumentException(
+                $"Settings file is not valid JSON: {Path.Combine(baseDirectory, fileName)}. {ex.Message}",
+                ex);
         }
     }
 
@@ -129,36 +150,18 @@ public sealed record AppSettings(
             .FirstOrDefault(File.Exists);
     }
 
-    private static string? ReadString(JsonElement element, params string[] names)
+    private static string? ReadString(IConfiguration configuration, params string[] names)
     {
         foreach (var name in names)
         {
-            if (TryGetProperty(element, name, out var property) && property.ValueKind == JsonValueKind.String)
+            var value = configuration[name];
+            if (!string.IsNullOrWhiteSpace(value))
             {
-                var value = property.GetString();
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    return value.Trim();
-                }
+                return value.Trim();
             }
         }
 
         return null;
-    }
-
-    private static bool TryGetProperty(JsonElement element, string name, out JsonElement property)
-    {
-        foreach (var item in element.EnumerateObject())
-        {
-            if (item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            {
-                property = item.Value;
-                return true;
-            }
-        }
-
-        property = default;
-        return false;
     }
 
     private static string? ResolveConfiguredPath(string? path, string baseDirectory)
