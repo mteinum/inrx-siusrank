@@ -248,3 +248,7 @@ linux-x64
 ```bash
 dotnet test InrxToSiusRank/InrxToSiusRank.sln
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
