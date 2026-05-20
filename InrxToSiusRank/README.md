@@ -27,7 +27,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --ste
 Validate the generated `Groups` values against the SIUS Rank shooter group template:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --ovelse Fripistol --klasse Å --output NM50FRI_APEN_import.csv --shooter-groups-template path/to/ShooterGroupsTemplate.xml
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --ovelse Fripistol --klasse Å --output NM50FRI_APEN_import.csv --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
 Copy the same import data directly to the clipboard:
@@ -45,13 +45,13 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --ste
 Create one import file per KM/NM class for one event:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --all-classes --output-dir siusrank-import --include-club-team --shooter-groups-template path/to/ShooterGroupsTemplate.xml
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --all-classes --output-dir siusrank-import --include-club-team --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
 Create one import file per KM/NM class for several events:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-ids 405-411 --all-classes --output-dir siusrank-import --include-club-team --shooter-groups-template path/to/ShooterGroupsTemplate.xml
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-ids 405-411 --all-classes --output-dir siusrank-import --include-club-team --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
 `--stevne-ids` accepts comma-separated ids and ranges, for example `405,406,407` or `405-411`. If `--ovelse`/`--ovelse-id` is omitted in bulk mode, the program uses the only exercise on each selected `Stevne`; if a `Stevne` has multiple exercises, it asks you to specify the exercise.
@@ -64,6 +64,17 @@ This creates a SIUS Rank import file with:
 - Starters filtered by inrX `KM/NM` class (`Resultat.MklasseId1`).
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
 - `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` all preserve inrX `Resultat.Id`.
+
+## SIUS Rank templates
+
+The repository includes the SIUS Rank templates used for NM Pistol:
+
+```text
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
+```
+
+Both XML files are copied to the `Templates/` directory in `dotnet publish` output.
 
 ## Windows executable
 

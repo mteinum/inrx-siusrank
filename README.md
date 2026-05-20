@@ -105,7 +105,14 @@ Eksempel på filer som blir laget:
 
 ## Valider shooter groups
 
-Hvis du har SIUS Rank sin `ShooterGroupsTemplate.xml`, kan du validere at `Groups`-verdiene i eksporten finnes i SIUS Rank-oppsettet:
+Repoet inneholder SIUS Rank-malene:
+
+```text
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
+```
+
+`ShooterGroupsTemplate.xml` kan brukes til å validere at `Groups`-verdiene i eksporten finnes i SIUS Rank-oppsettet:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -114,10 +121,12 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --all-classes \
   --output-dir siusrank-import \
   --include-club-team \
-  --shooter-groups-template path/to/ShooterGroupsTemplate.xml
+  --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
 Dette endrer ikke eksporten. Det stopper bare kjøringen hvis en `Groups`-verdi ikke finnes i templatefilen.
+
+Ved `dotnet publish` blir begge XML-malene kopiert til `Templates/` ved siden av den publiserte exe-filen.
 
 ## Bygg Windows exe
 
