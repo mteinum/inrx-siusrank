@@ -1,3 +1,5 @@
+using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Globalization;
 
 namespace InrxToSiusRank;
@@ -28,57 +30,19 @@ public sealed record AppOptions(
             args = args.Skip(1).Prepend("--wizard").ToArray();
         }
 
-        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        for (var i = 0; i < args.Count; i++)
+        var cli = AppCommandLine.Create();
+        var parseResult = cli.RootCommand.Parse(args.ToArray());
+        if (parseResult.Errors.Count > 0)
         {
-            var token = args[i];
-            if (!token.StartsWith("--", StringComparison.Ordinal))
-            {
-                throw new ArgumentException($"Unexpected argument '{token}'.");
-            }
-
-            var nameAndValue = token[2..].Split('=', 2);
-            var name = nameAndValue[0];
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                throw new ArgumentException("Empty option name.");
-            }
-
-            if (name.Equals("all-classes", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("include-club-team", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("clipboard", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("copy-to-clipboard", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("wizard", StringComparison.OrdinalIgnoreCase))
-            {
-                flags.Add(name);
-                continue;
-            }
-
-            string value;
-            if (nameAndValue.Length == 2)
-            {
-                value = nameAndValue[1];
-            }
-            else
-            {
-                if (i + 1 >= args.Count || args[i + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    throw new ArgumentException($"Option '--{name}' requires a value.");
-                }
-
-                value = args[++i];
-            }
-
-            values[name] = value;
+            throw new ArgumentException(
+                string.Join(Environment.NewLine, parseResult.Errors.Select(error => error.Message)));
         }
 
-        values.TryGetValue("settings", out var settingsPath);
+        var settingsPath = parseResult.GetValue(cli.SettingsOption);
         var settings = AppSettings.Load(settingsPath);
 
-        var databasePath = values.TryGetValue("db", out var configuredDatabasePath) &&
-                           !string.IsNullOrWhiteSpace(configuredDatabasePath)
+        var configuredDatabasePath = parseResult.GetValue(cli.DatabaseOption);
+        var databasePath = !string.IsNullOrWhiteSpace(configuredDatabasePath)
             ? configuredDatabasePath
             : settings.ResolveDatabasePath();
         if (!File.Exists(databasePath))
@@ -88,7 +52,7 @@ public sealed record AppOptions(
                 "Use --db or configure Paths:Inrx/Paths:Database in appsettings.json.");
         }
 
-        if (flags.Contains("wizard"))
+        if (parseResult.GetValue(cli.WizardOption))
         {
             return new AppOptions(
                 databasePath,
@@ -100,7 +64,7 @@ public sealed record AppOptions(
                 OvelseName: null,
                 KmNmClass: null,
                 SiusGroupOverride: null,
-                ShooterGroupsTemplatePath: ResolveShooterGroupsTemplatePath(values, settings),
+                ShooterGroupsTemplatePath: ResolveShooterGroupsTemplatePath(parseResult, cli, settings),
                 OutputDirectory: null,
                 OutputPath: null,
                 CopyToClipboard: false,
@@ -110,14 +74,15 @@ public sealed record AppOptions(
                 Wizard: true);
         }
 
-        var stevneId = ParseNullableInt(values, "stevne-id");
-        var stevneIds = values.TryGetValue("stevne-ids", out var stevneIdsValue)
+        var stevneId = ParseNullableInt(parseResult.GetValue(cli.StevneIdOption), "stevne-id");
+        var stevneIdsValue = parseResult.GetValue(cli.StevneIdsOption);
+        var stevneIds = !string.IsNullOrWhiteSpace(stevneIdsValue)
             ? ParseIdList(stevneIdsValue, "stevne-ids")
             : [];
-        var eventDate = ParseNullableDate(values, "event-date");
-        values.TryGetValue("event-name", out var eventName);
+        var eventDate = ParseNullableDate(parseResult.GetValue(cli.EventDateOption), "event-date");
+        var eventName = parseResult.GetValue(cli.EventNameOption);
 
-        var allClasses = flags.Contains("all-classes");
+        var allClasses = parseResult.GetValue(cli.AllClassesOption);
         if (stevneId is null && stevneIds.Count == 0 && eventDate is null)
         {
             throw new ArgumentException("Use --stevne-id, --stevne-ids, or --event-date to select an event.");
@@ -138,19 +103,14 @@ public sealed record AppOptions(
             throw new ArgumentException("Use either --stevne-ids or --event-date, not both.");
         }
 
-        var ovelseId = ParseNullableInt(values, "ovelse-id");
-        values.TryGetValue("ovelse", out var ovelseName);
+        var ovelseId = ParseNullableInt(parseResult.GetValue(cli.OvelseIdOption), "ovelse-id");
+        var ovelseName = parseResult.GetValue(cli.OvelseNameOption);
         if (!allClasses && ovelseId is null && string.IsNullOrWhiteSpace(ovelseName))
         {
             throw new ArgumentException("Use --ovelse or --ovelse-id to select an exercise.");
         }
 
-        values.TryGetValue("km-nm-klasse", out var kmNmClass);
-        if (string.IsNullOrWhiteSpace(kmNmClass))
-        {
-            values.TryGetValue("klasse", out kmNmClass);
-        }
-
+        var kmNmClass = parseResult.GetValue(cli.KmNmClassOption);
         if (!allClasses && string.IsNullOrWhiteSpace(kmNmClass))
         {
             throw new ArgumentException("Use --klasse, --km-nm-klasse, or --all-classes.");
@@ -161,7 +121,7 @@ public sealed record AppOptions(
             throw new ArgumentException("Do not use --klasse together with --all-classes.");
         }
 
-        values.TryGetValue("sius-group", out var siusGroupOverride);
+        var siusGroupOverride = parseResult.GetValue(cli.SiusGroupOption);
         var normalizedGroupOverride = string.IsNullOrWhiteSpace(siusGroupOverride)
             ? null
             : siusGroupOverride.Trim();
@@ -170,11 +130,11 @@ public sealed record AppOptions(
             throw new ArgumentException("Do not use --sius-group together with --all-classes.");
         }
 
-        var shooterGroupsTemplatePath = ResolveShooterGroupsTemplatePath(values, settings);
+        var shooterGroupsTemplatePath = ResolveShooterGroupsTemplatePath(parseResult, cli, settings);
 
-        values.TryGetValue("output", out var outputPath);
-        values.TryGetValue("output-dir", out var outputDirectory);
-        var copyToClipboard = flags.Contains("clipboard") || flags.Contains("copy-to-clipboard");
+        var outputPath = parseResult.GetValue(cli.OutputOption);
+        var outputDirectory = parseResult.GetValue(cli.OutputDirectoryOption);
+        var copyToClipboard = parseResult.GetValue(cli.ClipboardOption);
         if (allClasses)
         {
             if (string.IsNullOrWhiteSpace(outputDirectory))
@@ -192,7 +152,8 @@ public sealed record AppOptions(
             throw new ArgumentException("Use --output, --clipboard, or both.");
         }
 
-        var encodingName = values.TryGetValue("encoding", out var encoding)
+        var encoding = parseResult.GetValue(cli.EncodingOption);
+        var encodingName = !string.IsNullOrWhiteSpace(encoding)
             ? CsvEncoding.NormalizeName(encoding)
             : CsvEncoding.Utf8Bom;
 
@@ -211,20 +172,17 @@ public sealed record AppOptions(
             string.IsNullOrWhiteSpace(outputPath) ? null : outputPath,
             copyToClipboard,
             encodingName,
-            flags.Contains("include-club-team"),
+            parseResult.GetValue(cli.IncludeClubTeamOption),
             allClasses,
             Wizard: false);
     }
 
     private static string? ResolveShooterGroupsTemplatePath(
-        IReadOnlyDictionary<string, string> values,
+        ParseResult parseResult,
+        AppCommandLine cli,
         AppSettings settings)
     {
-        values.TryGetValue("shooter-groups-template", out var shooterGroupsTemplatePath);
-        if (string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
-        {
-            values.TryGetValue("shooter-groups", out shooterGroupsTemplatePath);
-        }
+        var shooterGroupsTemplatePath = parseResult.GetValue(cli.ShooterGroupsTemplateOption);
 
         if (string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
         {
@@ -242,9 +200,9 @@ public sealed record AppOptions(
         return shooterGroupsTemplatePath;
     }
 
-    private static int? ParseNullableInt(IReadOnlyDictionary<string, string> values, string name)
+    private static int? ParseNullableInt(string? value, string name)
     {
-        if (!values.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
@@ -257,9 +215,9 @@ public sealed record AppOptions(
         return parsed;
     }
 
-    private static DateOnly? ParseNullableDate(IReadOnlyDictionary<string, string> values, string name)
+    private static DateOnly? ParseNullableDate(string? value, string name)
     {
-        if (!values.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
@@ -300,6 +258,147 @@ public sealed record AppOptions(
         }
 
         return ids.Distinct().ToList();
+    }
+
+    private sealed record AppCommandLine(
+        RootCommand RootCommand,
+        Option<string?> SettingsOption,
+        Option<string?> DatabaseOption,
+        Option<bool> WizardOption,
+        Option<string?> EventDateOption,
+        Option<string?> EventNameOption,
+        Option<string?> StevneIdOption,
+        Option<string?> StevneIdsOption,
+        Option<string?> OvelseIdOption,
+        Option<string?> OvelseNameOption,
+        Option<string?> KmNmClassOption,
+        Option<bool> AllClassesOption,
+        Option<string?> OutputOption,
+        Option<string?> OutputDirectoryOption,
+        Option<string?> SiusGroupOption,
+        Option<string?> ShooterGroupsTemplateOption,
+        Option<bool> ClipboardOption,
+        Option<string?> EncodingOption,
+        Option<bool> IncludeClubTeamOption)
+    {
+        public static AppCommandLine Create()
+        {
+            var settingsOption = new Option<string?>("--settings")
+            {
+                Description = "Path to appsettings.json."
+            };
+            var databaseOption = new Option<string?>("--db")
+            {
+                Description = "Path to storage.db3. Overrides appsettings."
+            };
+            var wizardOption = new Option<bool>("--wizard")
+            {
+                Description = "Start interactive Spectre.Console wizard."
+            };
+            var eventDateOption = new Option<string?>("--event-date")
+            {
+                Description = "Select event by date."
+            };
+            var eventNameOption = new Option<string?>("--event-name")
+            {
+                Description = "Select event by name text together with --event-date."
+            };
+            var stevneIdOption = new Option<string?>("--stevne-id")
+            {
+                Description = "inrX Stevne.Id."
+            };
+            var stevneIdsOption = new Option<string?>("--stevne-ids")
+            {
+                Description = "Bulk select stevner, for example 405,406,407 or 405-411."
+            };
+            var ovelseIdOption = new Option<string?>("--ovelse-id")
+            {
+                Description = "Select by OvelseDef.Id."
+            };
+            var ovelseNameOption = new Option<string?>("--ovelse")
+            {
+                Description = "Exercise name, for example Fripistol."
+            };
+            var kmNmClassOption = new Option<string?>("--klasse", "--km-nm-klasse")
+            {
+                Description = "Filter by inrX KM/NM class, for example Å, V55, V65."
+            };
+            var allClassesOption = new Option<bool>("--all-classes")
+            {
+                Description = "Export one file per KM/NM class."
+            };
+            var outputOption = new Option<string?>("--output")
+            {
+                Description = "Output CSV path. Optional when --clipboard is used."
+            };
+            var outputDirectoryOption = new Option<string?>("--output-dir")
+            {
+                Description = "Output directory for --all-classes."
+            };
+            var siusGroupOption = new Option<string?>("--sius-group")
+            {
+                Description = "Override SIUS Rank Groups value."
+            };
+            var shooterGroupsTemplateOption = new Option<string?>("--shooter-groups-template", "--shooter-groups")
+            {
+                Description = "Validate Groups against SIUS Rank ShooterGroupsTemplate.xml."
+            };
+            var clipboardOption = new Option<bool>("--clipboard", "--copy-to-clipboard")
+            {
+                Description = "Copy import data to clipboard."
+            };
+            var encodingOption = new Option<string?>("--encoding")
+            {
+                Description = "Output encoding. Default: utf8-bom."
+            };
+            var includeClubTeamOption = new Option<bool>("--include-club-team")
+            {
+                Description = "Fill Team and TeamDisplay from club name."
+            };
+
+            var rootCommand = new RootCommand("Export SIUS Rank starter import CSV from an inrX SQLite database.")
+            {
+                settingsOption,
+                databaseOption,
+                wizardOption,
+                eventDateOption,
+                eventNameOption,
+                stevneIdOption,
+                stevneIdsOption,
+                ovelseIdOption,
+                ovelseNameOption,
+                kmNmClassOption,
+                allClassesOption,
+                outputOption,
+                outputDirectoryOption,
+                siusGroupOption,
+                shooterGroupsTemplateOption,
+                clipboardOption,
+                encodingOption,
+                includeClubTeamOption
+            };
+
+            return new AppCommandLine(
+                rootCommand,
+                settingsOption,
+                databaseOption,
+                wizardOption,
+                eventDateOption,
+                eventNameOption,
+                stevneIdOption,
+                stevneIdsOption,
+                ovelseIdOption,
+                ovelseNameOption,
+                kmNmClassOption,
+                allClassesOption,
+                outputOption,
+                outputDirectoryOption,
+                siusGroupOption,
+                shooterGroupsTemplateOption,
+                clipboardOption,
+                encodingOption,
+                includeClubTeamOption);
+        }
     }
 }
 

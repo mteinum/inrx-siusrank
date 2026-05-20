@@ -96,6 +96,27 @@ public sealed class AppOptionsTests
     }
 
     [Fact]
+    public void Command_line_aliases_are_supported()
+    {
+        using var db = TempDatabaseFile.Create();
+        using var template = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "405",
+            "--ovelse", "Fripistol",
+            "--km-nm-klasse", "Å",
+            "--copy-to-clipboard",
+            "--shooter-groups", template.Path
+        ]);
+
+        Assert.Equal("Å", options.KmNmClass);
+        Assert.True(options.CopyToClipboard);
+        Assert.Equal(template.Path, options.ShooterGroupsTemplatePath);
+    }
+
+    [Fact]
     public void Database_path_can_be_resolved_from_appsettings_inrx_path()
     {
         using var directory = TempDirectory.Create();
