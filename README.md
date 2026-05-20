@@ -1,43 +1,46 @@
 # teinum-inrx-siusrank
 
-CLI-verktøy for å lage SIUS Rank starter-importfiler fra en inrX `storage.db3` SQLite-database.
+[![Build and test](https://github.com/mteinum/inrx-siusrank/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mteinum/inrx-siusrank/actions/workflows/ci.yml)
+[![Build and release](https://github.com/mteinum/inrx-siusrank/actions/workflows/release.yml/badge.svg)](https://github.com/mteinum/inrx-siusrank/actions/workflows/release.yml)
 
-Programmet leser påmeldinger/startdata fra inrX og skriver CSV-filer som kan brukes i SIUS Rank via:
+CLI tool for creating SIUS Rank starter import files from an inrX `storage.db3` SQLite database.
+
+The program reads registrations and starter data from inrX and writes CSV files that can be imported into SIUS Rank with:
 
 - `Update starters from file`
 - `Update starters from clipboard`
 
-Verktøyet lager ikke en egen SIUS Data-startliste. SIUS Rank lager SIUS Data-startlisten videre fra importerte startere.
+The tool does not create a separate SIUS Data start list. SIUS Rank creates the SIUS Data start list from the imported starters.
 
-## Hva eksporteres
+## Export Format
 
-CSV-en følger SIUS Rank sitt starter-importformat, samme type header som `SiusRank_importExample.csv`:
+The CSV uses the SIUS Rank starter import format, with the same header style as `SiusRank_importExample.csv`:
 
 ```text
 StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Name;BirthDay;Gender;Nation;BibNumber;TargetNumber;Relay;TeamIndex;DuellIndex;Groups;Comment;StarterId;TeamPosition;Team;TeamDisplay;TeamDuellIndex;TeamComment
 ```
 
-Viktige mappinger:
+Important mappings:
 
-- `StartNumber`, `AccreditationNumber`, `BibNumber` og `StarterId` settes til inrX `Resultat.Id`.
-- KM/NM-klasse hentes fra `Resultat.MklasseId1`.
-- `Groups` settes fra KM/NM-klasse, for eksempel `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
-- `Team` og `TeamDisplay` kan fylles med klubbkortnavn med `--include-club-team`.
-- Navn beholdes i full lengde slik de vises i SIUS Rank.
+- `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` are set to inrX `Resultat.Id`.
+- KM/NM class is read from `Resultat.MklasseId1`.
+- `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
+- `Team` and `TeamDisplay` can be filled with the club short name by using `--include-club-team`.
+- Names are kept at full length as shown in SIUS Rank.
 
-## Kjør interaktivt
+## Interactive Run
 
-Fra repo-roten:
+From the repository root:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard --db storage.db3
 ```
 
-Wizard lar deg velge stevne, øvelse, KM/NM-klasse og om data skal til fil, clipboard eller begge deler.
+The wizard lets you select the event, exercise, KM/NM class, and whether the import data should be written to a file, copied to the clipboard, or both.
 
-## Lag én importfil
+## Create One Import File
 
-Eksempel for Fripistol, KM/NM klasse `Å`:
+Example for Fripistol, KM/NM class `Å`:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -49,7 +52,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --include-club-team
 ```
 
-Til clipboard i stedet for fil:
+Copy to clipboard instead of writing a file:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -61,9 +64,9 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --include-club-team
 ```
 
-## Lag importfiler for alle klasser
+## Create Import Files For All Classes
 
-Én fil per KM/NM-klasse for ett stevne:
+One file per KM/NM class for one event:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -74,7 +77,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --include-club-team
 ```
 
-Én fil per KM/NM-klasse for flere stevner:
+One file per KM/NM class for several events:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -85,7 +88,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --include-club-team
 ```
 
-`--stevne-ids` støtter både lister og intervaller:
+`--stevne-ids` supports both comma-separated ids and ranges:
 
 ```text
 405,406,407
@@ -93,7 +96,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 405-407,409,411
 ```
 
-Eksempel på filer som blir laget:
+Example output files:
 
 ```text
 20260706_Fri_Apen.csv
@@ -103,22 +106,22 @@ Eksempel på filer som blir laget:
 20260706_Fri_SH1-P4.csv
 ```
 
-## Valider shooter groups
+## Validate Shooter Groups
 
-Repoet inneholder SIUS Rank-malene:
+The repository includes the SIUS Rank templates:
 
 ```text
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
 ```
 
-Standardplassering i en SIUS Rank-installasjon på Windows er:
+The standard location in a SIUS Rank Windows installation is:
 
 ```text
 C:\SIUS\SiusRank\Resources\Templates
 ```
 
-`ShooterGroupsTemplate.xml` kan brukes til å validere at `Groups`-verdiene i eksporten finnes i SIUS Rank-oppsettet:
+`ShooterGroupsTemplate.xml` can be used to validate that the exported `Groups` values exist in the SIUS Rank setup:
 
 ```bash
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
@@ -130,14 +133,14 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
-Dette endrer ikke eksporten. Det stopper bare kjøringen hvis en `Groups`-verdi ikke finnes i templatefilen.
+This does not change the export. It only stops the run if a `Groups` value is not found in the template file.
 
-Ved `dotnet publish` blir begge XML-malene kopiert til `Templates/` ved siden av den publiserte exe-filen.
-For bruk i SIUS Rank kan filene kopieres til `C:\SIUS\SiusRank\Resources\Templates`.
+Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`.
+For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 
-## Bygg Windows exe
+## Build Windows Exe
 
-Lag en selvstendig Windows-kjørbar fil:
+Create a self-contained Windows executable:
 
 ```bash
 dotnet publish InrxToSiusRank/src/InrxToSiusRank/InrxToSiusRank.csproj \
@@ -147,42 +150,42 @@ dotnet publish InrxToSiusRank/src/InrxToSiusRank/InrxToSiusRank.csproj \
   /p:PublishSingleFile=true
 ```
 
-Exe-filen havner her:
+The executable is written to:
 
 ```text
 InrxToSiusRank/src/InrxToSiusRank/bin/Release/net8.0/win-x64/publish/InrxToSiusRank.exe
 ```
 
-På Windows:
+On Windows:
 
 ```powershell
 .\InrxToSiusRank.exe --wizard --db .\storage.db3
 ```
 
-Bulk-eksport på Windows:
+Bulk export on Windows:
 
 ```powershell
 .\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --all-classes --output-dir .\siusrank-import --include-club-team
 ```
 
-## Lag GitHub Release
+## Create GitHub Release
 
-Workflowen `.github/workflows/release.yml` kan kjøres manuelt fra GitHub Actions med en versjon, for eksempel `v0.1.0`.
+The `.github/workflows/release.yml` workflow can be run manually from GitHub Actions with a version, for example `v0.1.0`.
 
-Med GitHub CLI:
+Using GitHub CLI:
 
 ```bash
 gh workflow run release.yml -f version=v0.1.0
 ```
 
-Du kan også lage release ved å pushe en tag:
+You can also create a release by pushing a tag:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Workflowen kjører tester, bygger self-contained single-file binaries og publiserer release-assets for:
+The workflow runs tests, builds self-contained single-file binaries, and publishes release assets for:
 
 ```text
 win-x64
@@ -191,27 +194,27 @@ osx-arm64
 linux-x64
 ```
 
-## Viktige valg
+## Options
 
 ```text
 --db <path>                         Path to storage.db3.
---wizard                            Start interaktiv wizard.
---stevne-id <id>                    Velg ett Stevne.Id.
---stevne-ids <ids>                  Velg flere stevner, f.eks. 405,406 eller 405-411.
---event-date <yyyy-MM-dd>           Velg stevne etter dato.
---event-name <text>                 Filtrer stevne etter navn sammen med --event-date.
---ovelse <name>                     Velg øvelse, f.eks. Fripistol.
---ovelse-id <id>                    Velg OvelseDef.Id.
---klasse <value>                    Velg KM/NM-klasse, f.eks. Å, V55, V65.
---km-nm-klasse <value>              Samme som --klasse.
---all-classes                       Lag én fil per KM/NM-klasse.
---output <path>                     Fil for vanlig eksport.
---output-dir <path>                 Mappe for --all-classes.
---clipboard                         Kopier importdata til clipboard.
---copy-to-clipboard                 Samme som --clipboard.
---include-club-team                 Fyll Team og TeamDisplay med klubbkortnavn.
---sius-group <value>                Overstyr Groups for vanlig eksport.
---shooter-groups-template <path>    Valider Groups mot SIUS Rank-template.
+--wizard                            Start interactive wizard.
+--stevne-id <id>                    Select one Stevne.Id.
+--stevne-ids <ids>                  Select several events, for example 405,406 or 405-411.
+--event-date <yyyy-MM-dd>           Select event by date.
+--event-name <text>                 Filter event by name together with --event-date.
+--ovelse <name>                     Select exercise, for example Fripistol.
+--ovelse-id <id>                    Select OvelseDef.Id.
+--klasse <value>                    Select KM/NM class, for example Å, V55, V65.
+--km-nm-klasse <value>              Same as --klasse.
+--all-classes                       Create one file per KM/NM class.
+--output <path>                     File path for normal export.
+--output-dir <path>                 Directory for --all-classes.
+--clipboard                         Copy import data to clipboard.
+--copy-to-clipboard                 Same as --clipboard.
+--include-club-team                 Fill Team and TeamDisplay with club short name.
+--sius-group <value>                Override Groups for normal export.
+--shooter-groups-template <path>    Validate Groups against SIUS Rank template.
 --encoding <utf8-bom|windows-1252>  Encoding. Default: utf8-bom.
 ```
 
