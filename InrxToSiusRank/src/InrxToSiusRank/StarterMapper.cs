@@ -4,9 +4,14 @@ namespace InrxToSiusRank;
 
 public static class StarterMapper
 {
-    public static SiusRankStarter Map(InrxStarter starter, string? siusGroupOverride, bool includeClubTeam)
+    public static SiusRankStarter Map(
+        InrxStarter starter,
+        string? siusGroupOverride,
+        bool includeClubTeam,
+        string? bibNumberOverride = null)
     {
         var startNumber = starter.ResultatId.ToString(CultureInfo.InvariantCulture);
+        var bibNumber = FirstNonEmpty(bibNumberOverride ?? string.Empty, startNumber);
         var targetNumber = ResolveTargetNumber(starter);
         var relay = starter.Relay.GetValueOrDefault(1).ToString(CultureInfo.InvariantCulture);
         var lastName = starter.LastName.Trim();
@@ -31,7 +36,7 @@ public static class StarterMapper
             BirthDay: NormalizeBirthDate(starter.BirthDay),
             Gender: NormalizeGender(starter.Gender),
             Nation: NormalizeNationForExport(starter.Land),
-            BibNumber: startNumber,
+            BibNumber: bibNumber,
             TargetNumber: targetNumber,
             Relay: relay,
             TeamIndex: "1",

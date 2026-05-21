@@ -18,21 +18,31 @@ public static class BulkExportRunner
         var outputDirectory = Path.GetFullPath(options.OutputDirectory);
         Directory.CreateDirectory(outputDirectory);
 
-        var results = new List<BulkExportFileResult>();
-        foreach (var stevne in stevner)
-        {
-            var ovelse = ResolveOvelse(repository, options, stevne);
-            var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
-            if (rawStarters.Count == 0)
+        var eventExports = stevner
+            .Select(stevne =>
             {
-                throw new InvalidOperationException(
-                    $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
-            }
+                var ovelse = ResolveOvelse(repository, options, stevne);
+                var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
+                if (rawStarters.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
+                }
 
-            var classes = repository.GetKmNmClasses(stevne.Id, ovelse.Id);
+                return new EventExport(stevne, ovelse, rawStarters);
+            })
+            .ToList();
+        var championshipBibNumbers = options.StevneIds.Count > 1
+            ? ChampionshipBibNumbers.Create(eventExports.SelectMany(item => item.Starters).ToList())
+            : new Dictionary<int, string>();
+
+        var results = new List<BulkExportFileResult>();
+        foreach (var eventExport in eventExports)
+        {
+            var classes = repository.GetKmNmClasses(eventExport.Stevne.Id, eventExport.Ovelse.Id);
             foreach (var kmNmClass in classes)
             {
-                var selectedStarters = rawStarters
+                var selectedStarters = eventExport.Starters
                     .Where(starter => KmNmClassMatcher.Matches(starter.KmNmClass, kmNmClass.Name))
                     .ToList();
                 if (selectedStarters.Count == 0)
@@ -41,18 +51,24 @@ public static class BulkExportRunner
                 }
 
                 var rows = selectedStarters
-                    .Select(starter => StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: true))
+                    .Select(starter => StarterMapper.Map(
+                        starter,
+                        siusGroupOverride: null,
+                        includeClubTeam: true,
+                        bibNumberOverride: championshipBibNumbers.GetValueOrDefault(starter.DeltakerId)))
                     .ToList();
 
                 ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);
 
                 var warnings = ExportValidator.Validate(rows).ToList();
-                var outputPath = Path.Combine(outputDirectory, OutputFileName.ForImport(stevne, ovelse, kmNmClass.Name));
+                var outputPath = Path.Combine(
+                    outputDirectory,
+                    OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, kmNmClass.Name));
                 SiusRankCsvWriter.Write(outputPath, rows, options.EncodingName);
 
                 results.Add(new BulkExportFileResult(
-                    stevne,
-                    ovelse,
+                    eventExport.Stevne,
+                    eventExport.Ovelse,
                     kmNmClass.Name,
                     rows.Count,
                     outputPath,
@@ -99,4 +115,9 @@ public static class BulkExportRunner
                 string.Join(", ", ovelser.Select(ovelse => $"{ovelse.Id}:{ovelse.Name}")))
         };
     }
+
+    private sealed record EventExport(
+        StevneInfo Stevne,
+        OvelseInfo Ovelse,
+        IReadOnlyList<InrxStarter> Starters);
 }

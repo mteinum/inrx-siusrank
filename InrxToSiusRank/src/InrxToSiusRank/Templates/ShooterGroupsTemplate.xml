@@ -327,4 +327,30 @@
         <EligibleForRecords>true</EligibleForRecords>
         <AddShortnameToRemarks>false</AddShortnameToRemarks>
     </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>Jr-NM</Name>
+        <Description>NM klasse Junior NM</Description>
+        <Index>110</Index>
+        <ShortName>Jr-NM</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>U-NM</Name>
+        <Description>NM klasse Ungdom NM</Description>
+        <Index>111</Index>
+        <ShortName>U-NM</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
 </Configuration>

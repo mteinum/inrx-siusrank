@@ -40,7 +40,7 @@ public sealed class ShooterGroupsTemplateTests
             }.All(groupNames.Contains));
 
         Assert.True(
-            new[] { "Apen", "Menn", "Kvinner", "Jr", "Jrm", "Jrk", "U", "V55", "V65", "V73" }
+            new[] { "Apen", "Menn", "Kvinner", "Jr", "Jr-NM", "Jrm", "Jrk", "U", "U-NM", "V55", "V65", "V73" }
                 .All(groupNames.Contains));
     }
 

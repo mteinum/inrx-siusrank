@@ -56,6 +56,23 @@ public sealed class SiusRankCsvWriterTests
     }
 
     [Fact]
+    public void Mapper_uses_bib_number_override_without_changing_start_identity()
+    {
+        var starter = CreateStarter(resultatId: 7270, accreditationNumber: "SIUS-7270");
+
+        var row = StarterMapper.Map(
+            starter,
+            siusGroupOverride: null,
+            includeClubTeam: false,
+            bibNumberOverride: "42");
+
+        Assert.Equal("7270", row.StartNumber);
+        Assert.Equal("7270", row.StarterId);
+        Assert.Equal("SIUS-7270", row.AccreditationNumber);
+        Assert.Equal("42", row.BibNumber);
+    }
+
+    [Fact]
     public void Mapper_uses_explicit_sius_group_without_normalizing()
     {
         var starter = CreateStarter(resultatId: 7270);
@@ -87,6 +104,7 @@ public sealed class SiusRankCsvWriterTests
         string clubName = "Kristiansand Pistolskyttere") =>
         new(
             ResultatId: resultatId,
+            DeltakerId: 100,
             Standplass: standplass,
             SkivenrFra: string.Empty,
             SkivenrTil: string.Empty,

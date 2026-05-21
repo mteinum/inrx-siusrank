@@ -320,6 +320,7 @@ public sealed record BulkExportResult(
 
 public sealed record InrxStarter(
     int ResultatId,
+    int DeltakerId,
     int Standplass,
     string SkivenrFra,
     string SkivenrTil,

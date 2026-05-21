@@ -232,6 +232,7 @@ public sealed class InrxRepository : IDisposable
             """
             SELECT
                 r.Id              AS StartNumber,
+                d.Id              AS DeltakerId,
                 r.standplass      AS TargetNumber,
                 r.skivenrFra      AS SkiveFra,
                 r.skivenrTil      AS SkiveTil,
@@ -276,6 +277,7 @@ public sealed class InrxRepository : IDisposable
         {
             starters.Add(new InrxStarter(
                 ResultatId: GetInt(reader, "StartNumber"),
+                DeltakerId: GetInt(reader, "DeltakerId"),
                 Standplass: GetInt(reader, "TargetNumber"),
                 SkivenrFra: GetString(reader, "SkiveFra"),
                 SkivenrTil: GetString(reader, "SkiveTil"),

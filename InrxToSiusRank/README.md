@@ -79,7 +79,7 @@ This creates SIUS Rank import files with:
 - One output file per inrX `KM/NM` class (`Resultat.MklasseId1`).
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
 - Output file names use SIUS Rank event codes, for example `FP`, `STP`, `SPM`, `SPW`, `SPSH1`, `CFP`, `SPRF`, and `CFPRF`. Finpistol women and junior women use `SPW`, Finpistol SH1 uses `SPSH1`, and other Finpistol classes use `SPM`. Silhuett open class uses `RFP` because it has a final; the other Silhuett classes use `RFP_NF`.
-- `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` all preserve inrX `Resultat.Id`.
+- `StartNumber` and `StarterId` preserve inrX `Resultat.Id`; `AccreditationNumber` keeps the existing membership-number fallback behavior. For multi-event exports selected with `--stevne-ids`, `BibNumber` is a shared championship number per `Deltaker.Id`; single-event exports keep `BibNumber` as `Resultat.Id`.
 - `Team` and `TeamDisplay` are filled with the club short name.
 
 ## SIUS Rank templates

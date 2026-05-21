@@ -44,7 +44,7 @@ StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Nam
 
 Important mappings:
 
-- `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` are set to inrX `Resultat.Id`.
+- `StartNumber` and `StarterId` are set to inrX `Resultat.Id`; `AccreditationNumber` keeps the existing membership-number fallback behavior. For multi-event exports selected with `--stevne-ids`, `BibNumber` is a shared championship number per `Deltaker.Id`; single-event exports keep `BibNumber` as `Resultat.Id`.
 - KM/NM class is read from `Resultat.MklasseId1`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
 - `Team` and `TeamDisplay` are filled with the club short name.
