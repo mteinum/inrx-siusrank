@@ -86,7 +86,11 @@ public static class OutputFileName
 
     private static string SilhouetteSuffix(string classSuffix)
     {
-        return classSuffix.Equals("Apen", StringComparison.OrdinalIgnoreCase) ? "RFP" : "RFP_NF";
+        var group = GroupNormalizer.Normalize(classSuffix);
+        return group.Equals("Apen", StringComparison.OrdinalIgnoreCase) ||
+               group.Equals("Jr-NM", StringComparison.OrdinalIgnoreCase)
+            ? "RFP"
+            : "RFP_NF";
     }
 
     private static string FreePistolSuffix(string classSuffix)

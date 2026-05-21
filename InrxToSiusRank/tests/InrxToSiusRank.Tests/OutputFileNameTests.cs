@@ -42,8 +42,9 @@ public sealed class OutputFileNameTests
     [Theory]
     [InlineData("Å", "20260711_RFP_Apen.csv")]
     [InlineData("Apen", "20260711_RFP_Apen.csv")]
+    [InlineData("Jr-NM", "20260711_RFP_Jr-NM.csv")]
     [InlineData("V55", "20260711_RFP_NF_V55.csv")]
-    public void Uses_final_silhouette_event_code_for_open_class_only(string kmNmClass, string expected)
+    public void Uses_final_silhouette_event_code_for_open_and_junior_classes(string kmNmClass, string expected)
     {
         var fileName = OutputFileName.ForImport(
             CreateStevne(),

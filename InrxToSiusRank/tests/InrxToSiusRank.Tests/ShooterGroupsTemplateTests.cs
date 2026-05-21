@@ -82,6 +82,7 @@ public sealed class ShooterGroupsTemplateTests
     [InlineData("FP_V73", "50m Fripistol V73", "V73")]
     [InlineData("FP_P4X_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1")]
     [InlineData("SPSH1_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1")]
+    [InlineData("RFP_Jr-NM", "25m Silhuettpistol Jr-NM", "Jr-NM")]
     [InlineData("RFP_NF_V55", "25m Silhuettpistol V55", "V55")]
     [InlineData("STP_M", "25m Standardpistol M", "Menn")]
     [InlineData("SPRF_K", "25m Hurtigpistol Fin K", "Kvinner")]
@@ -120,6 +121,23 @@ public sealed class ShooterGroupsTemplateTests
         Assert.All(phases, phase => Assert.Equal(
             "KeepTheSame",
             phase.BibNumberAssignment));
+    }
+
+    [Fact]
+    public void Embedded_shoot_events_give_silhouette_junior_a_final()
+    {
+        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
+        var shootEvent = document.Root!
+            .Elements("ShootEventConfiguration")
+            .Single(element => element.Element("EventCode")!.Value == "RFP_Jr-NM");
+        var phases = shootEvent
+            .Element("PhaseConfigurations")!
+            .Elements("PhaseConfiguration")
+            .Select(phase => phase.Element("PhaseName")!.Value)
+            .ToArray();
+
+        Assert.Contains("Final", phases);
+        Assert.Equal("8", shootEvent.Element("NumberOfFinalists")!.Value);
     }
 
     private static string TemplatesDirectory()
