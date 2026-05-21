@@ -56,29 +56,9 @@ public static class WizardRunner
 
         WriteClassTable(classes);
 
-        var selectedClass = AnsiConsole.Prompt(
-            new SelectionPrompt<KmNmClassSummary>()
-                .Title("Velg [green]KM/NM-klasse[/]")
-                .PageSize(12)
-                .EnableSearch()
-                .UseConverter(FormatClass)
-                .AddChoices(classes));
-
-        var destination = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Velg [green]importmåte[/]")
-                .AddChoices("File", "Clipboard", "Both"));
-
-        var outputPath = NeedsFile(destination)
-            ? AnsiConsole.Prompt(
-            new TextPrompt<string>("Output-fil:")
-                    .DefaultValue(OutputFileName.ForImport(stevne, ovelse, selectedClass)))
-            : null;
-
-        var includeTeam = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Fyll Team/TeamDisplay med klubb?")
-                .AddChoices("Yes", "No")) == "Yes";
+        var outputDirectory = AnsiConsole.Prompt(
+            new TextPrompt<string>("Output-katalog:")
+                .DefaultValue("siusrank-import"));
 
         var shooterGroupsPrompt = string.IsNullOrWhiteSpace(defaultShooterGroupsTemplatePath)
             ? "ShooterGroupsTemplate.xml for validering [grey](tom = ingen)[/]:"
@@ -96,13 +76,13 @@ public static class WizardRunner
         AnsiConsole.Write(new Panel(
                 $"Stevne: {Markup.Escape(stevne.Name)}\n" +
                 $"Øvelse: {Markup.Escape(ovelse.Name)}\n" +
-                $"KM/NM: {Markup.Escape(selectedClass.Name)} ({selectedClass.StarterCount} startere)\n" +
-                $"Import: {Markup.Escape(destination)}\n" +
+                $"KM/NM-klasser: {classes.Count}\n" +
+                $"Output-katalog: {Markup.Escape(outputDirectory)}\n" +
                 $"Shooter groups: {Markup.Escape(string.IsNullOrWhiteSpace(shooterGroupsTemplatePath) ? "ikke validert" : shooterGroupsTemplatePath)}")
             .Header("Oppsummering")
             .BorderColor(Color.Green));
 
-        if (!AnsiConsole.Confirm("Lage SIUS Rank importdata?", defaultValue: true))
+        if (!AnsiConsole.Confirm("Lage SIUS Rank importfiler?", defaultValue: true))
         {
             AnsiConsole.MarkupLine("[yellow]Avbrutt.[/]");
             return 1;
@@ -116,21 +96,15 @@ public static class WizardRunner
             EventName: null,
             OvelseId: ovelse.Id,
             OvelseName: null,
-            KmNmClass: selectedClass.Name,
-            SiusGroupOverride: null,
             ShooterGroupsTemplatePath: shooterGroupsTemplatePath,
-            OutputDirectory: null,
-            OutputPath: outputPath,
-            CopyToClipboard: NeedsClipboard(destination),
+            OutputDirectory: outputDirectory,
             EncodingName: CsvEncoding.Utf8Bom,
-            IncludeClubTeam: includeTeam,
-            AllClasses: false,
             Wizard: false);
 
-        var result = ExportRunner.Run(options);
+        var result = BulkExportRunner.Run(options);
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[green]SIUS Rank importdata opprettet.[/]");
-        Program.PrintResult(result);
+        AnsiConsole.MarkupLine("[green]SIUS Rank importfiler opprettet.[/]");
+        Program.PrintBulkResult(result);
         return 0;
     }
 
@@ -161,11 +135,4 @@ public static class WizardRunner
 
     private static string FormatOvelse(OvelseSummary ovelse) =>
         $"{Markup.Escape(ovelse.Name)} [grey](Id {ovelse.Id}, {ovelse.StarterCount} startere)[/]";
-
-    private static string FormatClass(KmNmClassSummary item) =>
-        $"{Markup.Escape(item.Name)} [grey]({item.StarterCount} startere, relays {Markup.Escape(item.Relays)})[/]";
-
-    private static bool NeedsFile(string destination) => destination is "File" or "Both";
-
-    private static bool NeedsClipboard(string destination) => destination is "Clipboard" or "Both";
 }

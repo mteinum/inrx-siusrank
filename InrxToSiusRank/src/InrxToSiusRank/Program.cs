@@ -23,14 +23,7 @@ public static class Program
                 return WizardRunner.Run(options.DatabasePath, options.ShooterGroupsTemplatePath);
             }
 
-            if (options.AllClasses)
-            {
-                PrintBulkResult(BulkExportRunner.Run(options));
-            }
-            else
-            {
-                PrintResult(ExportRunner.Run(options));
-            }
+            PrintBulkResult(BulkExportRunner.Run(options));
 
             return 0;
         }
@@ -55,37 +48,6 @@ public static class Program
         {
             Console.Error.WriteLine($"File error: {ex.Message}");
             return 1;
-        }
-    }
-
-    public static void PrintResult(ExportResult result)
-    {
-        Console.WriteLine("SIUS Rank import data created.");
-        Console.WriteLine($"Event: {result.Stevne.Name} ({result.Stevne.Date})");
-        Console.WriteLine($"Exercise: {result.Ovelse.Name} (OvelseDef.Id={result.Ovelse.Id})");
-        Console.WriteLine($"KM/NM class: {result.KmNmClass}");
-        Console.WriteLine(result.SiusGroupOverride is null
-            ? "SIUS group: from KM/NM class"
-            : $"SIUS group override: {result.SiusGroupOverride}");
-        if (result.ShooterGroupsTemplatePath is not null)
-        {
-            Console.WriteLine($"Shooter groups template: {Path.GetFullPath(result.ShooterGroupsTemplatePath)}");
-        }
-
-        Console.WriteLine($"Starters exported: {result.StarterCount}");
-        if (result.OutputPath is not null)
-        {
-            Console.WriteLine($"File: {Path.GetFullPath(result.OutputPath)}");
-        }
-
-        if (result.CopiedToClipboard)
-        {
-            Console.WriteLine("Clipboard: copied");
-        }
-
-        foreach (var warning in result.Warnings)
-        {
-            Console.WriteLine($"WARNING: {warning}");
         }
     }
 
@@ -116,21 +78,20 @@ internal static class Usage
 {
     public const string Text =
         """
-        InrxToSiusRank - export SIUS Rank starter import CSV from an inrX SQLite database.
+        InrxToSiusRank - export SIUS Rank starter import CSV files from an inrX SQLite database.
 
         Interactive:
           InrxToSiusRank --wizard
           InrxToSiusRank wizard
 
         Required for direct export:
-          --stevne-id <id>                    inrX Stevne.Id. Use this or --event-date/--event-name.
-          --ovelse <name>                     Exercise name, for example Fripistol. Use this or --ovelse-id.
-          --output <path>                     Output CSV path. Optional when --clipboard is used.
+          --stevne-id <id>                    inrX Stevne.Id. Use this, --stevne-ids, or --event-date/--event-name.
+          --output-dir <path>                 Directory for generated CSV files.
 
         Common examples:
-          InrxToSiusRank --db storage.db3 --stevne-id 405 --ovelse Fripistol --klasse Å --output NM50FRI_APEN_import.csv
-          InrxToSiusRank --db storage.db3 --stevne-id 405 --ovelse Fripistol --klasse Å --clipboard
-          InrxToSiusRank --db storage.db3 --stevne-ids 405-411 --all-classes --output-dir siusrank-import
+          InrxToSiusRank --db storage.db3 --stevne-id 405 --output-dir siusrank-import
+          InrxToSiusRank --db storage.db3 --stevne-id 405 --ovelse Fripistol --output-dir siusrank-import
+          InrxToSiusRank --db storage.db3 --stevne-ids 405-411 --output-dir siusrank-import
 
         appsettings.json:
           Loaded from the current directory or executable directory.
@@ -143,19 +104,13 @@ internal static class Usage
           --wizard                            Start interactive Spectre.Console wizard.
           --event-date <yyyy-MM-dd>           Select event by date.
           --event-name <text>                 Select event by name text together with --event-date.
-          --stevne-ids <ids>                  Bulk select stevner, for example 405,406,407 or 405-411.
+          --stevne-id <id>                    Select one Stevne.Id.
+          --stevne-ids <ids>                  Select several stevner, for example 405,406,407 or 405-411.
           --ovelse-id <id>                    Select by OvelseDef.Id.
-          --klasse <value>                    Filter by inrX KM/NM class, for example Å, V55, V65.
-          --km-nm-klasse <value>              Same as --klasse.
-          --all-classes                       Export one file per KM/NM class.
-          --output-dir <path>                 Output directory for --all-classes.
-          --sius-group <value>                Override SIUS Rank Groups value. Default: derive from KM/NM class.
+          --ovelse <name>                     Exercise name, for example Fripistol.
+          --output-dir <path>                 Output directory for generated CSV files.
           --shooter-groups-template <path>    Validate Groups against SIUS Rank ShooterGroupsTemplate.xml.
-          --clipboard                         Copy import data to clipboard for "Update starters from clipboard".
-          --copy-to-clipboard                 Same as --clipboard.
           --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
-          --include-club-team                 Fill Team and TeamDisplay from club name. Default.
-          --no-include-club-team              Leave Team and TeamDisplay empty.
           --help                              Show help.
         """;
 }

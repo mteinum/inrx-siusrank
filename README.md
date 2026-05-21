@@ -6,10 +6,7 @@
 
 CLI tool for creating SIUS Rank starter import files from an inrX `storage.db3` SQLite database.
 
-The program reads registrations and starter data from inrX and writes CSV files that can be imported into SIUS Rank with:
-
-- `Update starters from file`
-- `Update starters from clipboard`
+The program reads registrations and starter data from inrX and writes CSV files that can be imported into SIUS Rank with `Update starters from file`.
 
 The tool does not create a separate SIUS Data start list. SIUS Rank creates the SIUS Data start list from the imported starters.
 
@@ -50,7 +47,7 @@ Important mappings:
 - `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` are set to inrX `Resultat.Id`.
 - KM/NM class is read from `Resultat.MklasseId1`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
-- `Team` and `TeamDisplay` are filled with the club short name by default. Use `--no-include-club-team` to leave them empty.
+- `Team` and `TeamDisplay` are filled with the club short name.
 - Names are kept at full length as shown in SIUS Rank.
 
 ## Interactive Run
@@ -61,33 +58,9 @@ From the repository root:
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --wizard
 ```
 
-The wizard lets you select the event, exercise, KM/NM class, and whether the import data should be written to a file, copied to the clipboard, or both. Use `--db storage.db3` if the database is not available through `appsettings.json`.
+The wizard lets you select the event and exercise, then writes one import file per KM/NM class. Use `--db storage.db3` if the database is not available through `appsettings.json`.
 
-## Create One Import File
-
-Example for Fripistol, KM/NM class `Å`:
-
-```bash
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
-  --db storage.db3 \
-  --stevne-id 405 \
-  --ovelse Fripistol \
-  --klasse Å \
-  --output NM50FRI_APEN_import.csv
-```
-
-Copy to clipboard instead of writing a file:
-
-```bash
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
-  --db storage.db3 \
-  --stevne-id 405 \
-  --ovelse Fripistol \
-  --klasse Å \
-  --clipboard
-```
-
-## Create Import Files For All Classes
+## Create Import Files
 
 One file per KM/NM class for one event:
 
@@ -95,7 +68,16 @@ One file per KM/NM class for one event:
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-id 405 \
-  --all-classes \
+  --output-dir siusrank-import
+```
+
+Specify the exercise when a selected event has more than one exercise:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  --db storage.db3 \
+  --stevne-id 405 \
+  --ovelse Fripistol \
   --output-dir siusrank-import
 ```
 
@@ -105,7 +87,6 @@ One file per KM/NM class for several events:
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-ids 405-411 \
-  --all-classes \
   --output-dir siusrank-import
 ```
 
@@ -153,7 +134,6 @@ C:\SIUS\SiusRank\Resources\Templates
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-ids 405-411 \
-  --all-classes \
   --output-dir siusrank-import \
   --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
@@ -187,10 +167,10 @@ On Windows:
 .\InrxToSiusRank.exe --wizard
 ```
 
-Bulk export on Windows:
+File export on Windows:
 
 ```powershell
-.\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --all-classes --output-dir .\siusrank-import
+.\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --output-dir .\siusrank-import
 ```
 
 ## Create GitHub Release
@@ -231,16 +211,7 @@ linux-x64
 --event-name <text>                 Filter event by name together with --event-date.
 --ovelse <name>                     Select exercise, for example Fripistol.
 --ovelse-id <id>                    Select OvelseDef.Id.
---klasse <value>                    Select KM/NM class, for example Å, V55, V65.
---km-nm-klasse <value>              Same as --klasse.
---all-classes                       Create one file per KM/NM class.
---output <path>                     File path for normal export.
---output-dir <path>                 Directory for --all-classes.
---clipboard                         Copy import data to clipboard.
---copy-to-clipboard                 Same as --clipboard.
---include-club-team                 Fill Team and TeamDisplay with club short name. Default.
---no-include-club-team              Leave Team and TeamDisplay empty.
---sius-group <value>                Override Groups for normal export.
+--output-dir <path>                 Directory for generated CSV files.
 --shooter-groups-template <path>    Validate Groups against SIUS Rank template.
 --encoding <utf8-bom|windows-1252>  Encoding. Default: utf8-bom.
 ```

@@ -4,14 +4,9 @@ public static class BulkExportRunner
 {
     public static BulkExportResult Run(AppOptions options)
     {
-        if (!options.AllClasses)
-        {
-            throw new ArgumentException("Bulk export requires --all-classes.");
-        }
-
         if (options.OutputDirectory is null)
         {
-            throw new ArgumentException("Bulk export requires --output-dir.");
+            throw new ArgumentException("File export requires --output-dir.");
         }
 
         using var repository = new InrxRepository(options.DatabasePath);
@@ -46,7 +41,7 @@ public static class BulkExportRunner
                 }
 
                 var rows = selectedStarters
-                    .Select(starter => StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: options.IncludeClubTeam))
+                    .Select(starter => StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: true))
                     .ToList();
 
                 ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);

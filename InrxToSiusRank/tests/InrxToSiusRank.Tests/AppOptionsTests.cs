@@ -3,57 +3,6 @@ namespace InrxToSiusRank.Tests;
 public sealed class AppOptionsTests
 {
     [Fact]
-    public void Output_is_not_required_when_clipboard_is_used()
-    {
-        using var db = TempDatabaseFile.Create();
-        var options = AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--clipboard"
-        ]);
-
-        Assert.Null(options.OutputPath);
-        Assert.True(options.CopyToClipboard);
-    }
-
-    [Fact]
-    public void Output_and_clipboard_can_be_used_together()
-    {
-        using var db = TempDatabaseFile.Create();
-        var options = AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv",
-            "--clipboard"
-        ]);
-
-        Assert.Equal("out.csv", options.OutputPath);
-        Assert.True(options.CopyToClipboard);
-    }
-
-    [Fact]
-    public void Either_output_or_clipboard_is_required()
-    {
-        using var db = TempDatabaseFile.Create();
-        var ex = Assert.Throws<ArgumentException>(() => AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å"
-        ]));
-
-        Assert.Contains("--output", ex.Message);
-        Assert.Contains("--clipboard", ex.Message);
-    }
-
-    [Fact]
     public void Wizard_flag_only_requires_database()
     {
         using var db = TempDatabaseFile.Create();
@@ -63,7 +12,6 @@ public sealed class AppOptionsTests
         Assert.True(options.Wizard);
         Assert.Equal(db.Path, options.DatabasePath);
         Assert.Null(options.StevneId);
-        Assert.True(options.IncludeClubTeam);
     }
 
     [Fact]
@@ -78,6 +26,55 @@ public sealed class AppOptionsTests
     }
 
     [Fact]
+    public void Export_accepts_stevne_id_and_output_directory()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "405",
+            "--output-dir", "imports"
+        ]);
+
+        Assert.False(options.Wizard);
+        Assert.Equal(405, options.StevneId);
+        Assert.Empty(options.StevneIds);
+        Assert.Null(options.OvelseName);
+        Assert.Equal("imports", options.OutputDirectory);
+    }
+
+    [Fact]
+    public void Export_accepts_stevne_id_range_without_all_classes()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-ids", "405-407,409",
+            "--output-dir", "imports"
+        ]);
+
+        Assert.Equal(new[] { 405, 406, 407, 409 }, options.StevneIds);
+        Assert.Equal("imports", options.OutputDirectory);
+    }
+
+    [Fact]
+    public void Export_requires_output_directory()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var ex = Assert.Throws<ArgumentException>(() => AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "405"
+        ]));
+
+        Assert.Contains("--output-dir", ex.Message);
+    }
+
+    [Fact]
     public void Shooter_groups_template_path_can_be_supplied()
     {
         using var db = TempDatabaseFile.Create();
@@ -87,9 +84,7 @@ public sealed class AppOptionsTests
         [
             "--db", db.Path,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv",
+            "--output-dir", "imports",
             "--shooter-groups-template", template.Path
         ]);
 
@@ -97,7 +92,7 @@ public sealed class AppOptionsTests
     }
 
     [Fact]
-    public void Command_line_aliases_are_supported()
+    public void Command_line_alias_for_shooter_groups_is_supported()
     {
         using var db = TempDatabaseFile.Create();
         using var template = TempDatabaseFile.Create();
@@ -106,50 +101,42 @@ public sealed class AppOptionsTests
         [
             "--db", db.Path,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--km-nm-klasse", "Å",
-            "--copy-to-clipboard",
+            "--output-dir", "imports",
             "--shooter-groups", template.Path
         ]);
 
-        Assert.Equal("Å", options.KmNmClass);
-        Assert.True(options.CopyToClipboard);
         Assert.Equal(template.Path, options.ShooterGroupsTemplatePath);
     }
 
     [Fact]
-    public void Include_club_team_defaults_to_true()
+    public void Removed_export_options_are_rejected()
     {
         using var db = TempDatabaseFile.Create();
-
-        var options = AppOptions.Parse(
+        string[] baseArgs =
         [
             "--db", db.Path,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv"
-        ]);
+            "--output-dir", "imports"
+        ];
 
-        Assert.True(options.IncludeClubTeam);
-    }
-
-    [Fact]
-    public void Include_club_team_can_be_disabled()
-    {
-        using var db = TempDatabaseFile.Create();
-
-        var options = AppOptions.Parse(
+        string[][] removedOptions =
         [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv",
-            "--no-include-club-team"
-        ]);
+            ["--all-classes"],
+            ["--klasse", "Å"],
+            ["--km-nm-klasse", "Å"],
+            ["--output", "out.csv"],
+            ["--clipboard"],
+            ["--copy-to-clipboard"],
+            ["--sius-group", "Apen"],
+            ["--include-club-team"],
+            ["--no-include-club-team"]
+        ];
 
-        Assert.False(options.IncludeClubTeam);
+        foreach (var removedOption in removedOptions)
+        {
+            var ex = Assert.Throws<ArgumentException>(() => AppOptions.Parse(baseArgs.Concat(removedOption).ToArray()));
+            Assert.Contains(removedOption[0], ex.Message);
+        }
     }
 
     [Fact]
@@ -173,9 +160,7 @@ public sealed class AppOptionsTests
         [
             "--settings", settingsPath,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv"
+            "--output-dir", "imports"
         ]);
 
         Assert.Equal(dbPath, options.DatabasePath);
@@ -203,9 +188,7 @@ public sealed class AppOptionsTests
             "--settings", settingsPath,
             "--db", explicitDb.Path,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv"
+            "--output-dir", "imports"
         ]);
 
         Assert.Equal(explicitDb.Path, options.DatabasePath);
@@ -237,64 +220,10 @@ public sealed class AppOptionsTests
         [
             "--settings", settingsPath,
             "--stevne-id", "405",
-            "--ovelse", "Fripistol",
-            "--klasse", "Å",
-            "--output", "out.csv"
+            "--output-dir", "imports"
         ]);
 
         Assert.Equal(templatePath, options.ShooterGroupsTemplatePath);
-    }
-
-    [Fact]
-    public void All_classes_accepts_stevne_id_range_and_output_directory()
-    {
-        using var db = TempDatabaseFile.Create();
-
-        var options = AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-ids", "405-407,409",
-            "--all-classes",
-            "--output-dir", "imports"
-        ]);
-
-        Assert.True(options.AllClasses);
-        Assert.Equal(new[] { 405, 406, 407, 409 }, options.StevneIds);
-        Assert.Equal("imports", options.OutputDirectory);
-        Assert.Null(options.KmNmClass);
-    }
-
-    [Fact]
-    public void All_classes_rejects_single_output()
-    {
-        using var db = TempDatabaseFile.Create();
-
-        var ex = Assert.Throws<ArgumentException>(() => AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--all-classes",
-            "--output", "out.csv"
-        ]));
-
-        Assert.Contains("--output-dir", ex.Message);
-    }
-
-    [Fact]
-    public void All_classes_rejects_class_filter()
-    {
-        using var db = TempDatabaseFile.Create();
-
-        var ex = Assert.Throws<ArgumentException>(() => AppOptions.Parse(
-        [
-            "--db", db.Path,
-            "--stevne-id", "405",
-            "--all-classes",
-            "--klasse", "Å",
-            "--output-dir", "imports"
-        ]));
-
-        Assert.Contains("--klasse", ex.Message);
     }
 
     private static string WriteSettings(string directoryPath, string content)
