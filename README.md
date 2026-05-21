@@ -120,11 +120,16 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 Example output files:
 
 ```text
-20260706_Fri_Apen.csv
-20260706_Fri_V55.csv
-20260706_Fri_V65.csv
-20260706_Fri_V73.csv
-20260706_Fri_SH1-P4.csv
+20260706_FP_Apen.csv
+20260707_RFP_Apen.csv
+20260707_RFP_NF_V55.csv
+20260708_STP_M.csv
+20260709_SPW_K.csv
+20260709_SPW_Jk.csv
+20260709_SPSH1_SH1-P3.csv
+20260709_CFP_Apen.csv
+20260711_SPRF_M.csv
+20260711_CFPRF_Apen.csv
 ```
 
 ## Validate Shooter Groups
