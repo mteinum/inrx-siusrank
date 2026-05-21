@@ -102,6 +102,7 @@ Example output files:
 
 ```text
 20260706_FP_Apen.csv
+20260706_FP_P4X_SH1-P4.csv
 20260707_RFP_Apen.csv
 20260707_RFP_NF_V55.csv
 20260708_STP_M.csv
@@ -142,6 +143,8 @@ This does not change the export. It only stops the run if a `Groups` value is no
 
 If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
+`ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events such as `FP_V73`,
+`STP_M`, and `FP_P4X_SH1-P4`, so SIUS Rank reports show the class in the event heading.
 
 ## Seed NM Startlag
 

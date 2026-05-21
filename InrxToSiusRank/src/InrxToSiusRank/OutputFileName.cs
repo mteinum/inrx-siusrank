@@ -30,7 +30,7 @@ public static class OutputFileName
     {
         return ovelse.Id switch
         {
-            18 => "FP",
+            18 => FreePistolSuffix(classSuffix),
             11 => SilhouetteSuffix(classSuffix),
             10 => "STP",
             9 => SportPistolSuffix(classSuffix),
@@ -87,6 +87,12 @@ public static class OutputFileName
     private static string SilhouetteSuffix(string classSuffix)
     {
         return classSuffix.Equals("Apen", StringComparison.OrdinalIgnoreCase) ? "RFP" : "RFP_NF";
+    }
+
+    private static string FreePistolSuffix(string classSuffix)
+    {
+        var group = GroupNormalizer.Normalize(classSuffix);
+        return group.Equals("SH1", StringComparison.OrdinalIgnoreCase) ? "FP_P4X" : "FP";
     }
 
     private static string SportPistolSuffix(string classSuffix)

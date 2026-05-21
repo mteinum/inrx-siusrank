@@ -4,6 +4,7 @@ public sealed class OutputFileNameTests
 {
     [Theory]
     [InlineData(18, "Fripistol", "Fri", 2, "Å", "20260711_FP_Apen.csv")]
+    [InlineData(18, "Fripistol", "Fri", 2, "SH1-P4", "20260711_FP_P4X_SH1-P4.csv")]
     [InlineData(10, "Standard", "Std", 9, "M", "20260711_STP_M.csv")]
     [InlineData(8, "Grovpistol", "Grov", 10, "Å", "20260711_CFP_Apen.csv")]
     public void Uses_sius_event_code_for_nm_pistol_events(
