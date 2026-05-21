@@ -91,7 +91,7 @@ This creates a SIUS Rank import file with:
 - UTF-8 BOM and CRLF line endings by default.
 - Starters filtered by inrX `KM/NM` class (`Resultat.MklasseId1`).
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
-- Bulk output file names use SIUS Rank event codes, for example `FP`, `STP`, `SPM`, `CFP`, `SPRF`, and `CFPRF`. Silhuett open class uses `RFP` because it has a final; the other Silhuett classes use `RFP_NF`.
+- Bulk output file names use SIUS Rank event codes, for example `FP`, `STP`, `SPM`, `SPW`, `SPSH1`, `CFP`, `SPRF`, and `CFPRF`. Finpistol women and junior women use `SPW`, Finpistol SH1 uses `SPSH1`, and other Finpistol classes use `SPM`. Silhuett open class uses `RFP` because it has a final; the other Silhuett classes use `RFP_NF`.
 - `StartNumber`, `AccreditationNumber`, `BibNumber`, and `StarterId` all preserve inrX `Resultat.Id`.
 - `Team` and `TeamDisplay` are filled with the club short name by default. Use `--no-include-club-team` to leave them empty.
 

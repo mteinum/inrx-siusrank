@@ -33,7 +33,7 @@ public static class OutputFileName
             18 => "FP",
             11 => SilhouetteSuffix(classSuffix),
             10 => "STP",
-            9 => "SPM",
+            9 => SportPistolSuffix(classSuffix),
             8 => "CFP",
             7 => "SPRF",
             6 => "CFPRF",
@@ -73,7 +73,7 @@ public static class OutputFileName
 
         if (ovelse.Name.Contains("Finpistol", StringComparison.OrdinalIgnoreCase))
         {
-            return "SPM";
+            return SportPistolSuffix(classSuffix);
         }
 
         if (ovelse.Name.Contains("Grovpistol", StringComparison.OrdinalIgnoreCase))
@@ -87,6 +87,23 @@ public static class OutputFileName
     private static string SilhouetteSuffix(string classSuffix)
     {
         return classSuffix.Equals("Apen", StringComparison.OrdinalIgnoreCase) ? "RFP" : "RFP_NF";
+    }
+
+    private static string SportPistolSuffix(string classSuffix)
+    {
+        var group = GroupNormalizer.Normalize(classSuffix);
+        if (group.Equals("Kvinner", StringComparison.OrdinalIgnoreCase) ||
+            group.Equals("Jrk", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SPW";
+        }
+
+        if (group.Equals("SH1", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SPSH1";
+        }
+
+        return "SPM";
     }
 
     private static string SanitizeFilePart(string value)
