@@ -17,6 +17,21 @@ public static class Program
                 return args.Length == 0 ? 1 : 0;
             }
 
+            if (SeedStartLagCommand.IsCommand(args))
+            {
+                var seedOptions = SeedStartLagCommand.Parse(args.Skip(1).ToArray());
+                var result = SeedStartLagRunner.RunAsync(seedOptions).GetAwaiter().GetResult();
+                SeedStartLagReporter.Print(result);
+                return 0;
+            }
+
+            if (TimetableCommand.IsCommand(args))
+            {
+                var timetableOptions = TimetableCommand.Parse(args.Skip(1).ToArray());
+                TimetableReporter.Print(TimetableRunner.Run(timetableOptions));
+                return 0;
+            }
+
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
@@ -47,6 +62,11 @@ public static class Program
         catch (IOException ex)
         {
             Console.Error.WriteLine($"File error: {ex.Message}");
+            return 1;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"HTTP error: {ex.Message}");
             return 1;
         }
     }
@@ -92,6 +112,9 @@ internal static class Usage
           InrxToSiusRank --db storage.db3 --stevne-id 405 --output-dir siusrank-import
           InrxToSiusRank --db storage.db3 --stevne-id 405 --ovelse Fripistol --output-dir siusrank-import
           InrxToSiusRank --db storage.db3 --stevne-ids 405-411 --output-dir siusrank-import
+          InrxToSiusRank seed-startlag --db storage.db3 --stevne-ids 405-411
+          InrxToSiusRank seed-startlag --db storage.db3 --stevne-ids 405-411 --apply
+          InrxToSiusRank show-timetable --db storage.db3
 
         appsettings.json:
           Loaded from the current directory or executable directory.
@@ -112,5 +135,22 @@ internal static class Usage
           --shooter-groups-template <path>    Validate Groups against SIUS Rank ShooterGroupsTemplate.xml.
           --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
           --help                              Show help.
+
+        seed-startlag options:
+          seed-startlag                       Preview or apply NM startlag seeding from NSF ranking.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --stevne-id <id>                    Select one Stevne.Id.
+          --stevne-ids <ids>                  Select several stevner, for example 405,406,407 or 405-411.
+          --ranking-period-start <iso>        Ranking period start. Default: 2025-12-31T23:00:00.000Z.
+          --ranking-period-end <iso>          Ranking period end. Default: 2026-12-31T22:59:59.999Z.
+          --apply                             Write updates after creating storage.db3.bak-seed-YYYYMMDD-HHMMSS.
+
+        show-timetable options:
+          show-timetable                      Show NM startlag timetable. Alias: timetable.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --stevne-id <id>                    Select one Stevne.Id.
+          --stevne-ids <ids>                  Select several stevner. Default: 405-411.
         """;
 }

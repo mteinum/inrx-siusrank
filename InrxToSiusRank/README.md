@@ -101,6 +101,38 @@ Both XML files are copied to the `Templates/` directory in `dotnet publish` outp
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 If `Paths.SiusRankTemplates` points to this directory, `ShooterGroupsTemplate.xml` is used automatically for validation.
 
+## Seed NM startlag
+
+Preview NM startlag seeding without changing the database:
+
+```powershell
+.\InrxToSiusRank.exe seed-startlag --db .\storage.db3 --stevne-ids 405-411
+```
+
+Apply the planned changes:
+
+```powershell
+.\InrxToSiusRank.exe seed-startlag --db .\storage.db3 --stevne-ids 405-411 --apply
+```
+
+The command creates `storage.db3.bak-seed-YYYYMMDD-HHMMSS` before writing. It matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`, seeds `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`, keeps classes as contiguous blocks, and keeps multi-shooter seed groups together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett keeps the requested seeded Å lag and uses target numbers `3, 8, 13, 18, 23, 28, 33`. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
+
+## Show NM timetable
+
+Show the NM startlag timetable:
+
+```powershell
+.\InrxToSiusRank.exe show-timetable --db .\storage.db3
+```
+
+`show-timetable` defaults to NM `Stevne.Id` `405-411`. Use `--stevne-id` or `--stevne-ids` to narrow it:
+
+```powershell
+.\InrxToSiusRank.exe show-timetable --db .\storage.db3 --stevne-id 406
+```
+
+The output lists each NM event, target range, startlag time, shooter count versus capacity, and class mix. Finpistol and Grovpistol are shown as two-stage events: Precision on `2026-07-09` and Rapid on `2026-07-10`, with Finpistol before Grovpistol on both days. Startlag over target capacity are marked `OVER CAPACITY`.
+
 ## Windows executable
 
 Build a self-contained Windows executable:
@@ -142,4 +174,9 @@ Direct export:
 --output-dir <path>                 Output directory for generated CSV files.
 --shooter-groups-template <path>    Validate Groups against SIUS Rank ShooterGroupsTemplate.xml.
 --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
+seed-startlag                       Preview or apply NM startlag seeding from NSF ranking.
+--ranking-period-start <iso>        Ranking period start for seed-startlag.
+--ranking-period-end <iso>          Ranking period end for seed-startlag.
+--apply                             Write seed-startlag changes after creating a backup.
+show-timetable                      Show NM timetable. Default Stevne.Id range: 405-411.
 ```

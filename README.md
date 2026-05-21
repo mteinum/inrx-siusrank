@@ -143,6 +143,64 @@ This does not change the export. It only stops the run if a `Groups` value is no
 If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 
+## Seed NM Startlag
+
+Preview NM startlag seeding from the NSF ranking API without changing the database:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  seed-startlag \
+  --db storage.db3 \
+  --stevne-ids 405-411
+```
+
+The command uses the 2026 ranking period by default:
+
+```text
+2025-12-31T23:00:00.000Z - 2026-12-31T22:59:59.999Z
+```
+
+Override it with `--ranking-period-start` and `--ranking-period-end`.
+
+Apply the planned changes to `storage.db3`:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  seed-startlag \
+  --db storage.db3 \
+  --stevne-ids 405-411 \
+  --apply
+```
+
+Before writing, the command creates a backup named:
+
+```text
+storage.db3.bak-seed-YYYYMMDD-HHMMSS
+```
+
+Seeding matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`. Eligible seeded classes are `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`. Classes stay as contiguous blocks. Multi-shooter seed groups stay together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett keeps the requested seeded Å lag and always uses the seven target numbers `3, 8, 13, 18, 23, 28, 33`. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
+
+## Show NM Timetable
+
+Show the NM startlag timetable from `storage.db3`:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  show-timetable \
+  --db storage.db3
+```
+
+`show-timetable` defaults to NM `Stevne.Id` `405-411`. Use `--stevne-id` or `--stevne-ids` to narrow it:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  show-timetable \
+  --db storage.db3 \
+  --stevne-id 406
+```
+
+The output lists each NM event, configured target range, startlag time, shooter count versus capacity, and class mix. Finpistol and Grovpistol are shown as two-stage events: Precision on `2026-07-09` and Rapid on `2026-07-10`, with Finpistol before Grovpistol on both days. Startlag over target capacity are marked `OVER CAPACITY`.
+
 ## Build Windows Exe
 
 Create a self-contained Windows executable:
@@ -214,6 +272,11 @@ linux-x64
 --output-dir <path>                 Directory for generated CSV files.
 --shooter-groups-template <path>    Validate Groups against SIUS Rank template.
 --encoding <utf8-bom|windows-1252>  Encoding. Default: utf8-bom.
+seed-startlag                       Preview or apply NM startlag seeding from NSF ranking.
+--ranking-period-start <iso>        Ranking period start for seed-startlag.
+--ranking-period-end <iso>          Ranking period end for seed-startlag.
+--apply                             Write seed-startlag changes after creating a backup.
+show-timetable                      Show NM timetable. Default Stevne.Id range: 405-411.
 ```
 
 ## Test
