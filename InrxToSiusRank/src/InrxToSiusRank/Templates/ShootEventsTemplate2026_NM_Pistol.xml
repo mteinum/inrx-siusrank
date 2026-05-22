@@ -2,8 +2,8 @@
 <Configuration ConfigurationType="ShootEventConfiguration">
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM</EventCode>
-        <ShortEventCode>SPM</ShortEventCode>
+        <EventCode>Fin</EventCode>
+        <ShortEventCode>Fin</ShortEventCode>
         <Name>25m Finpistol</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Finpistol</Description>
@@ -198,8 +198,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPW</EventCode>
-        <ShortEventCode>SPW</ShortEventCode>
+        <EventCode>Fin_Finale</EventCode>
+        <ShortEventCode>Fin_Finale</ShortEventCode>
         <Name>25m Finpistol med finale</Name>
         <DefaultShooterGroup>Kvinner</DefaultShooterGroup>
         <Description>25m Finpistol med finale</Description>
@@ -530,8 +530,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPSH1</EventCode>
-        <ShortEventCode>SPSH1</ShortEventCode>
+        <EventCode>Fin_SH1</EventCode>
+        <ShortEventCode>Fin_SH1</ShortEventCode>
         <Name>25m Finpistol SH1 med finale</Name>
         <DefaultShooterGroup>SH1</DefaultShooterGroup>
         <Description>25m Finpistol SH1 med finale</Description>
@@ -859,8 +859,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP</EventCode>
-        <ShortEventCode>STP</ShortEventCode>
+        <EventCode>Standard</EventCode>
+        <ShortEventCode>Standard</ShortEventCode>
         <Name>25m Standardpistol</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Standardpistol</Description>
@@ -1002,8 +1002,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP</EventCode>
-        <ShortEventCode>CFP</ShortEventCode>
+        <EventCode>Grov</EventCode>
+        <ShortEventCode>Grov</ShortEventCode>
         <Name>25m Grovpistol</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Grovpistol</Description>
@@ -1145,8 +1145,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP</EventCode>
-        <ShortEventCode>RFP</ShortEventCode>
+        <EventCode>Silhuett_Finale</EventCode>
+        <ShortEventCode>Silhuett_Finale</ShortEventCode>
         <Name>25m Silhuettpistol med finale</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Silhuettpistol med finale</Description>
@@ -1452,8 +1452,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_NF</EventCode>
-        <ShortEventCode>RFP_NF</ShortEventCode>
+        <EventCode>Silhuett</EventCode>
+        <ShortEventCode>Silhuett</ShortEventCode>
         <Name>25m Silhuettpistol</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Silhuettpistol</Description>
@@ -1608,8 +1608,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF</EventCode>
-        <ShortEventCode>SPRF</ShortEventCode>
+        <EventCode>HurtigFin</EventCode>
+        <ShortEventCode>HurtigFin</ShortEventCode>
         <Name>25m Hurtigpistol Fin</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin</Description>
@@ -1805,8 +1805,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF</EventCode>
-        <ShortEventCode>CFPRF</ShortEventCode>
+        <EventCode>HurtigGrov</EventCode>
+        <ShortEventCode>HurtigGrov</ShortEventCode>
         <Name>25m Hurtigpistol Grov</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov</Description>
@@ -2002,8 +2002,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP</EventCode>
-        <ShortEventCode>FP</ShortEventCode>
+        <EventCode>Fri</EventCode>
+        <ShortEventCode>Fri</ShortEventCode>
         <Name>50m Fripistol</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>50m Fripistol</Description>
@@ -2145,8 +2145,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_P4X</EventCode>
-        <ShortEventCode>FP_P4X</ShortEventCode>
+        <EventCode>Fri_SH1</EventCode>
+        <ShortEventCode>Fri_SH1</ShortEventCode>
         <Name>50m Fripistol SH1 med finale</Name>
         <DefaultShooterGroup>SH1</DefaultShooterGroup>
         <Description>50m Fripistol SH1 med finale</Description>
@@ -2462,8 +2462,8 @@
     <!-- BEGIN NM 2026 class-specific shoot events -->
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_M</EventCode>
-        <ShortEventCode>SPM_M</ShortEventCode>
+        <EventCode>Fin_M</EventCode>
+        <ShortEventCode>Fin_M</ShortEventCode>
         <Name>25m Finpistol M</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Finpistol M</Description>
@@ -2658,8 +2658,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_Jm</EventCode>
-        <ShortEventCode>SPM_Jm</ShortEventCode>
+        <EventCode>Fin_Jm</EventCode>
+        <ShortEventCode>Fin_Jm</ShortEventCode>
         <Name>25m Finpistol Jm</Name>
         <DefaultShooterGroup>Jrm</DefaultShooterGroup>
         <Description>25m Finpistol Jm</Description>
@@ -2854,8 +2854,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_U-NM</EventCode>
-        <ShortEventCode>SPM_U-NM</ShortEventCode>
+        <EventCode>Fin_U-NM</EventCode>
+        <ShortEventCode>Fin_U-NM</ShortEventCode>
         <Name>25m Finpistol U-NM</Name>
         <DefaultShooterGroup>U-NM</DefaultShooterGroup>
         <Description>25m Finpistol U-NM</Description>
@@ -3050,8 +3050,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_V55</EventCode>
-        <ShortEventCode>SPM_V55</ShortEventCode>
+        <EventCode>Fin_V55</EventCode>
+        <ShortEventCode>Fin_V55</ShortEventCode>
         <Name>25m Finpistol V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Finpistol V55</Description>
@@ -3246,8 +3246,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_V65</EventCode>
-        <ShortEventCode>SPM_V65</ShortEventCode>
+        <EventCode>Fin_V65</EventCode>
+        <ShortEventCode>Fin_V65</ShortEventCode>
         <Name>25m Finpistol V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Finpistol V65</Description>
@@ -3442,8 +3442,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPM_V73</EventCode>
-        <ShortEventCode>SPM_V73</ShortEventCode>
+        <EventCode>Fin_V73</EventCode>
+        <ShortEventCode>Fin_V73</ShortEventCode>
         <Name>25m Finpistol V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Finpistol V73</Description>
@@ -3638,8 +3638,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPW_K</EventCode>
-        <ShortEventCode>SPW_K</ShortEventCode>
+        <EventCode>Fin_K</EventCode>
+        <ShortEventCode>Fin_K</ShortEventCode>
         <Name>25m Finpistol K</Name>
         <DefaultShooterGroup>Kvinner</DefaultShooterGroup>
         <Description>25m Finpistol K</Description>
@@ -3970,8 +3970,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPW_Jk</EventCode>
-        <ShortEventCode>SPW_Jk</ShortEventCode>
+        <EventCode>Fin_Jk</EventCode>
+        <ShortEventCode>Fin_Jk</ShortEventCode>
         <Name>25m Finpistol Jk</Name>
         <DefaultShooterGroup>Jrk</DefaultShooterGroup>
         <Description>25m Finpistol Jk</Description>
@@ -4302,8 +4302,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPSH1_SH1-P3</EventCode>
-        <ShortEventCode>SPSH1_SH1-P3</ShortEventCode>
+        <EventCode>Fin_SH1-P3</EventCode>
+        <ShortEventCode>Fin_SH1-P3</ShortEventCode>
         <Name>P3 - Mixed 25m Pistol SH1</Name>
         <DefaultShooterGroup>SH1</DefaultShooterGroup>
         <Description>P3 - Mixed 25m Pistol SH1</Description>
@@ -4631,8 +4631,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_M</EventCode>
-        <ShortEventCode>STP_M</ShortEventCode>
+        <EventCode>Standard_M</EventCode>
+        <ShortEventCode>Standard_M</ShortEventCode>
         <Name>25m Standardpistol M</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Standardpistol M</Description>
@@ -4774,8 +4774,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_K</EventCode>
-        <ShortEventCode>STP_K</ShortEventCode>
+        <EventCode>Standard_K</EventCode>
+        <ShortEventCode>Standard_K</ShortEventCode>
         <Name>25m Standardpistol K</Name>
         <DefaultShooterGroup>Kvinner</DefaultShooterGroup>
         <Description>25m Standardpistol K</Description>
@@ -4917,8 +4917,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_Jm</EventCode>
-        <ShortEventCode>STP_Jm</ShortEventCode>
+        <EventCode>Standard_Jm</EventCode>
+        <ShortEventCode>Standard_Jm</ShortEventCode>
         <Name>25m Standardpistol Jm</Name>
         <DefaultShooterGroup>Jrm</DefaultShooterGroup>
         <Description>25m Standardpistol Jm</Description>
@@ -5060,8 +5060,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_Jk</EventCode>
-        <ShortEventCode>STP_Jk</ShortEventCode>
+        <EventCode>Standard_Jk</EventCode>
+        <ShortEventCode>Standard_Jk</ShortEventCode>
         <Name>25m Standardpistol Jk</Name>
         <DefaultShooterGroup>Jrk</DefaultShooterGroup>
         <Description>25m Standardpistol Jk</Description>
@@ -5203,8 +5203,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_U-NM</EventCode>
-        <ShortEventCode>STP_U-NM</ShortEventCode>
+        <EventCode>Standard_U-NM</EventCode>
+        <ShortEventCode>Standard_U-NM</ShortEventCode>
         <Name>25m Standardpistol U-NM</Name>
         <DefaultShooterGroup>U-NM</DefaultShooterGroup>
         <Description>25m Standardpistol U-NM</Description>
@@ -5346,8 +5346,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_V55</EventCode>
-        <ShortEventCode>STP_V55</ShortEventCode>
+        <EventCode>Standard_V55</EventCode>
+        <ShortEventCode>Standard_V55</ShortEventCode>
         <Name>25m Standardpistol V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Standardpistol V55</Description>
@@ -5489,8 +5489,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_V65</EventCode>
-        <ShortEventCode>STP_V65</ShortEventCode>
+        <EventCode>Standard_V65</EventCode>
+        <ShortEventCode>Standard_V65</ShortEventCode>
         <Name>25m Standardpistol V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Standardpistol V65</Description>
@@ -5632,8 +5632,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>STP_V73</EventCode>
-        <ShortEventCode>STP_V73</ShortEventCode>
+        <EventCode>Standard_V73</EventCode>
+        <ShortEventCode>Standard_V73</ShortEventCode>
         <Name>25m Standardpistol V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Standardpistol V73</Description>
@@ -5775,8 +5775,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP_Apen</EventCode>
-        <ShortEventCode>CFP_Apen</ShortEventCode>
+        <EventCode>Grov_Apen</EventCode>
+        <ShortEventCode>Grov_Apen</ShortEventCode>
         <Name>25m Grovpistol Apen</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Grovpistol Apen</Description>
@@ -5918,8 +5918,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP_Jr-NM</EventCode>
-        <ShortEventCode>CFP_Jr-NM</ShortEventCode>
+        <EventCode>Grov_Jr-NM</EventCode>
+        <ShortEventCode>Grov_Jr-NM</ShortEventCode>
         <Name>25m Grovpistol Jr-NM</Name>
         <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
         <Description>25m Grovpistol Jr-NM</Description>
@@ -6061,8 +6061,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP_V55</EventCode>
-        <ShortEventCode>CFP_V55</ShortEventCode>
+        <EventCode>Grov_V55</EventCode>
+        <ShortEventCode>Grov_V55</ShortEventCode>
         <Name>25m Grovpistol V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Grovpistol V55</Description>
@@ -6204,8 +6204,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP_V65</EventCode>
-        <ShortEventCode>CFP_V65</ShortEventCode>
+        <EventCode>Grov_V65</EventCode>
+        <ShortEventCode>Grov_V65</ShortEventCode>
         <Name>25m Grovpistol V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Grovpistol V65</Description>
@@ -6347,8 +6347,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFP_V73</EventCode>
-        <ShortEventCode>CFP_V73</ShortEventCode>
+        <EventCode>Grov_V73</EventCode>
+        <ShortEventCode>Grov_V73</ShortEventCode>
         <Name>25m Grovpistol V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Grovpistol V73</Description>
@@ -6490,8 +6490,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_Apen</EventCode>
-        <ShortEventCode>RFP_Apen</ShortEventCode>
+        <EventCode>Silhuett_Apen</EventCode>
+        <ShortEventCode>Silhuett_Apen</ShortEventCode>
         <Name>25m Silhuettpistol Apen</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Silhuettpistol Apen</Description>
@@ -6797,8 +6797,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_Jr-NM</EventCode>
-        <ShortEventCode>RFP_Jr-NM</ShortEventCode>
+        <EventCode>Silhuett_Jr-NM</EventCode>
+        <ShortEventCode>Silhuett_Jr-NM</ShortEventCode>
         <Name>25m Silhuettpistol Jr-NM</Name>
         <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
         <Description>25m Silhuettpistol Jr-NM</Description>
@@ -7104,8 +7104,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_NF_V55</EventCode>
-        <ShortEventCode>RFP_NF_V55</ShortEventCode>
+        <EventCode>Silhuett_V55</EventCode>
+        <ShortEventCode>Silhuett_V55</ShortEventCode>
         <Name>25m Silhuettpistol V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Silhuettpistol V55</Description>
@@ -7260,8 +7260,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_NF_V65</EventCode>
-        <ShortEventCode>RFP_NF_V65</ShortEventCode>
+        <EventCode>Silhuett_V65</EventCode>
+        <ShortEventCode>Silhuett_V65</ShortEventCode>
         <Name>25m Silhuettpistol V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Silhuettpistol V65</Description>
@@ -7416,8 +7416,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre RFP</Range>
-        <EventCode>RFP_NF_V73</EventCode>
-        <ShortEventCode>RFP_NF_V73</ShortEventCode>
+        <EventCode>Silhuett_V73</EventCode>
+        <ShortEventCode>Silhuett_V73</ShortEventCode>
         <Name>25m Silhuettpistol V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Silhuettpistol V73</Description>
@@ -7572,8 +7572,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_M</EventCode>
-        <ShortEventCode>SPRF_M</ShortEventCode>
+        <EventCode>HurtigFin_M</EventCode>
+        <ShortEventCode>HurtigFin_M</ShortEventCode>
         <Name>25m Hurtigpistol Fin M</Name>
         <DefaultShooterGroup>Menn</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin M</Description>
@@ -7769,8 +7769,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_K</EventCode>
-        <ShortEventCode>SPRF_K</ShortEventCode>
+        <EventCode>HurtigFin_K</EventCode>
+        <ShortEventCode>HurtigFin_K</ShortEventCode>
         <Name>25m Hurtigpistol Fin K</Name>
         <DefaultShooterGroup>Kvinner</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin K</Description>
@@ -7966,8 +7966,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_Jm</EventCode>
-        <ShortEventCode>SPRF_Jm</ShortEventCode>
+        <EventCode>HurtigFin_Jm</EventCode>
+        <ShortEventCode>HurtigFin_Jm</ShortEventCode>
         <Name>25m Hurtigpistol Fin Jm</Name>
         <DefaultShooterGroup>Jrm</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin Jm</Description>
@@ -8163,8 +8163,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_Jk</EventCode>
-        <ShortEventCode>SPRF_Jk</ShortEventCode>
+        <EventCode>HurtigFin_Jk</EventCode>
+        <ShortEventCode>HurtigFin_Jk</ShortEventCode>
         <Name>25m Hurtigpistol Fin Jk</Name>
         <DefaultShooterGroup>Jrk</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin Jk</Description>
@@ -8360,8 +8360,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_U-NM</EventCode>
-        <ShortEventCode>SPRF_U-NM</ShortEventCode>
+        <EventCode>HurtigFin_U-NM</EventCode>
+        <ShortEventCode>HurtigFin_U-NM</ShortEventCode>
         <Name>25m Hurtigpistol Fin U-NM</Name>
         <DefaultShooterGroup>U-NM</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin U-NM</Description>
@@ -8557,8 +8557,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_V55</EventCode>
-        <ShortEventCode>SPRF_V55</ShortEventCode>
+        <EventCode>HurtigFin_V55</EventCode>
+        <ShortEventCode>HurtigFin_V55</ShortEventCode>
         <Name>25m Hurtigpistol Fin V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin V55</Description>
@@ -8754,8 +8754,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_V65</EventCode>
-        <ShortEventCode>SPRF_V65</ShortEventCode>
+        <EventCode>HurtigFin_V65</EventCode>
+        <ShortEventCode>HurtigFin_V65</ShortEventCode>
         <Name>25m Hurtigpistol Fin V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin V65</Description>
@@ -8951,8 +8951,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>SPRF_V73</EventCode>
-        <ShortEventCode>SPRF_V73</ShortEventCode>
+        <EventCode>HurtigFin_V73</EventCode>
+        <ShortEventCode>HurtigFin_V73</ShortEventCode>
         <Name>25m Hurtigpistol Fin V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin V73</Description>
@@ -9148,8 +9148,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF_Apen</EventCode>
-        <ShortEventCode>CFPRF_Apen</ShortEventCode>
+        <EventCode>HurtigGrov_Apen</EventCode>
+        <ShortEventCode>HurtigGrov_Apen</ShortEventCode>
         <Name>25m Hurtigpistol Grov Apen</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov Apen</Description>
@@ -9345,8 +9345,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF_Jr-NM</EventCode>
-        <ShortEventCode>CFPRF_Jr-NM</ShortEventCode>
+        <EventCode>HurtigGrov_Jr-NM</EventCode>
+        <ShortEventCode>HurtigGrov_Jr-NM</ShortEventCode>
         <Name>25m Hurtigpistol Grov Jr-NM</Name>
         <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov Jr-NM</Description>
@@ -9542,8 +9542,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF_V55</EventCode>
-        <ShortEventCode>CFPRF_V55</ShortEventCode>
+        <EventCode>HurtigGrov_V55</EventCode>
+        <ShortEventCode>HurtigGrov_V55</ShortEventCode>
         <Name>25m Hurtigpistol Grov V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov V55</Description>
@@ -9739,8 +9739,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF_V65</EventCode>
-        <ShortEventCode>CFPRF_V65</ShortEventCode>
+        <EventCode>HurtigGrov_V65</EventCode>
+        <ShortEventCode>HurtigGrov_V65</ShortEventCode>
         <Name>25m Hurtigpistol Grov V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov V65</Description>
@@ -9936,8 +9936,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>25 Metre</Range>
-        <EventCode>CFPRF_V73</EventCode>
-        <ShortEventCode>CFPRF_V73</ShortEventCode>
+        <EventCode>HurtigGrov_V73</EventCode>
+        <ShortEventCode>HurtigGrov_V73</ShortEventCode>
         <Name>25m Hurtigpistol Grov V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov V73</Description>
@@ -10133,8 +10133,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_Apen</EventCode>
-        <ShortEventCode>FP_Apen</ShortEventCode>
+        <EventCode>Fri_Apen</EventCode>
+        <ShortEventCode>Fri_Apen</ShortEventCode>
         <Name>50m Fripistol Apen</Name>
         <DefaultShooterGroup>Apen</DefaultShooterGroup>
         <Description>50m Fripistol Apen</Description>
@@ -10276,8 +10276,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_Jr-NM</EventCode>
-        <ShortEventCode>FP_Jr-NM</ShortEventCode>
+        <EventCode>Fri_Jr-NM</EventCode>
+        <ShortEventCode>Fri_Jr-NM</ShortEventCode>
         <Name>50m Fripistol Jr-NM</Name>
         <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
         <Description>50m Fripistol Jr-NM</Description>
@@ -10419,8 +10419,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_V55</EventCode>
-        <ShortEventCode>FP_V55</ShortEventCode>
+        <EventCode>Fri_V55</EventCode>
+        <ShortEventCode>Fri_V55</ShortEventCode>
         <Name>50m Fripistol V55</Name>
         <DefaultShooterGroup>V55</DefaultShooterGroup>
         <Description>50m Fripistol V55</Description>
@@ -10562,8 +10562,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_V65</EventCode>
-        <ShortEventCode>FP_V65</ShortEventCode>
+        <EventCode>Fri_V65</EventCode>
+        <ShortEventCode>Fri_V65</ShortEventCode>
         <Name>50m Fripistol V65</Name>
         <DefaultShooterGroup>V65</DefaultShooterGroup>
         <Description>50m Fripistol V65</Description>
@@ -10705,8 +10705,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_V73</EventCode>
-        <ShortEventCode>FP_V73</ShortEventCode>
+        <EventCode>Fri_V73</EventCode>
+        <ShortEventCode>Fri_V73</ShortEventCode>
         <Name>50m Fripistol V73</Name>
         <DefaultShooterGroup>V73</DefaultShooterGroup>
         <Description>50m Fripistol V73</Description>
@@ -10848,8 +10848,8 @@
     </ShootEventConfiguration>
     <ShootEventConfiguration CreateInNewDB="false">
         <Range>50 Metre Pistol</Range>
-        <EventCode>FP_P4X_SH1-P4</EventCode>
-        <ShortEventCode>FP_P4X_SH1-P4</ShortEventCode>
+        <EventCode>Fri_SH1-P4</EventCode>
+        <ShortEventCode>Fri_SH1-P4</ShortEventCode>
         <Name>P4 - Mixed 50m Pistol SH1</Name>
         <DefaultShooterGroup>SH1</DefaultShooterGroup>
         <Description>P4 - Mixed 50m Pistol SH1</Description>

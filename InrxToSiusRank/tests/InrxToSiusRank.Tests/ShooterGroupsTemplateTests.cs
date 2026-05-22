@@ -79,13 +79,13 @@ public sealed class ShooterGroupsTemplateTests
     }
 
     [Theory]
-    [InlineData("FP_V73", "50m Fripistol V73", "V73")]
-    [InlineData("FP_P4X_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1")]
-    [InlineData("SPSH1_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1")]
-    [InlineData("RFP_Jr-NM", "25m Silhuettpistol Jr-NM", "Jr-NM")]
-    [InlineData("RFP_NF_V55", "25m Silhuettpistol V55", "V55")]
-    [InlineData("STP_M", "25m Standardpistol M", "Menn")]
-    [InlineData("SPRF_K", "25m Hurtigpistol Fin K", "Kvinner")]
+    [InlineData("Fri_V73", "50m Fripistol V73", "V73")]
+    [InlineData("Fri_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1")]
+    [InlineData("Fin_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1")]
+    [InlineData("Silhuett_Jr-NM", "25m Silhuettpistol Jr-NM", "Jr-NM")]
+    [InlineData("Silhuett_V55", "25m Silhuettpistol V55", "V55")]
+    [InlineData("Standard_M", "25m Standardpistol M", "Menn")]
+    [InlineData("HurtigFin_K", "25m Hurtigpistol Fin K", "Kvinner")]
     public void Embedded_shoot_events_include_class_specific_nm_import_events(
         string eventCode,
         string expectedName,
@@ -129,7 +129,7 @@ public sealed class ShooterGroupsTemplateTests
         var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
         var shootEvent = document.Root!
             .Elements("ShootEventConfiguration")
-            .Single(element => element.Element("EventCode")!.Value == "RFP_Jr-NM");
+            .Single(element => element.Element("EventCode")!.Value == "Silhuett_Jr-NM");
         var phases = shootEvent
             .Element("PhaseConfigurations")!
             .Elements("PhaseConfiguration")

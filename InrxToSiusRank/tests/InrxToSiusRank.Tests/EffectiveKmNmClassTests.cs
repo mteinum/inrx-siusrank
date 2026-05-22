@@ -18,6 +18,7 @@ public sealed class EffectiveKmNmClassTests
     [Theory]
     [InlineData(6, "Hurtig Grov")]
     [InlineData(8, "Grovpistol")]
+    [InlineData(11, "Silhuett")]
     [InlineData(18, "Fripistol")]
     public void Missing_class_uses_open_class_for_combined_exercises(int ovelseId, string ovelseName)
     {

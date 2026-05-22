@@ -45,7 +45,7 @@ StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Nam
 Important mappings:
 
 - `StartNumber`, `BibNumber`, and `StarterId` are set to `Deltaker.nsfId`. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the NSF id when no membership number exists.
-- KM/NM class is read from `Resultat.MklasseId1`. If that class is missing or `-`, `Hurtig Grov`, `Grovpistol`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
+- KM/NM class is read from `Resultat.MklasseId1`. If that class is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
 - `Team` and `TeamDisplay` are filled with the club short name.
 - Names are kept at full length as shown in SIUS Rank.
@@ -101,18 +101,18 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 Example output files:
 
 ```text
-20260706_FP_Apen.csv
-20260706_FP_P4X_SH1-P4.csv
-20260707_RFP_Apen.csv
-20260707_RFP_Jr-NM.csv
-20260707_RFP_NF_V55.csv
-20260708_STP_M.csv
-20260709_SPW_K.csv
-20260709_SPW_Jk.csv
-20260709_SPSH1_SH1-P3.csv
-20260709_CFP_Apen.csv
-20260711_SPRF_M.csv
-20260711_CFPRF_Apen.csv
+20260706_Fri_Apen.csv
+20260706_Fri_SH1-P4.csv
+20260707_Silhuett_Apen.csv
+20260707_Silhuett_Jr-NM.csv
+20260707_Silhuett_V55.csv
+20260708_Standard_M.csv
+20260709_Fin_K.csv
+20260709_Fin_Jk.csv
+20260709_Fin_SH1-P3.csv
+20260709_Grov_Apen.csv
+20260711_HurtigFin_M.csv
+20260711_HurtigGrov_Apen.csv
 ```
 
 ## Validate Shooter Groups
@@ -144,8 +144,8 @@ This does not change the export. It only stops the run if a `Groups` value is no
 
 If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
-`ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events such as `FP_V73`,
-`STP_M`, and `FP_P4X_SH1-P4`, so SIUS Rank reports show the class in the event heading.
+`ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events such as `Fri_V73`,
+`Standard_M`, and `Fri_SH1-P4`, so SIUS Rank reports show the class in the event heading.
 
 ## Seed NM Startlag
 

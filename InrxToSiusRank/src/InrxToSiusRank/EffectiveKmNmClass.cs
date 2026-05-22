@@ -55,13 +55,14 @@ public static class EffectiveKmNmClass
 
     private static bool IsOpenCombinedExercise(OvelseInfo ovelse)
     {
-        if (ovelse.Id is 6 or 8 or 18)
+        if (ovelse.Id is 6 or 8 or 11 or 18)
         {
             return true;
         }
 
         return ovelse.Name.Contains("Hurtig Grov", StringComparison.OrdinalIgnoreCase) ||
                ovelse.Name.Contains("Grovpistol", StringComparison.OrdinalIgnoreCase) ||
+               ovelse.Name.Contains("Silhuett", StringComparison.OrdinalIgnoreCase) ||
                ovelse.Name.Contains("Fripistol", StringComparison.OrdinalIgnoreCase);
     }
 

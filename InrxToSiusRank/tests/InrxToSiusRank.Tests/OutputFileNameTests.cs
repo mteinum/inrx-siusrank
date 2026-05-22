@@ -3,11 +3,11 @@ namespace InrxToSiusRank.Tests;
 public sealed class OutputFileNameTests
 {
     [Theory]
-    [InlineData(18, "Fripistol", "Fri", 2, "Å", "20260711_FP_Apen.csv")]
-    [InlineData(18, "Fripistol", "Fri", 2, "SH1-P4", "20260711_FP_P4X_SH1-P4.csv")]
-    [InlineData(10, "Standard", "Std", 9, "M", "20260711_STP_M.csv")]
-    [InlineData(8, "Grovpistol", "Grov", 10, "Å", "20260711_CFP_Apen.csv")]
-    public void Uses_sius_event_code_for_nm_pistol_events(
+    [InlineData(18, "Fripistol", "Fri", 2, "Å", "20260711_Fri_Apen.csv")]
+    [InlineData(18, "Fripistol", "Fri", 2, "SH1-P4", "20260711_Fri_SH1-P4.csv")]
+    [InlineData(10, "Standard", "Std", 9, "M", "20260711_Standard_M.csv")]
+    [InlineData(8, "Grovpistol", "Grov", 10, "Å", "20260711_Grov_Apen.csv")]
+    public void Uses_norwegian_event_code_for_nm_pistol_events(
         int id,
         string name,
         string shortName,
@@ -24,12 +24,13 @@ public sealed class OutputFileNameTests
     }
 
     [Theory]
-    [InlineData("K", "20260711_SPW_K.csv")]
-    [InlineData("Kvinner", "20260711_SPW_Kvinner.csv")]
-    [InlineData("Jk", "20260711_SPW_Jk.csv")]
-    [InlineData("SH1-P3", "20260711_SPSH1_SH1-P3.csv")]
-    [InlineData("M", "20260711_SPM_M.csv")]
-    public void Uses_class_specific_sport_pistol_event_code(string kmNmClass, string expected)
+    [InlineData("K", "20260711_Fin_K.csv")]
+    [InlineData("Kvinner", "20260711_Fin_K.csv")]
+    [InlineData("Jk", "20260711_Fin_Jk.csv")]
+    [InlineData("Jrk", "20260711_Fin_Jk.csv")]
+    [InlineData("SH1-P3", "20260711_Fin_SH1-P3.csv")]
+    [InlineData("M", "20260711_Fin_M.csv")]
+    public void Uses_class_specific_norwegian_finpistol_event_code(string kmNmClass, string expected)
     {
         var fileName = OutputFileName.ForImport(
             CreateStevne(),
@@ -40,10 +41,10 @@ public sealed class OutputFileNameTests
     }
 
     [Theory]
-    [InlineData("Å", "20260711_RFP_Apen.csv")]
-    [InlineData("Apen", "20260711_RFP_Apen.csv")]
-    [InlineData("Jr-NM", "20260711_RFP_Jr-NM.csv")]
-    [InlineData("V55", "20260711_RFP_NF_V55.csv")]
+    [InlineData("Å", "20260711_Silhuett_Apen.csv")]
+    [InlineData("Apen", "20260711_Silhuett_Apen.csv")]
+    [InlineData("Jr-NM", "20260711_Silhuett_Jr-NM.csv")]
+    [InlineData("V55", "20260711_Silhuett_V55.csv")]
     public void Uses_final_silhouette_event_code_for_open_and_junior_classes(string kmNmClass, string expected)
     {
         var fileName = OutputFileName.ForImport(
@@ -62,7 +63,7 @@ public sealed class OutputFileNameTests
             new OvelseInfo(7, "Hurtig Fin", "Fin", 11),
             "M");
 
-        Assert.Equal("20260711_SPRF_M.csv", fileName);
+        Assert.Equal("20260711_HurtigFin_M.csv", fileName);
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public sealed class OutputFileNameTests
             new OvelseInfo(6, "Hurtig Grov", "Grov", 11),
             "Å");
 
-        Assert.Equal("20260711_CFPRF_Apen.csv", fileName);
+        Assert.Equal("20260711_HurtigGrov_Apen.csv", fileName);
     }
 
     private static StevneInfo CreateStevne() =>

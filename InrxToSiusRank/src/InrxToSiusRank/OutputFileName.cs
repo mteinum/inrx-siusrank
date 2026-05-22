@@ -21,22 +21,28 @@ public static class OutputFileName
     private static string ClassSuffix(string value)
     {
         var trimmed = value.Trim();
-        return GroupNormalizer.Normalize(trimmed).Equals("Apen", StringComparison.OrdinalIgnoreCase)
-            ? "Apen"
-            : trimmed;
+        return GroupNormalizer.Normalize(trimmed) switch
+        {
+            var group when group.Equals("Apen", StringComparison.OrdinalIgnoreCase) => "Apen",
+            var group when group.Equals("Menn", StringComparison.OrdinalIgnoreCase) => "M",
+            var group when group.Equals("Kvinner", StringComparison.OrdinalIgnoreCase) => "K",
+            var group when group.Equals("Jrm", StringComparison.OrdinalIgnoreCase) => "Jm",
+            var group when group.Equals("Jrk", StringComparison.OrdinalIgnoreCase) => "Jk",
+            _ => trimmed
+        };
     }
 
     private static string ExerciseSuffix(OvelseInfo ovelse, string classSuffix)
     {
         return ovelse.Id switch
         {
-            18 => FreePistolSuffix(classSuffix),
-            11 => SilhouetteSuffix(classSuffix),
-            10 => "STP",
-            9 => SportPistolSuffix(classSuffix),
-            8 => "CFP",
-            7 => "SPRF",
-            6 => "CFPRF",
+            18 => "Fri",
+            11 => "Silhuett",
+            10 => "Standard",
+            9 => "Fin",
+            8 => "Grov",
+            7 => "HurtigFin",
+            6 => "HurtigGrov",
             _ => ExerciseSuffixFromName(ovelse, classSuffix)
         };
     }
@@ -47,73 +53,41 @@ public static class OutputFileName
         {
             if (ovelse.Name.Contains("Fin", StringComparison.OrdinalIgnoreCase))
             {
-                return "SPRF";
+                return "HurtigFin";
             }
 
             if (ovelse.Name.Contains("Grov", StringComparison.OrdinalIgnoreCase))
             {
-                return "CFPRF";
+                return "HurtigGrov";
             }
         }
 
         if (ovelse.Name.Contains("Fripistol", StringComparison.OrdinalIgnoreCase))
         {
-            return "FP";
+            return "Fri";
         }
 
         if (ovelse.Name.Contains("Silhuett", StringComparison.OrdinalIgnoreCase))
         {
-            return SilhouetteSuffix(classSuffix);
+            return "Silhuett";
         }
 
         if (ovelse.Name.Contains("Standard", StringComparison.OrdinalIgnoreCase))
         {
-            return "STP";
+            return "Standard";
         }
 
         if (ovelse.Name.Contains("Finpistol", StringComparison.OrdinalIgnoreCase))
         {
-            return SportPistolSuffix(classSuffix);
+            return "Fin";
         }
 
         if (ovelse.Name.Contains("Grovpistol", StringComparison.OrdinalIgnoreCase))
         {
-            return "CFP";
+            return "Grov";
         }
 
         return string.IsNullOrWhiteSpace(ovelse.ShortName) ? ovelse.Name : ovelse.ShortName;
-    }
-
-    private static string SilhouetteSuffix(string classSuffix)
-    {
-        var group = GroupNormalizer.Normalize(classSuffix);
-        return group.Equals("Apen", StringComparison.OrdinalIgnoreCase) ||
-               group.Equals("Jr-NM", StringComparison.OrdinalIgnoreCase)
-            ? "RFP"
-            : "RFP_NF";
-    }
-
-    private static string FreePistolSuffix(string classSuffix)
-    {
-        var group = GroupNormalizer.Normalize(classSuffix);
-        return group.Equals("SH1", StringComparison.OrdinalIgnoreCase) ? "FP_P4X" : "FP";
-    }
-
-    private static string SportPistolSuffix(string classSuffix)
-    {
-        var group = GroupNormalizer.Normalize(classSuffix);
-        if (group.Equals("Kvinner", StringComparison.OrdinalIgnoreCase) ||
-            group.Equals("Jrk", StringComparison.OrdinalIgnoreCase))
-        {
-            return "SPW";
-        }
-
-        if (group.Equals("SH1", StringComparison.OrdinalIgnoreCase))
-        {
-            return "SPSH1";
-        }
-
-        return "SPM";
     }
 
     private static string SanitizeFilePart(string value)
