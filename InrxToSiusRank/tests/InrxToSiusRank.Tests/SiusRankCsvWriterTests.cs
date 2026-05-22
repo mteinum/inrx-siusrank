@@ -28,14 +28,14 @@ public sealed class SiusRankCsvWriterTests
     [Fact]
     public void Mapper_sets_required_sius_rank_fields_from_inrx_result()
     {
-        var starter = CreateStarter(resultatId: 7270, standplass: 17, relay: 1);
+        var starter = CreateStarter(resultatId: 7270, nsfId: "905380", standplass: 17, relay: 1);
 
         var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false);
 
-        Assert.Equal("7270", row.StartNumber);
-        Assert.Equal("7270", row.AccreditationNumber);
-        Assert.Equal("7270", row.BibNumber);
-        Assert.Equal("7270", row.StarterId);
+        Assert.Equal("905380", row.StartNumber);
+        Assert.Equal("905380", row.AccreditationNumber);
+        Assert.Equal("905380", row.BibNumber);
+        Assert.Equal("905380", row.StarterId);
         Assert.Equal("17", row.TargetNumber);
         Assert.Equal("1", row.Relay);
         Assert.Equal("Apen", row.Groups);
@@ -56,20 +56,13 @@ public sealed class SiusRankCsvWriterTests
     }
 
     [Fact]
-    public void Mapper_uses_bib_number_override_without_changing_start_identity()
+    public void Mapper_requires_nsf_id_for_start_identity()
     {
-        var starter = CreateStarter(resultatId: 7270, accreditationNumber: "SIUS-7270");
+        var starter = CreateStarter(resultatId: 7270, nsfId: "");
 
-        var row = StarterMapper.Map(
-            starter,
-            siusGroupOverride: null,
-            includeClubTeam: false,
-            bibNumberOverride: "42");
-
-        Assert.Equal("7270", row.StartNumber);
-        Assert.Equal("7270", row.StarterId);
-        Assert.Equal("SIUS-7270", row.AccreditationNumber);
-        Assert.Equal("42", row.BibNumber);
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false));
+        Assert.Contains("has no NSF id", ex.Message);
     }
 
     [Fact]
@@ -99,6 +92,7 @@ public sealed class SiusRankCsvWriterTests
         int? relay = 2,
         string firstName = "Morten",
         string lastName = "Teinum",
+        string nsfId = "905380",
         string accreditationNumber = "",
         string clubShortName = "KPS",
         string clubName = "Kristiansand Pistolskyttere") =>
@@ -110,6 +104,7 @@ public sealed class SiusRankCsvWriterTests
             SkivenrTil: string.Empty,
             Relay: relay,
             RelayDate: "2026-07-06 09:00:00",
+            NsfId: nsfId,
             AccreditationNumber: accreditationNumber,
             FirstName: firstName,
             LastName: lastName,

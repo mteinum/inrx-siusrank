@@ -326,6 +326,7 @@ public sealed record InrxStarter(
     string SkivenrTil,
     int? Relay,
     string RelayDate,
+    string NsfId,
     string AccreditationNumber,
     string FirstName,
     string LastName,

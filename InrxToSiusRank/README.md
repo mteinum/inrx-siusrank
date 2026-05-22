@@ -77,9 +77,10 @@ This creates SIUS Rank import files with:
 - The same header as `SiusRank_importExample.csv`.
 - UTF-8 BOM and CRLF line endings by default.
 - One output file per inrX `KM/NM` class (`Resultat.MklasseId1`).
+- If `Resultat.MklasseId1` is missing or `-`, `Hurtig Grov`, `Grovpistol`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
 - Output file names use class-specific SIUS Rank event codes, for example `FP_V73`, `STP_M`, `SPW_K`, `SPSH1_SH1-P3`, `CFP_Apen`, `SPRF_M`, and `CFPRF_V55`. Finpistol women and junior women use `SPW`, Finpistol SH1 uses `SPSH1`, Fripistol SH1 uses `FP_P4X`, and other Finpistol classes use `SPM`. Silhuett open and junior classes use `RFP` because they have finals; the veteran Silhuett classes use `RFP_NF`.
-- `StartNumber` and `StarterId` preserve inrX `Resultat.Id`; `AccreditationNumber` keeps the existing membership-number fallback behavior. For multi-event exports selected with `--stevne-ids`, `BibNumber` is a shared championship number per `Deltaker.Id`; single-event exports keep `BibNumber` as `Resultat.Id`.
+- `StartNumber`, `BibNumber`, and `StarterId` use `Deltaker.nsfId`. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the NSF id when no membership number exists.
 - `Team` and `TeamDisplay` are filled with the club short name.
 
 ## SIUS Rank templates

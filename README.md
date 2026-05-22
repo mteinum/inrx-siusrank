@@ -44,8 +44,8 @@ StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Nam
 
 Important mappings:
 
-- `StartNumber` and `StarterId` are set to inrX `Resultat.Id`; `AccreditationNumber` keeps the existing membership-number fallback behavior. For multi-event exports selected with `--stevne-ids`, `BibNumber` is a shared championship number per `Deltaker.Id`; single-event exports keep `BibNumber` as `Resultat.Id`.
-- KM/NM class is read from `Resultat.MklasseId1`.
+- `StartNumber`, `BibNumber`, and `StarterId` are set to `Deltaker.nsfId`. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the NSF id when no membership number exists.
+- KM/NM class is read from `Resultat.MklasseId1`. If that class is missing or `-`, `Hurtig Grov`, `Grovpistol`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
 - `Team` and `TeamDisplay` are filled with the club short name.
 - Names are kept at full length as shown in SIUS Rank.

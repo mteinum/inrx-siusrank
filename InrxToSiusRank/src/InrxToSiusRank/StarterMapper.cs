@@ -7,11 +7,10 @@ public static class StarterMapper
     public static SiusRankStarter Map(
         InrxStarter starter,
         string? siusGroupOverride,
-        bool includeClubTeam,
-        string? bibNumberOverride = null)
+        bool includeClubTeam)
     {
-        var startNumber = starter.ResultatId.ToString(CultureInfo.InvariantCulture);
-        var bibNumber = FirstNonEmpty(bibNumberOverride ?? string.Empty, startNumber);
+        var startNumber = ResolveStartNumber(starter);
+        var bibNumber = startNumber;
         var targetNumber = ResolveTargetNumber(starter);
         var relay = starter.Relay.GetValueOrDefault(1).ToString(CultureInfo.InvariantCulture);
         var lastName = starter.LastName.Trim();
@@ -49,6 +48,18 @@ public static class StarterMapper
             TeamDisplay: team,
             TeamDuellIndex: "1",
             TeamComment: string.Empty);
+    }
+
+    private static string ResolveStartNumber(InrxStarter starter)
+    {
+        var nsfId = starter.NsfId.Trim();
+        if (!string.IsNullOrWhiteSpace(nsfId))
+        {
+            return nsfId;
+        }
+
+        throw new InvalidOperationException(
+            $"Starter {starter.ResultatId} ({starter.FirstName} {starter.LastName}) has no NSF id.");
     }
 
     private static string ResolveTargetNumber(InrxStarter starter)

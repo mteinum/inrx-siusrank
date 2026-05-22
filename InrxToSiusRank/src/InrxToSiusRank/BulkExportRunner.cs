@@ -32,19 +32,17 @@ public static class BulkExportRunner
                 return new EventExport(stevne, ovelse, rawStarters);
             })
             .ToList();
-        var championshipBibNumbers = options.StevneIds.Count > 1
-            ? ChampionshipBibNumbers.Create(eventExports.SelectMany(item => item.Starters).ToList())
-            : new Dictionary<int, string>();
-
         var results = new List<BulkExportFileResult>();
         foreach (var eventExport in eventExports)
         {
-            var classes = repository.GetKmNmClasses(eventExport.Stevne.Id, eventExport.Ovelse.Id);
-            foreach (var kmNmClass in classes)
+            var classGroups = eventExport.Starters
+                .GroupBy(starter => EffectiveKmNmClass.Resolve(starter, eventExport.Ovelse))
+                .OrderBy(group => EffectiveKmNmClass.SortKey(group.Key))
+                .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var classGroup in classGroups)
             {
-                var selectedStarters = eventExport.Starters
-                    .Where(starter => KmNmClassMatcher.Matches(starter.KmNmClass, kmNmClass.Name))
-                    .ToList();
+                var selectedStarters = classGroup.ToList();
                 if (selectedStarters.Count == 0)
                 {
                     continue;
@@ -52,10 +50,9 @@ public static class BulkExportRunner
 
                 var rows = selectedStarters
                     .Select(starter => StarterMapper.Map(
-                        starter,
+                        starter with { KmNmClass = classGroup.Key },
                         siusGroupOverride: null,
-                        includeClubTeam: true,
-                        bibNumberOverride: championshipBibNumbers.GetValueOrDefault(starter.DeltakerId)))
+                        includeClubTeam: true))
                     .ToList();
 
                 ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);
@@ -63,13 +60,13 @@ public static class BulkExportRunner
                 var warnings = ExportValidator.Validate(rows).ToList();
                 var outputPath = Path.Combine(
                     outputDirectory,
-                    OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, kmNmClass.Name));
+                    OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, classGroup.Key));
                 SiusRankCsvWriter.Write(outputPath, rows, options.EncodingName);
 
                 results.Add(new BulkExportFileResult(
                     eventExport.Stevne,
                     eventExport.Ovelse,
-                    kmNmClass.Name,
+                    classGroup.Key,
                     rows.Count,
                     outputPath,
                     warnings));
