@@ -18,23 +18,7 @@ public static class BulkExportRunner
         var outputDirectory = Path.GetFullPath(options.OutputDirectory);
         Directory.CreateDirectory(outputDirectory);
 
-        var eventExports = stevner
-            .SelectMany(stevne =>
-            {
-                var ovelser = ResolveOvelser(repository, options, stevne);
-                return ovelser.Select(ovelse =>
-                {
-                    var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
-                    if (rawStarters.Count == 0)
-                    {
-                        throw new InvalidOperationException(
-                            $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
-                    }
-
-                    return new EventExport(stevne, ovelse, rawStarters);
-                });
-            })
-            .ToList();
+        var eventExports = ResolveEventExports(repository, options, stevner);
 
         var startNumbers = ChampionshipStartNumbers.Create(
             eventExports.SelectMany(eventExport => eventExport.Starters),
@@ -86,6 +70,32 @@ public static class BulkExportRunner
         return new BulkExportResult(outputDirectory, options.ShooterGroupsTemplatePath, results);
     }
 
+    public static BibMapCreateResult CreateBibMap(AppOptions options)
+    {
+        if (options.OutputDirectory is null)
+        {
+            throw new ArgumentException("Creating bib-map.csv requires --output-dir.");
+        }
+
+        using var repository = new InrxRepository(options.DatabasePath);
+        var stevner = ResolveStevner(repository, options);
+        var outputDirectory = Path.GetFullPath(options.OutputDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        var eventExports = ResolveEventExports(repository, options, stevner);
+        var bibMapPath = Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName);
+        var startNumbers = ChampionshipStartNumbers.Create(
+            eventExports.SelectMany(eventExport => eventExport.Starters),
+            eventExports.Select(eventExport => eventExport.Stevne),
+            bibMapPath);
+
+        return new BibMapCreateResult(
+            outputDirectory,
+            bibMapPath,
+            eventExports.Count,
+            eventExports.Sum(eventExport => eventExport.Starters.Count),
+            startNumbers.Count);
+    }
+
     private static IReadOnlyList<StevneInfo> ResolveStevner(InrxRepository repository, AppOptions options)
     {
         if (options.StevneIds.Count > 0)
@@ -128,6 +138,30 @@ public static class BulkExportRunner
         throw new InvalidOperationException(
             $"Stevne.Id={stevne.Id} has multiple exercises. Use --ovelse or --ovelse-id. Matches: " +
             string.Join(", ", ovelser.Select(ovelse => $"{ovelse.Id}:{ovelse.Name}")));
+    }
+
+    private static IReadOnlyList<EventExport> ResolveEventExports(
+        InrxRepository repository,
+        AppOptions options,
+        IReadOnlyList<StevneInfo> stevner)
+    {
+        return stevner
+            .SelectMany(stevne =>
+            {
+                var ovelser = ResolveOvelser(repository, options, stevne);
+                return ovelser.Select(ovelse =>
+                {
+                    var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
+                    if (rawStarters.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
+                    }
+
+                    return new EventExport(stevne, ovelse, rawStarters);
+                });
+            })
+            .ToList();
     }
 
     private sealed record EventExport(

@@ -318,6 +318,13 @@ public sealed record BulkExportResult(
     string? ShooterGroupsTemplatePath,
     IReadOnlyList<BulkExportFileResult> Files);
 
+public sealed record BibMapCreateResult(
+    string OutputDirectory,
+    string BibMapPath,
+    int EventCount,
+    int StarterCount,
+    int ShooterCount);
+
 public sealed record InrxStarter(
     int ResultatId,
     int DeltakerId,

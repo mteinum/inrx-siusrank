@@ -68,7 +68,10 @@
             <TextBlock Grid.Row="2" Text="Øvelse filter" VerticalAlignment="Center" />
             <TextBox x:Name="OvelseFilterBox" Grid.Row="2" Grid.Column="1" PlaceholderText="Optional OvelseDef.Id or name" />
 
-            <Button x:Name="RunExportButton" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Content="Lag CSV-filer" />
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button x:Name="CreateBibMapButton" Content="Opprett/oppdater bib-map.csv" />
+              <Button x:Name="RunExportButton" Content="Lag CSV-filer" />
+            </StackPanel>
           </Grid>
         </TabItem>
 

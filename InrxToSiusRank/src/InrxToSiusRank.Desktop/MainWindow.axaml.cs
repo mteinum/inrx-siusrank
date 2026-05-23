@@ -94,6 +94,7 @@ public partial class MainWindow : Window
             await BrowseFolderAsync(ExportsDirectoryInput, "Select SIUS Rank Exports directory");
 
         Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Inspecting database", InspectDatabaseAsync);
+        Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Creating bib-map.csv", RunCreateBibMapAsync);
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Creating CSV files", RunExportAsync);
         Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Running writeback dry-run", () => RunWritebackAsync(apply: false));
         Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Applying writeback", () => RunWritebackAsync(apply: true));
@@ -216,6 +217,18 @@ public partial class MainWindow : Window
         });
     }
 
+    private async Task RunCreateBibMapAsync()
+    {
+        var options = BuildExportOptions(includeTemplate: false);
+        var command = BuildBibMapCommand(options);
+        AppendLog(command);
+
+        var result = await Task.Run(() => BulkExportRunner.CreateBibMap(options));
+        BibMapPathInput.Text = result.BibMapPath;
+        SaveDesktopSettings();
+        AppendLog(FormatBibMapResult(result));
+    }
+
     private Task RunWritebackAsync(bool apply)
     {
         var options = BuildWritebackOptions(apply);
@@ -229,11 +242,11 @@ public partial class MainWindow : Window
         });
     }
 
-    private AppOptions BuildExportOptions()
+    private AppOptions BuildExportOptions(bool includeTemplate = true)
     {
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
         var outputDirectory = RequireText(OutputDirectoryInput.Text, "Output directory");
-        var templatePath = string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text)
+        var templatePath = !includeTemplate || string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text)
             ? null
             : RequireExistingFile(ShooterGroupsTemplateInput.Text, "Shooter groups XML");
         var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
@@ -448,6 +461,29 @@ public partial class MainWindow : Window
         return "$ " + string.Join(' ', parts);
     }
 
+    private static string BuildBibMapCommand(AppOptions options)
+    {
+        var parts = new List<string>
+        {
+            "InrxToSiusRank.Desktop",
+            "create-bib-map",
+            "--db", Quote(options.DatabasePath),
+            "--stevne-ids", Quote(FormatIds(options.StevneIds)),
+            "--output-dir", Quote(options.OutputDirectory ?? string.Empty)
+        };
+
+        if (options.OvelseId is not null)
+        {
+            parts.AddRange(["--ovelse-id", options.OvelseId.Value.ToString(CultureInfo.InvariantCulture)]);
+        }
+        else if (!string.IsNullOrWhiteSpace(options.OvelseName))
+        {
+            parts.AddRange(["--ovelse", Quote(options.OvelseName)]);
+        }
+
+        return "$ " + string.Join(' ', parts);
+    }
+
     private static string BuildWritebackCommand(SiusRankWritebackOptions options)
     {
         var parts = new List<string>
@@ -499,6 +535,18 @@ public partial class MainWindow : Window
             }
         }
 
+        return builder.ToString();
+    }
+
+    private static string FormatBibMapResult(BibMapCreateResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("bib-map.csv created/updated.");
+        builder.AppendLine($"Output directory: {result.OutputDirectory}");
+        builder.AppendLine($"bib-map.csv: {result.BibMapPath}");
+        builder.AppendLine($"Events: {result.EventCount}");
+        builder.AppendLine($"Starters: {result.StarterCount}");
+        builder.AppendLine($"Unique shooters: {result.ShooterCount}");
         return builder.ToString();
     }
 
