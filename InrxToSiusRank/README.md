@@ -80,7 +80,7 @@ This creates SIUS Rank import files with:
 - If `Resultat.MklasseId1` is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
 - Output file names use Norwegian class-specific SIUS Rank event codes, for example `Fri_V73`, `Standard_M`, `Fin_K`, `Fin_SH1-P3`, `Grov_Apen`, `HurtigFin_M`, and `HurtigGrov_V55`. The bundled shoot-event XML uses the same Norwegian event codes.
-- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
+- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. The exporter reads and writes `bib-map.csv` in the output directory so regenerated files keep existing `Deltaker.Id` to bib mappings and only allocate new numbers for new shooters. `nsfId` is stored in the map for control and traceability. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
 - `Team` and `TeamDisplay` are filled with the club short name.
 
 ## SIUS Rank templates
@@ -135,6 +135,24 @@ Show the NM startlag timetable:
 
 The output lists each NM event, target range, startlag time, shooter count versus capacity, and class mix. Finpistol and Grovpistol are shown as two-stage events: Precision on `2026-07-09` and Rapid on `2026-07-10`, with Finpistol before Grovpistol on both days. Startlag over target capacity are marked `OVER CAPACITY`.
 
+## Write SIUS Rank results back to inrX
+
+After results are calculated in SIUS Rank, press `Rank List Main` for each relevant event. SIUS Rank writes ODF XML files under its `Exports` directory. `writeback-siusrank` reads the exported `IndividualResults` XML files and updates the matching inrX `Resultat` rows.
+
+Preview only:
+
+```powershell
+.\InrxToSiusRank.exe writeback-siusrank --db .\storage.db3 --stevne-ids 413-417 --exports .\Rank_A\Exports --bib-map .\siusrank-import\bib-map.csv
+```
+
+Apply updates:
+
+```powershell
+.\InrxToSiusRank.exe writeback-siusrank --db .\storage.db3 --stevne-ids 413-417 --exports .\Rank_A\Exports --bib-map .\siusrank-import\bib-map.csv --apply
+```
+
+The command creates `storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS` before writing. Use `--event HurtigFin_M,HurtigFin_K` to limit the import. Matching uses `bib-map.csv` first, then old inrX result id, NSF/accreditation number, and finally unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports include total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
+
 ## Windows executable
 
 Build a self-contained Windows executable:
@@ -187,4 +205,8 @@ seed-startlag                       Preview or apply NM startlag seeding from NS
 --ranking-period-end <iso>          Ranking period end for seed-startlag.
 --apply                             Write seed-startlag changes after creating a backup.
 show-timetable                      Show NM timetable. Default Stevne.Id range: 405-411.
+writeback-siusrank                  Preview or apply SIUS Rank Rank List Main ODF XML results back to inrX.
+--exports <path>                    SIUS Rank Exports directory for writeback-siusrank.
+--bib-map <path>                    Optional bib-map.csv for writeback-siusrank.
+--event <name>                      Optional comma-separated SIUS event filter for writeback-siusrank.
 ```

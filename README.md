@@ -44,7 +44,7 @@ StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Nam
 
 Important mappings:
 
-- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
+- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. The exporter reads and writes `bib-map.csv` in the output directory so regenerated files keep existing `Deltaker.Id` to bib mappings and only allocate new numbers for new shooters. `nsfId` is stored in the map for control and traceability. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
 - KM/NM class is read from `Resultat.MklasseId1`. If that class is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
 - `Team` and `TeamDisplay` are filled with the club short name.
@@ -206,6 +206,53 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 ```
 
 The output lists each NM event, configured target range, startlag time, shooter count versus capacity, and class mix. Finpistol and Grovpistol are shown as two-stage events: Precision on `2026-07-09` and Rapid on `2026-07-10`, with Finpistol before Grovpistol on both days. Startlag over target capacity are marked `OVER CAPACITY`.
+
+## Write SIUS Rank Results Back to inrX
+
+After results are calculated in SIUS Rank, press `Rank List Main` for the relevant event(s). SIUS Rank writes ODF XML files under its `Exports` directory. The `writeback-siusrank` command reads those exported `IndividualResults` XML files and writes completed results back to inrX `Resultat` rows.
+
+Preview without changing `storage.db3`:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  writeback-siusrank \
+  --db storage.db3 \
+  --stevne-ids 413-417 \
+  --exports Rank_A/Exports \
+  --bib-map siusrank-import/bib-map.csv
+```
+
+Apply the updates:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  writeback-siusrank \
+  --db storage.db3 \
+  --stevne-ids 413-417 \
+  --exports Rank_A/Exports \
+  --bib-map siusrank-import/bib-map.csv \
+  --apply
+```
+
+Before writing, the command creates a backup named:
+
+```text
+storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS
+```
+
+Use `--event` to limit the import to one or more SIUS Rank event names:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  writeback-siusrank \
+  --db storage.db3 \
+  --stevne-id 413 \
+  --exports Rank_A/Exports \
+  --bib-map siusrank-import/bib-map.csv \
+  --event HurtigFin_M,HurtigFin_K
+```
+
+Matching is done by `bib-map.csv` first, then by old inrX result id, NSF/accreditation number, and finally by unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports contain total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
 
 ## Build Windows Exe
 

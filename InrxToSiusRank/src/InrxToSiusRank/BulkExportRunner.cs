@@ -38,7 +38,8 @@ public static class BulkExportRunner
 
         var startNumbers = ChampionshipStartNumbers.Create(
             eventExports.SelectMany(eventExport => eventExport.Starters),
-            eventExports.Select(eventExport => eventExport.Stevne));
+            eventExports.Select(eventExport => eventExport.Stevne),
+            Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName));
 
         var results = new List<BulkExportFileResult>();
         foreach (var eventExport in eventExports)

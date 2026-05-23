@@ -32,6 +32,13 @@ public static class Program
                 return 0;
             }
 
+            if (SiusRankWritebackCommand.IsCommand(args))
+            {
+                var writebackOptions = SiusRankWritebackCommand.Parse(args.Skip(1).ToArray());
+                SiusRankWritebackReporter.Print(SiusRankWritebackRunner.Run(writebackOptions));
+                return 0;
+            }
+
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
@@ -62,6 +69,11 @@ public static class Program
         catch (IOException ex)
         {
             Console.Error.WriteLine($"File error: {ex.Message}");
+            return 1;
+        }
+        catch (System.Xml.XmlException ex)
+        {
+            Console.Error.WriteLine($"XML error: {ex.Message}");
             return 1;
         }
         catch (HttpRequestException ex)
@@ -115,6 +127,8 @@ internal static class Usage
           InrxToSiusRank seed-startlag --db storage.db3 --stevne-ids 405-411
           InrxToSiusRank seed-startlag --db storage.db3 --stevne-ids 405-411 --apply
           InrxToSiusRank show-timetable --db storage.db3
+          InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports
+          InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports --bib-map siusrank-import\bib-map.csv --apply
 
         appsettings.json:
           Loaded from the current directory or executable directory.
@@ -152,5 +166,16 @@ internal static class Usage
           --settings <path>                   Path to appsettings.json.
           --stevne-id <id>                    Select one Stevne.Id.
           --stevne-ids <ids>                  Select several stevner. Default: 405-411.
+
+        writeback-siusrank options:
+          writeback-siusrank                  Preview or apply SIUS Rank Rank List Main ODF XML results back to inrX.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --exports <path>                    SIUS Rank Exports directory.
+          --stevne-id <id>                    Select one inrX Stevne.Id.
+          --stevne-ids <ids>                  Select several inrX stevner, for example 413-417.
+          --bib-map <path>                    Optional bib-map.csv. If omitted, siusrank-import\bib-map.csv is auto-detected when possible.
+          --event <name>                      Optional comma-separated SIUS event filter, for example HurtigFin_M,HurtigGrov_Apen.
+          --apply                             Write updates after creating storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS.
         """;
 }

@@ -7,9 +7,11 @@
 # Local inrX/SIUS data and generated exports. Keep the public repo code-only.
 *.db
 *.db3
+*.db3.bak*
 *.sqlite
 *.sqlite3
 *.csv
+*.zip
 *.png
 *.jpg
 *.jpeg
@@ -18,8 +20,13 @@
 *.tif
 *.tiff
 *.srkl
+*.srkl.bak*
 
 # Local Codex/task notes.
 codex_prompt_task*.md
 SIUS_RANK_DECOMPILATION_NOTES.md
 SiusRank/
+INRX191/
+skytteradmin_21052026/
+Stevner/
+Pinse2026_/
