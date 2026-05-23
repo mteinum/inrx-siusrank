@@ -2,12 +2,32 @@
 param(
     [string]$DatabasePath = "C:\Users\ms\Dropbox\KPS-Stevne\INRX191\storage.db3",
     [string]$StevneIds = "413-417",
-    [string]$OutputDir = (Join-Path $PSScriptRoot "siusrank-import")
+    [string]$OutputDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-$exePath = Join-Path $PSScriptRoot "InrxToSiusRank.exe"
+$scriptPath = $PSCommandPath
+if ([string]::IsNullOrWhiteSpace($scriptPath)) {
+    $scriptPath = $MyInvocation.MyCommand.Path
+}
+
+if ([string]::IsNullOrWhiteSpace($scriptPath)) {
+    $scriptDir = (Get-Location).Path
+}
+else {
+    $scriptDir = Split-Path -Parent $scriptPath
+}
+
+if ([string]::IsNullOrWhiteSpace($scriptDir)) {
+    $scriptDir = (Get-Location).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+    $OutputDir = Join-Path $scriptDir "siusrank-import"
+}
+
+$exePath = Join-Path $scriptDir "InrxToSiusRank.exe"
 if (-not (Test-Path -LiteralPath $exePath)) {
     throw "Fant ikke InrxToSiusRank.exe ved siden av sync.ps1: $exePath"
 }
