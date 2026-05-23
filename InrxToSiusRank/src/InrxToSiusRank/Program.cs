@@ -128,7 +128,7 @@ internal static class Usage
           --event-date <yyyy-MM-dd>           Select event by date.
           --event-name <text>                 Select event by name text together with --event-date.
           --stevne-id <id>                    Select one Stevne.Id.
-          --stevne-ids <ids>                  Select several stevner, for example 405,406,407 or 405-411.
+          --stevne-ids <ids>                  Select several stevner and export all exercises, for example 405,406,407 or 405-411.
           --ovelse-id <id>                    Select by OvelseDef.Id.
           --ovelse <name>                     Exercise name, for example Fripistol.
           --output-dir <path>                 Output directory for generated CSV files.

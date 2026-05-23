@@ -7,10 +7,11 @@ public static class StarterMapper
     public static SiusRankStarter Map(
         InrxStarter starter,
         string? siusGroupOverride,
-        bool includeClubTeam)
+        bool includeClubTeam,
+        string startNumber)
     {
-        var startNumber = ResolveStartNumber(starter);
-        var bibNumber = startNumber;
+        var resolvedStartNumber = ResolveStartNumber(starter, startNumber);
+        var bibNumber = resolvedStartNumber;
         var targetNumber = ResolveTargetNumber(starter);
         var relay = starter.Relay.GetValueOrDefault(1).ToString(CultureInfo.InvariantCulture);
         var lastName = starter.LastName.Trim();
@@ -25,8 +26,8 @@ public static class StarterMapper
             : siusGroupOverride.Trim();
 
         return new SiusRankStarter(
-            StartNumber: startNumber,
-            AccreditationNumber: FirstNonEmpty(starter.AccreditationNumber, startNumber),
+            StartNumber: resolvedStartNumber,
+            AccreditationNumber: FirstNonEmpty(starter.AccreditationNumber, resolvedStartNumber),
             IssfId: string.Empty,
             DisplayNameLong: displayName,
             DisplayName: displayName,
@@ -42,7 +43,7 @@ public static class StarterMapper
             DuellIndex: "1",
             Groups: group,
             Comment: string.Empty,
-            StarterId: startNumber,
+            StarterId: resolvedStartNumber,
             TeamPosition: "1",
             Team: team,
             TeamDisplay: team,
@@ -50,16 +51,23 @@ public static class StarterMapper
             TeamComment: string.Empty);
     }
 
-    private static string ResolveStartNumber(InrxStarter starter)
+    private static string ResolveStartNumber(InrxStarter starter, string startNumber)
     {
-        var nsfId = starter.NsfId.Trim();
-        if (!string.IsNullOrWhiteSpace(nsfId))
+        var trimmed = startNumber.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
         {
-            return nsfId;
+            throw new InvalidOperationException(
+                $"Starter {starter.ResultatId} ({starter.FirstName} {starter.LastName}) has no assigned start number.");
         }
 
-        throw new InvalidOperationException(
-            $"Starter {starter.ResultatId} ({starter.FirstName} {starter.LastName}) has no NSF id.");
+        if (trimmed.Length > 6 || trimmed.Any(ch => ch < '0' || ch > '9'))
+        {
+            throw new InvalidOperationException(
+                $"Starter {starter.ResultatId} ({starter.FirstName} {starter.LastName}) has invalid start number '{trimmed}'. " +
+                "Use digits only, maximum 6 digits.");
+        }
+
+        return trimmed;
     }
 
     private static string ResolveTargetNumber(InrxStarter starter)

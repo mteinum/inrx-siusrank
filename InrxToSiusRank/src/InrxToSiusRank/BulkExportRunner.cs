@@ -19,19 +19,27 @@ public static class BulkExportRunner
         Directory.CreateDirectory(outputDirectory);
 
         var eventExports = stevner
-            .Select(stevne =>
+            .SelectMany(stevne =>
             {
-                var ovelse = ResolveOvelse(repository, options, stevne);
-                var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
-                if (rawStarters.Count == 0)
+                var ovelser = ResolveOvelser(repository, options, stevne);
+                return ovelser.Select(ovelse =>
                 {
-                    throw new InvalidOperationException(
-                        $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
-                }
+                    var rawStarters = repository.GetStarters(stevne.Id, ovelse.Id);
+                    if (rawStarters.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"No starters found for Stevne.Id={stevne.Id} and OvelseDef.Id={ovelse.Id}.");
+                    }
 
-                return new EventExport(stevne, ovelse, rawStarters);
+                    return new EventExport(stevne, ovelse, rawStarters);
+                });
             })
             .ToList();
+
+        var startNumbers = ChampionshipStartNumbers.Create(
+            eventExports.SelectMany(eventExport => eventExport.Starters),
+            eventExports.Select(eventExport => eventExport.Stevne));
+
         var results = new List<BulkExportFileResult>();
         foreach (var eventExport in eventExports)
         {
@@ -52,7 +60,8 @@ public static class BulkExportRunner
                     .Select(starter => StarterMapper.Map(
                         starter with { KmNmClass = classGroup.Key },
                         siusGroupOverride: null,
-                        includeClubTeam: true))
+                        includeClubTeam: true,
+                        startNumber: startNumbers[starter.DeltakerId]))
                     .ToList();
 
                 ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);
@@ -91,26 +100,33 @@ public static class BulkExportRunner
         return [repository.ResolveStevne(options)];
     }
 
-    private static OvelseInfo ResolveOvelse(InrxRepository repository, AppOptions options, StevneInfo stevne)
+    private static IReadOnlyList<OvelseInfo> ResolveOvelser(InrxRepository repository, AppOptions options, StevneInfo stevne)
     {
         if (options.OvelseId is not null || !string.IsNullOrWhiteSpace(options.OvelseName))
         {
-            return repository.ResolveOvelse(options);
+            return [repository.ResolveOvelse(options)];
         }
 
         var ovelser = repository.GetOvelserForStevne(stevne.Id);
-        return ovelser.Count switch
+        if (ovelser.Count == 0)
         {
-            0 => throw new InvalidOperationException($"No exercises found for Stevne.Id={stevne.Id}."),
-            1 => new OvelseInfo(
-                ovelser[0].Id,
-                ovelser[0].Name,
-                ovelser[0].ShortName,
-                ovelser[0].HovedOvelseId),
-            _ => throw new InvalidOperationException(
-                $"Stevne.Id={stevne.Id} has multiple exercises. Use --ovelse or --ovelse-id. Matches: " +
-                string.Join(", ", ovelser.Select(ovelse => $"{ovelse.Id}:{ovelse.Name}")))
-        };
+            throw new InvalidOperationException($"No exercises found for Stevne.Id={stevne.Id}.");
+        }
+
+        if (ovelser.Count == 1 || options.StevneIds.Count > 0)
+        {
+            return ovelser
+                .Select(ovelse => new OvelseInfo(
+                    ovelse.Id,
+                    ovelse.Name,
+                    ovelse.ShortName,
+                    ovelse.HovedOvelseId))
+                .ToList();
+        }
+
+        throw new InvalidOperationException(
+            $"Stevne.Id={stevne.Id} has multiple exercises. Use --ovelse or --ovelse-id. Matches: " +
+            string.Join(", ", ovelser.Select(ovelse => $"{ovelse.Id}:{ovelse.Name}")));
     }
 
     private sealed record EventExport(

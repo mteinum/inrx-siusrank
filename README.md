@@ -44,7 +44,7 @@ StartNumber;AccreditationNumber;IssfId;DisplayNameLong;DisplayName;FirstName;Nam
 
 Important mappings:
 
-- `StartNumber`, `BibNumber`, and `StarterId` are set to `Deltaker.nsfId`. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the NSF id when no membership number exists.
+- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
 - KM/NM class is read from `Resultat.MklasseId1`. If that class is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - `Groups` is derived from KM/NM class, for example `Å -> Apen`, `V55 -> V55`, `Jm -> Jrm`.
 - `Team` and `TeamDisplay` are filled with the club short name.
@@ -89,6 +89,8 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --stevne-ids 405-411 \
   --output-dir siusrank-import
 ```
+
+When `--stevne-ids` is used without `--ovelse` or `--ovelse-id`, all exercises in the selected events are exported in the same run. This keeps the `26nnn` start and bib number sequence shared across the generated files.
 
 `--stevne-ids` supports both comma-separated ids and ranges:
 
@@ -232,7 +234,13 @@ On Windows:
 File export on Windows:
 
 ```powershell
-.\InrxToSiusRank.exe --db .\storage.db3 --stevne-ids 405-411 --output-dir .\siusrank-import
+powershell -ExecutionPolicy Bypass -File .\sync.ps1
+```
+
+Override paths if needed:
+
+```powershell
+.\sync.ps1 -DatabasePath "C:\Users\ms\Dropbox\KPS-Stevne\INRX191\storage.db3" -StevneIds "413-417" -OutputDir ".\siusrank-import"
 ```
 
 ## Create GitHub Release
@@ -268,7 +276,7 @@ linux-x64
 --db <path>                         Path to storage.db3. Overrides appsettings.
 --wizard                            Start interactive wizard.
 --stevne-id <id>                    Select one Stevne.Id.
---stevne-ids <ids>                  Select several events, for example 405,406 or 405-411.
+--stevne-ids <ids>                  Select several events and export all exercises, for example 405,406 or 405-411.
 --event-date <yyyy-MM-dd>           Select event by date.
 --event-name <text>                 Filter event by name together with --event-date.
 --ovelse <name>                     Select exercise, for example Fripistol.

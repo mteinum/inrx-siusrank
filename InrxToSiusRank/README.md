@@ -69,7 +69,7 @@ Create one import file per KM/NM class for several events:
 dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-ids 405-411 --output-dir siusrank-import --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 ```
 
-`--stevne-ids` accepts comma-separated ids and ranges, for example `405,406,407` or `405-411`. If `--ovelse`/`--ovelse-id` is omitted, the program uses the only exercise on each selected `Stevne`; if a `Stevne` has multiple exercises, it asks you to specify the exercise.
+`--stevne-ids` accepts comma-separated ids and ranges, for example `405,406,407` or `405-411`. If `--ovelse`/`--ovelse-id` is omitted, all exercises in the selected events are exported in the same run. This keeps the shared championship start and bib number sequence stable across the generated files.
 
 This creates SIUS Rank import files with:
 
@@ -80,7 +80,7 @@ This creates SIUS Rank import files with:
 - If `Resultat.MklasseId1` is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
 - KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
 - Output file names use Norwegian class-specific SIUS Rank event codes, for example `Fri_V73`, `Standard_M`, `Fin_K`, `Fin_SH1-P3`, `Grov_Apen`, `HurtigFin_M`, and `HurtigGrov_V55`. The bundled shoot-event XML uses the same Norwegian event codes.
-- `StartNumber`, `BibNumber`, and `StarterId` use `Deltaker.nsfId`. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the NSF id when no membership number exists.
+- `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
 - `Team` and `TeamDisplay` are filled with the club short name.
 
 ## SIUS Rank templates
@@ -158,7 +158,13 @@ Use `appsettings.json` for the database path, or pass `--db` with the full path:
 Direct export:
 
 ```powershell
-.\InrxToSiusRank.exe --db .\storage.db3 --stevne-id 405 --ovelse Fripistol --output-dir .\siusrank-import
+powershell -ExecutionPolicy Bypass -File .\sync.ps1
+```
+
+Override paths if needed:
+
+```powershell
+.\sync.ps1 -DatabasePath "C:\Users\ms\Dropbox\KPS-Stevne\INRX191\storage.db3" -StevneIds "413-417" -OutputDir ".\siusrank-import"
 ```
 
 ## Options
@@ -168,7 +174,7 @@ Direct export:
 --db <path>                         Path to storage.db3. Overrides appsettings.
 --wizard                            Start interactive wizard.
 --stevne-id <id>                    inrX Stevne.Id. Use this or --event-date/--event-name.
---stevne-ids <ids>                  Bulk select stevner, for example 405,406,407 or 405-411.
+--stevne-ids <ids>                  Bulk select stevner and export all exercises, for example 405,406,407 or 405-411.
 --event-date <yyyy-MM-dd>           Select event by date.
 --event-name <text>                 Select event by name text together with --event-date.
 --ovelse <name>                     Exercise name, for example Fripistol.

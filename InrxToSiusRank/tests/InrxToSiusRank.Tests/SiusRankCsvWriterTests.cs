@@ -15,7 +15,7 @@ public sealed class SiusRankCsvWriterTests
     public void Csv_uses_semicolon_crlf_and_preserves_norwegian_characters()
     {
         var starter = CreateStarter(firstName: "Pål", lastName: "Bjørnsen");
-        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false);
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: "26001");
 
         var csv = SiusRankCsvWriter.ToCsv([row]);
 
@@ -30,12 +30,12 @@ public sealed class SiusRankCsvWriterTests
     {
         var starter = CreateStarter(resultatId: 7270, nsfId: "905380", standplass: 17, relay: 1);
 
-        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false);
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: "26001");
 
-        Assert.Equal("905380", row.StartNumber);
-        Assert.Equal("905380", row.AccreditationNumber);
-        Assert.Equal("905380", row.BibNumber);
-        Assert.Equal("905380", row.StarterId);
+        Assert.Equal("26001", row.StartNumber);
+        Assert.Equal("26001", row.AccreditationNumber);
+        Assert.Equal("26001", row.BibNumber);
+        Assert.Equal("26001", row.StarterId);
         Assert.Equal("17", row.TargetNumber);
         Assert.Equal("1", row.Relay);
         Assert.Equal("Apen", row.Groups);
@@ -50,19 +50,19 @@ public sealed class SiusRankCsvWriterTests
     {
         var starter = CreateStarter(resultatId: 7270, accreditationNumber: "SIUS-7270");
 
-        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false);
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: "26001");
 
         Assert.Equal("SIUS-7270", row.AccreditationNumber);
     }
 
     [Fact]
-    public void Mapper_requires_nsf_id_for_start_identity()
+    public void Mapper_requires_assigned_start_number()
     {
-        var starter = CreateStarter(resultatId: 7270, nsfId: "");
+        var starter = CreateStarter(resultatId: 7270);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false));
-        Assert.Contains("has no NSF id", ex.Message);
+            StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: ""));
+        Assert.Contains("has no assigned start number", ex.Message);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class SiusRankCsvWriterTests
     {
         var starter = CreateStarter(resultatId: 7270);
 
-        var row = StarterMapper.Map(starter, siusGroupOverride: "Å", includeClubTeam: false);
+        var row = StarterMapper.Map(starter, siusGroupOverride: "Å", includeClubTeam: false, startNumber: "26001");
 
         Assert.Equal("Å", row.Groups);
     }
@@ -80,7 +80,7 @@ public sealed class SiusRankCsvWriterTests
     {
         var starter = CreateStarter(clubShortName: "KPS", clubName: "Kristiansand Pistolskyttere");
 
-        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: true);
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: true, startNumber: "26001");
 
         Assert.Equal("KPS", row.Team);
         Assert.Equal("KPS", row.TeamDisplay);
