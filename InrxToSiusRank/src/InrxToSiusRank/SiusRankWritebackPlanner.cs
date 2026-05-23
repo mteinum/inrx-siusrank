@@ -30,19 +30,20 @@ public static class SiusRankWritebackPlanner
     {
         var warnings = new List<string>();
         var updates = new List<PlannedSiusRankWriteback>();
+        var unchanged = new List<UnchangedSiusRankWriteback>();
         var skipped = new List<SkippedSiusRankWriteback>();
         var ovelseId = SiusRankEventDiscipline.ResolveOvelseDefId(export.ShortName, export.EventCode);
 
         if (ovelseId is null)
         {
             warnings.Add($"Could not map SIUS Rank event '{export.ShortName}' ({export.EventCode}) to an inrX OvelseDef.Id.");
-            return new SiusRankWritebackEventPlan(export, null, [], [], warnings);
+            return new SiusRankWritebackEventPlan(export, null, [], [], [], warnings);
         }
 
         if (!input.Ovelser.TryGetValue(ovelseId.Value, out var ovelse))
         {
             warnings.Add($"Selected inrX stevner do not contain OvelseDef.Id={ovelseId.Value} for '{export.ShortName}'.");
-            return new SiusRankWritebackEventPlan(export, ovelseId, [], [], warnings);
+            return new SiusRankWritebackEventPlan(export, ovelseId, [], [], [], warnings);
         }
 
         foreach (var athlete in export.Athletes)
@@ -107,7 +108,7 @@ public static class SiusRankWritebackPlanner
             }
 
             var row = candidates[0];
-            updates.Add(new PlannedSiusRankWriteback(
+            var update = new PlannedSiusRankWriteback(
                 export.ShortName,
                 export.SourcePath,
                 row.ResultatId,
@@ -120,10 +121,28 @@ public static class SiusRankWritebackPlanner
                 row.ExistingTotal,
                 row.ExistingInnerTens,
                 row.ExistingShotCount,
-                fields));
+                fields);
+
+            if (ResultatWritebackValues.HasSubstantiveChanges(fields, row.ExistingValues))
+            {
+                updates.Add(update);
+            }
+            else
+            {
+                unchanged.Add(new UnchangedSiusRankWriteback(
+                    export.ShortName,
+                    athlete.BibNumber,
+                    athlete.AccreditationNumber,
+                    athlete.NameForDisplay,
+                    row.ResultatId,
+                    row.StevneId,
+                    row.ExistingTotal,
+                    row.ExistingInnerTens,
+                    row.ExistingShotCount));
+            }
         }
 
-        return new SiusRankWritebackEventPlan(export, ovelseId, updates, skipped, warnings);
+        return new SiusRankWritebackEventPlan(export, ovelseId, updates, unchanged, skipped, warnings);
     }
 
     private static IEnumerable<InrxResultRow> ResolveCandidates(

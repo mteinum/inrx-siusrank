@@ -254,6 +254,39 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 
 Matching is done by `bib-map.csv` first, then by old inrX result id, NSF/accreditation number, and finally by unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports contain total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
 
+## Desktop UI
+
+An Avalonia desktop app is available for Mac and Windows testing. It wraps the same export and writeback code as the CLI and provides:
+
+- CSV export with `bib-map.csv` reuse.
+- SIUS Rank writeback dry-run and apply.
+- Read-only database diagnostics for selected `Stevne.Id` values.
+
+The desktop app remembers selected paths and filters in a per-user `desktop-settings.json`, so `storage.db3`, output directory, shooter groups XML, exports directory, and related fields are restored on the next launch.
+
+Run it from the repository root:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank.Desktop
+```
+
+Build a local self-contained desktop package:
+
+```bash
+dotnet publish InrxToSiusRank/src/InrxToSiusRank.Desktop/InrxToSiusRank.Desktop.csproj \
+  -c Release \
+  -r osx-arm64 \
+  --self-contained true \
+  /p:PublishSingleFile=true
+```
+
+Use `-r win-x64` for Windows. Release assets are named like:
+
+```text
+InrxToSiusRank.Desktop-v0.7.8-win-x64.zip
+InrxToSiusRank.Desktop-v0.7.8-osx-arm64.tar.gz
+```
+
 ## Build Windows Exe
 
 Create a self-contained Windows executable:
@@ -307,7 +340,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow runs tests, builds self-contained single-file binaries, and publishes release assets for:
+The workflow runs tests, then publishes both CLI and Avalonia desktop release assets for:
 
 ```text
 win-x64
@@ -315,6 +348,8 @@ osx-x64
 osx-arm64
 linux-x64
 ```
+
+CLI assets are named `InrxToSiusRank-<version>-<rid>.*`. Desktop assets are named `InrxToSiusRank.Desktop-<version>-<rid>.*`.
 
 ## Options
 
@@ -336,6 +371,10 @@ seed-startlag                       Preview or apply NM startlag seeding from NS
 --ranking-period-end <iso>          Ranking period end for seed-startlag.
 --apply                             Write seed-startlag changes after creating a backup.
 show-timetable                      Show NM timetable. Default Stevne.Id range: 405-411.
+writeback-siusrank                  Preview or apply SIUS Rank Rank List Main ODF XML results back to inrX.
+--exports <path>                    SIUS Rank Exports directory for writeback-siusrank.
+--bib-map <path>                    Optional bib-map.csv for writeback-siusrank.
+--event <name>                      Optional comma-separated SIUS event filter for writeback-siusrank.
 ```
 
 ## Test

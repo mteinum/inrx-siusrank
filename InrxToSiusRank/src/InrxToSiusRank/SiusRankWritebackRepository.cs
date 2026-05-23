@@ -65,6 +65,14 @@ public sealed class SiusRankWritebackRepository : IDisposable
     {
         using var command = _connection.CreateCommand();
         var placeholders = AddInParameters(command, "$stevne", stevneIds);
+        var resultColumns = GetColumns(_connection, "Resultat");
+        var existingValueColumns = ResultatWritebackValues.SubstantiveColumns
+            .Where(resultColumns.Contains)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var existingValueSelect = string.Join(
+            Environment.NewLine,
+            existingValueColumns.Select(column => $", r.[{column}] AS [Existing_{column}]"));
         command.CommandText =
             $"""
             SELECT
@@ -86,6 +94,7 @@ public sealed class SiusRankWritebackRepository : IDisposable
                 COALESCE(r.serierDelOvelse6, '') AS Series6,
                 COALESCE(r.serierDelOvelse7, '') AS Series7,
                 COALESCE(r.serierDelOvelse8, '') AS Series8
+                {existingValueSelect}
             FROM Resultat r
             JOIN Deltaker d ON d.Id = r.DeltakerId
             WHERE r.StevneId IN ({placeholders})
@@ -107,7 +116,8 @@ public sealed class SiusRankWritebackRepository : IDisposable
                 GetString(reader, "LastName"),
                 GetInt(reader, "ExistingTotal"),
                 GetInt(reader, "ExistingInnerTens"),
-                CountSeriesShots(reader)));
+                CountSeriesShots(reader),
+                ReadExistingValues(reader, existingValueColumns)));
         }
 
         return results;
@@ -179,7 +189,7 @@ public sealed class SiusRankWritebackRepository : IDisposable
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
 
-        var values = BuildResultValues(update.Fields);
+        var values = ResultatWritebackValues.Build(update.Fields);
         var assignments = new List<string>();
         foreach (var (column, value) in values.Where(item => columns.Contains(item.Key)))
         {
@@ -204,54 +214,6 @@ public sealed class SiusRankWritebackRepository : IDisposable
         {
             throw new InvalidOperationException($"Could not update Resultat.Id={update.ResultatId}.");
         }
-    }
-
-    private static Dictionary<string, object?> BuildResultValues(InrxResultFields fields)
-    {
-        var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["mlCal"] = string.Empty,
-            ["mlTarget"] = fields.MlTarget,
-            ["mlIsMl"] = 1,
-            ["totinnertreff"] = fields.InnerTens,
-            ["totsum"] = fields.TotalScore,
-            ["perTreffRangStr"] = fields.PerShotRanking,
-            ["statcomplete"] = 1,
-            ["statincomplete"] = 0,
-            ["statinit"] = 0,
-            ["statdnf"] = 0,
-            ["statdns"] = 0,
-            ["statdsq"] = 0,
-            ["delsumFinale"] = string.Empty,
-            ["totFinale"] = 0,
-            ["delsumOmskytingDm"] = string.Empty,
-            ["delsumOmskytingKm"] = string.Empty,
-            ["delsumOmskytingNm"] = string.Empty,
-            ["totOmskytingDm"] = 0,
-            ["totOmskytingKm"] = 0,
-            ["totOmskytingNm"] = 0,
-            ["delsumOmskyting"] = string.Empty,
-            ["totOmskyting"] = 0,
-            ["oppdatert"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
-            ["oppdatertAv"] = "InrxToSiusRank"
-        };
-
-        for (var index = 1; index <= 8; index++)
-        {
-            values[$"serierDelOvelse{index}"] = fields.SeriesPerPart[index - 1];
-            values[$"delsumDelOvelse{index}"] = fields.PartSumsText[index - 1];
-            values[$"innertreffDelOvelse{index}"] = fields.InnerTensPerPart[index - 1];
-            values[$"mlXyDelOvelse{index}"] = fields.XyPerPart[index - 1];
-            values[$"sumDelOvelse{index}"] = fields.SumPerPart[index - 1];
-        }
-
-        for (var index = 1; index <= 16; index++)
-        {
-            values[$"sumr{index}"] = fields.SumRank[index - 1];
-            values[$"ix{index}"] = fields.InnerRank[index - 1];
-        }
-
-        return values;
     }
 
     private static IReadOnlySet<string> GetColumns(SqliteConnection connection, string table)
@@ -292,6 +254,20 @@ public sealed class SiusRankWritebackRepository : IDisposable
         }
 
         return count;
+    }
+
+    private static IReadOnlyDictionary<string, object?> ReadExistingValues(
+        IDataRecord reader,
+        IReadOnlyList<string> columns)
+    {
+        var values = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var column in columns)
+        {
+            var value = reader[$"Existing_{column}"];
+            values[column] = value == DBNull.Value ? null : value;
+        }
+
+        return values;
     }
 
     private static int GetFlexibleInt(IDataRecord reader, string name)

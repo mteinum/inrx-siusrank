@@ -153,6 +153,26 @@ Apply updates:
 
 The command creates `storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS` before writing. Use `--event HurtigFin_M,HurtigFin_K` to limit the import. Matching uses `bib-map.csv` first, then old inrX result id, NSF/accreditation number, and finally unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports include total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
 
+## Desktop UI
+
+The Avalonia desktop app runs on Mac and Windows and uses the same application code as the CLI. It supports CSV export, SIUS Rank writeback dry-run/apply, and read-only diagnostics for selected `Stevne.Id` values.
+
+Selected paths and filters are remembered in a per-user `desktop-settings.json`, including `storage.db3`, output directory, shooter groups XML, exports directory, and related fields.
+
+Run it from the repository root:
+
+```powershell
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank.Desktop
+```
+
+Build a local desktop package:
+
+```powershell
+dotnet publish InrxToSiusRank/src/InrxToSiusRank.Desktop/InrxToSiusRank.Desktop.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+```
+
+Use `-r osx-arm64` on Apple Silicon Mac. Release assets are named `InrxToSiusRank.Desktop-<version>-<rid>.*`.
+
 ## Windows executable
 
 Build a self-contained Windows executable:

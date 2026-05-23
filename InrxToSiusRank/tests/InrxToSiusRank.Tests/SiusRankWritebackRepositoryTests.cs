@@ -80,6 +80,18 @@ public sealed class SiusRankWritebackRepositoryTests
         Assert.Equal(1, reader.GetInt32(7));
         Assert.Equal(0, reader.GetInt32(8));
         Assert.Equal("InrxToSiusRank", reader.GetString(9));
+
+        using var repositoryAfterApply = new SiusRankWritebackRepository(db.Path);
+        var inputAfterApply = repositoryAfterApply.GetInput([413]);
+        var plansAfterApply = SiusRankWritebackPlanner.Plan([export], inputAfterApply, bibMap, out var warningsAfterApply);
+        Assert.Empty(warningsAfterApply);
+        var planAfterApply = Assert.Single(plansAfterApply);
+        Assert.Empty(planAfterApply.Updates);
+        var unchanged = Assert.Single(planAfterApply.Unchanged);
+        Assert.Equal(1001, unchanged.ResultatId);
+        Assert.Equal(20, unchanged.ExistingTotal);
+        Assert.Equal(1, unchanged.ExistingInnerTens);
+        Assert.Equal(2, unchanged.ExistingShotCount);
     }
 
     private sealed class TempDatabase : IDisposable

@@ -18,6 +18,7 @@ env:
   DOTNET_VERSION: "8.0.x"
   SOLUTION_PATH: InrxToSiusRank/InrxToSiusRank.sln
   PROJECT_PATH: InrxToSiusRank/src/InrxToSiusRank/InrxToSiusRank.csproj
+  DESKTOP_PROJECT_PATH: InrxToSiusRank/src/InrxToSiusRank.Desktop/InrxToSiusRank.Desktop.csproj
 
 jobs:
   test:
@@ -66,7 +67,15 @@ jobs:
             --configuration Release \
             --runtime "${{ matrix.rid }}" \
             --self-contained true \
-            --output "publish/${{ matrix.rid }}" \
+            --output "publish/cli/${{ matrix.rid }}" \
+            -p:PublishSingleFile=true \
+            -p:EnableCompressionInSingleFile=true
+
+          dotnet publish "${{ env.DESKTOP_PROJECT_PATH }}" \
+            --configuration Release \
+            --runtime "${{ matrix.rid }}" \
+            --self-contained true \
+            --output "publish/desktop/${{ matrix.rid }}" \
             -p:PublishSingleFile=true \
             -p:EnableCompressionInSingleFile=true
 
@@ -81,13 +90,16 @@ jobs:
           fi
 
           rid="${{ matrix.rid }}"
-          asset_name="InrxToSiusRank-${tag}-${rid}"
+          cli_asset_name="InrxToSiusRank-${tag}-${rid}"
+          desktop_asset_name="InrxToSiusRank.Desktop-${tag}-${rid}"
           mkdir -p dist
 
           if [[ "${rid}" == win-* ]]; then
-            (cd "publish/${rid}" && zip -r "../../dist/${asset_name}.zip" .)
+            (cd "publish/cli/${rid}" && zip -r "../../../dist/${cli_asset_name}.zip" .)
+            (cd "publish/desktop/${rid}" && zip -r "../../../dist/${desktop_asset_name}.zip" .)
           else
-            tar -C "publish/${rid}" -czf "dist/${asset_name}.tar.gz" .
+            tar -C "publish/cli/${rid}" -czf "dist/${cli_asset_name}.tar.gz" .
+            tar -C "publish/desktop/${rid}" -czf "dist/${desktop_asset_name}.tar.gz" .
           fi
 
       - name: Upload artifact

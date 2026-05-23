@@ -1,0 +1,122 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1180"
+        d:DesignHeight="820"
+        x:Class="InrxToSiusRank.Desktop.MainWindow"
+        Title="InrxToSiusRank"
+        MinWidth="980"
+        MinHeight="720"
+        Width="1180"
+        Height="820">
+  <DockPanel>
+    <Border DockPanel.Dock="Top"
+            Background="#f6f8fa"
+            BorderBrush="#d0d7de"
+            BorderThickness="0,0,0,1"
+            Padding="16,12">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Text="InrxToSiusRank"
+                   FontSize="20"
+                   FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1"
+                   Text="Lokal testklient"
+                   Foreground="#57606a"
+                   Margin="0,4,0,0" />
+        <TextBlock x:Name="StatusText"
+                   Grid.Column="1"
+                   Grid.RowSpan="2"
+                   VerticalAlignment="Center"
+                   Foreground="#57606a"
+                   Text="Klar" />
+      </Grid>
+    </Border>
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="16" RowSpacing="12">
+      <Border BorderBrush="#d0d7de" BorderThickness="0,0,0,1" Padding="0,0,0,12">
+        <Grid ColumnDefinitions="130,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+          <TextBlock Text="storage.db3" VerticalAlignment="Center" />
+          <TextBox x:Name="DatabasePathBox" Grid.Column="1" PlaceholderText="Path to storage.db3" />
+          <Button x:Name="BrowseDatabaseButton" Grid.Column="2" Content="Velg fil" />
+          <Button x:Name="LoadDatabaseButton" Grid.Column="3" Content="Kontroller" />
+
+          <TextBlock Grid.Row="1" Text="Stevne ids" VerticalAlignment="Center" />
+          <TextBox x:Name="StevneIdsBox" Grid.Row="1" Grid.Column="1" PlaceholderText="413-417 or 413,414" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" Foreground="#57606a" Text="Eksport/writeback" />
+
+          <TextBlock Grid.Row="2" Text="Encoding" VerticalAlignment="Center" />
+          <ComboBox x:Name="EncodingBox" Grid.Row="2" Grid.Column="1" Width="180" HorizontalAlignment="Left" SelectedIndex="0">
+            <ComboBoxItem Content="utf8-bom" />
+            <ComboBoxItem Content="windows-1252" />
+          </ComboBox>
+        </Grid>
+      </Border>
+
+      <TabControl Grid.Row="1">
+        <TabItem Header="CSV export">
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
+            <TextBlock Text="Output directory" VerticalAlignment="Center" />
+            <TextBox x:Name="OutputDirectoryBox" Grid.Column="1" PlaceholderText="siusrank-import directory" />
+            <Button x:Name="BrowseOutputButton" Grid.Column="2" Content="Velg mappe" />
+
+            <TextBlock Grid.Row="1" Text="Shooter groups XML" VerticalAlignment="Center" />
+            <TextBox x:Name="ShooterGroupsTemplateBox" Grid.Row="1" Grid.Column="1" PlaceholderText="Optional ShooterGroupsTemplate.xml" />
+            <Button x:Name="BrowseShooterGroupsButton" Grid.Row="1" Grid.Column="2" Content="Velg fil" />
+
+            <TextBlock Grid.Row="2" Text="Øvelse filter" VerticalAlignment="Center" />
+            <TextBox x:Name="OvelseFilterBox" Grid.Row="2" Grid.Column="1" PlaceholderText="Optional OvelseDef.Id or name" />
+
+            <Button x:Name="RunExportButton" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Content="Lag CSV-filer" />
+          </Grid>
+        </TabItem>
+
+        <TabItem Header="SIUS Rank writeback">
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
+            <TextBlock Text="Exports directory" VerticalAlignment="Center" />
+            <TextBox x:Name="ExportsDirectoryBox" Grid.Column="1" PlaceholderText="SIUS Rank Exports directory" />
+            <Button x:Name="BrowseExportsButton" Grid.Column="2" Content="Velg mappe" />
+
+            <TextBlock Grid.Row="1" Text="bib-map.csv" VerticalAlignment="Center" />
+            <TextBox x:Name="BibMapPathBox" Grid.Row="1" Grid.Column="1" PlaceholderText="Optional, auto-detected if empty" />
+            <Button x:Name="BrowseBibMapButton" Grid.Row="1" Grid.Column="2" Content="Velg fil" />
+
+            <TextBlock Grid.Row="2" Text="Event filter" VerticalAlignment="Center" />
+            <TextBox x:Name="EventFilterBox" Grid.Row="2" Grid.Column="1" PlaceholderText="Optional: HurtigFin_M,HurtigGrov_Apen" />
+
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button x:Name="RunWritebackPreviewButton" Content="Tørrkjør writeback" />
+              <Button x:Name="RunWritebackApplyButton" Content="Skriv til inrX" />
+            </StackPanel>
+          </Grid>
+        </TabItem>
+
+        <TabItem Header="Diagnostics">
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,*" RowSpacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="ShowStevnerButton" Content="Vis siste stevner" />
+              <Button x:Name="ShowSelectedOvelserButton" Content="Vis valgte øvelser" />
+            </StackPanel>
+          </Grid>
+        </TabItem>
+      </TabControl>
+
+      <Grid Grid.Row="2" RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+          <TextBlock Text="Log" FontWeight="SemiBold" />
+          <Button x:Name="ClearLogButton" Grid.Column="1" Content="Tøm" />
+        </Grid>
+        <TextBox x:Name="LogBox"
+                 Grid.Row="1"
+                 AcceptsReturn="True"
+                 IsReadOnly="True"
+                 TextWrapping="NoWrap"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 FontFamily="Consolas, Menlo, Cascadia Mono, monospace"
+                 FontSize="12" />
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

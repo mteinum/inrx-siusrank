@@ -45,6 +45,7 @@ public static class SiusRankWritebackReporter
         }
 
         Console.WriteLine($"Planned updates: {result.UpdateCount}");
+        Console.WriteLine($"Unchanged rows: {result.UnchangedCount}");
         Console.WriteLine($"Skipped rows: {result.SkippedCount}");
 
         foreach (var warning in result.Warnings)
@@ -65,7 +66,7 @@ public static class SiusRankWritebackReporter
             $"{eventPlan.Export.ShortName}: OvelseDef.Id={eventPlan.OvelseDefId?.ToString() ?? "?"}, " +
             $"source={Path.GetFileName(eventPlan.Export.SourcePath)}, " +
             $"results={eventPlan.Export.ResultCount}, with shots={eventPlan.Export.ShotResultCount}, " +
-            $"updates={eventPlan.Updates.Count}, skipped={eventPlan.Skipped.Count}");
+            $"updates={eventPlan.Updates.Count}, unchanged={eventPlan.Unchanged.Count}, skipped={eventPlan.Skipped.Count}");
 
         foreach (var update in eventPlan.Updates)
         {

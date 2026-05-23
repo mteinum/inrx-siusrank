@@ -72,7 +72,8 @@ public sealed record InrxResultRow(
     string LastName,
     int ExistingTotal,
     int ExistingInnerTens,
-    int ExistingShotCount);
+    int ExistingShotCount,
+    IReadOnlyDictionary<string, object?> ExistingValues);
 
 public sealed record InrxOvelseDefinition(
     int Id,
@@ -131,10 +132,22 @@ public sealed record SkippedSiusRankWriteback(
     string DisplayName,
     string Reason);
 
+public sealed record UnchangedSiusRankWriteback(
+    string ShortName,
+    string BibNumber,
+    string AccreditationNumber,
+    string DisplayName,
+    int ResultatId,
+    int StevneId,
+    int ExistingTotal,
+    int ExistingInnerTens,
+    int ExistingShotCount);
+
 public sealed record SiusRankWritebackEventPlan(
     SiusRankExportCompetition Export,
     int? OvelseDefId,
     IReadOnlyList<PlannedSiusRankWriteback> Updates,
+    IReadOnlyList<UnchangedSiusRankWriteback> Unchanged,
     IReadOnlyList<SkippedSiusRankWriteback> Skipped,
     IReadOnlyList<string> Warnings);
 
@@ -145,6 +158,8 @@ public sealed record SiusRankWritebackResult(
     IReadOnlyList<string> Warnings)
 {
     public int UpdateCount => Events.Sum(item => item.Updates.Count);
+
+    public int UnchangedCount => Events.Sum(item => item.Unchanged.Count);
 
     public int SkippedCount => Events.Sum(item => item.Skipped.Count);
 }
