@@ -9,7 +9,7 @@ public sealed class TimetableRunnerTests
             new StevneInfo(406, "NM Silhuett", "2026-07-07 09:00:00", 378),
             new OvelseInfo(11, "Silhuett", "Sil", 8),
             "discipline",
-            [3, 8, 13],
+            [2, 4, 7, 9],
             TimeSpan.FromMinutes(45),
             [
                 new StartLagInfo(1, 1, "2026-07-07 09:00:00"),
@@ -26,7 +26,7 @@ public sealed class TimetableRunnerTests
 
         Assert.Equal("Å 2, Jr-NM 1", timetableEvent.Relays[0].ClassSummary);
         Assert.Equal(3, timetableEvent.Relays[0].ShooterCount);
-        Assert.Equal(3, timetableEvent.Relays[0].Capacity);
+        Assert.Equal(4, timetableEvent.Relays[0].Capacity);
         Assert.Equal("V55 1", timetableEvent.Relays[1].ClassSummary);
     }
 
@@ -52,7 +52,7 @@ public sealed class TimetableRunnerTests
 
         Assert.Equal(4, timetableEvent.Relays.Count);
         Assert.Equal(
-            ["2026-07-09 09:00:00", "2026-07-09 10:15:00", "2026-07-10 09:00:00", "2026-07-10 10:15:00"],
+            ["2026-07-09 09:00:00", "2026-07-09 10:15:00", "2026-07-10 08:30:00", "2026-07-10 09:30:00"],
             timetableEvent.Relays.Select(relay => relay.Date));
         Assert.Equal(["Precision", "Precision", "Rapid", "Rapid"], timetableEvent.Relays.Select(relay => relay.StageName));
         Assert.Equal([1, 2, 1, 2], timetableEvent.Relays.Select(relay => relay.Number));

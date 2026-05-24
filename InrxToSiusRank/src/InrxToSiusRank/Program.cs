@@ -39,6 +39,13 @@ public static class Program
                 return 0;
             }
 
+            if (Nm2026TimetableCommand.IsCommand(args))
+            {
+                var timetableOptions = Nm2026TimetableCommand.Parse(args.Skip(1).ToArray());
+                Nm2026TimetableReporter.Print(Nm2026TimetableRunner.Run(timetableOptions));
+                return 0;
+            }
+
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
@@ -129,6 +136,7 @@ internal static class Usage
           InrxToSiusRank show-timetable --db storage.db3
           InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports
           InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports --bib-map siusrank-import\bib-map.csv --apply
+          InrxToSiusRank apply-nm2026-timetable --db storage.db3 --siusrank "NM Bane Pistol 2026.srkl" --proposal "FORSLAG_Tidsplan mannskap NM2026.xlsx" --output-dir inrx-export
 
         appsettings.json:
           Loaded from the current directory or executable directory.
@@ -177,5 +185,14 @@ internal static class Usage
           --bib-map <path>                    Optional bib-map.csv. If omitted, siusrank-import\bib-map.csv is auto-detected when possible.
           --event <name>                      Optional comma-separated SIUS event filter, for example HurtigFin_M,HurtigGrov_Apen.
           --apply                             Write updates after creating storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS.
+
+        apply-nm2026-timetable options:
+          apply-nm2026-timetable             Preview or apply NM2026 timetable/capacity fixes to inrX and SIUS Rank.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --siusrank <path>                   Path to NM Bane Pistol 2026.srkl.
+          --proposal <path>                   Path to FORSLAG_Tidsplan mannskap NM2026.xlsx.
+          --output-dir <path>                 Output directory for regenerated SIUS Rank import CSV files.
+          --apply                             Write updates after creating backups.
         """;
 }

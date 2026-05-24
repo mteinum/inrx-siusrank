@@ -6,6 +6,8 @@ public static class TimetableRunner
 {
     private const string NmPrecisionDate = "2026-07-09";
     private const string NmRapidDate = "2026-07-10";
+    private static readonly string[] NmFinRapidTimes = ["08:30:00", "09:30:00", "10:30:00", "11:30:00"];
+    private static readonly string[] NmGrovRapidTimes = ["13:00:00", "14:00:00", "15:00:00"];
 
     public static TimetableResult Run(TimetableOptions options)
     {
@@ -22,7 +24,7 @@ public static class TimetableRunner
             .ToList();
 
         var relays = IsFinOrGrovPistol(input.Ovelse)
-            ? BuildPrecisionRapidRelays(baseRelays)
+            ? BuildPrecisionRapidRelays(input.Ovelse, baseRelays)
             : baseRelays;
 
         return new TimetableEvent(
@@ -46,6 +48,7 @@ public static class TimetableRunner
     }
 
     private static IReadOnlyList<TimetableRelay> BuildPrecisionRapidRelays(
+        OvelseInfo ovelse,
         IReadOnlyList<TimetableRelay> baseRelays)
     {
         return baseRelays
@@ -54,9 +57,9 @@ public static class TimetableRunner
                 Date = MoveRelayToDate(relay.Date, NmPrecisionDate),
                 StageName = "Precision"
             })
-            .Concat(baseRelays.Select(relay => relay with
+            .Concat(baseRelays.Select((relay, index) => relay with
             {
-                Date = MoveRelayToDate(relay.Date, NmRapidDate),
+                Date = ResolveRapidDate(ovelse, relay, index),
                 StageName = "Rapid"
             }))
             .OrderBy(relay => ParseDate(relay.Date))
@@ -86,6 +89,18 @@ public static class TimetableRunner
         }
 
         return $"{date} {parsed:HH:mm:ss}";
+    }
+
+    private static string ResolveRapidDate(OvelseInfo ovelse, TimetableRelay relay, int index)
+    {
+        var rapidTimes = ovelse.Id == 9 || ovelse.Name.Equals("Finpistol", StringComparison.OrdinalIgnoreCase)
+            ? NmFinRapidTimes
+            : ovelse.Id == 8 || ovelse.Name.Equals("Grovpistol", StringComparison.OrdinalIgnoreCase)
+                ? NmGrovRapidTimes
+                : [];
+        return index < rapidTimes.Length
+            ? $"{NmRapidDate} {rapidTimes[index]}"
+            : MoveRelayToDate(relay.Date, NmRapidDate);
     }
 
     private static DateTime ParseDate(string relayDate) =>

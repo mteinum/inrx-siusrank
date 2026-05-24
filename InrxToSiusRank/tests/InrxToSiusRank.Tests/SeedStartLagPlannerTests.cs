@@ -30,7 +30,7 @@ public sealed class SeedStartLagPlannerTests
         var seedAssignments = plan.Assignments.Where(assignment => assignment.KmNmClass == "Å" && assignment.IsSeed).ToList();
         Assert.Equal(new[] { 3, 4, 5 }, seedAssignments.Select(assignment => assignment.ResultatId));
         Assert.All(seedAssignments, assignment => Assert.Equal(2, assignment.RelayNumber));
-        Assert.Equal(new[] { 3, 8, 13 }, seedAssignments.Select(assignment => assignment.TargetNumber));
+        Assert.Equal(new[] { 2, 4, 7 }, seedAssignments.Select(assignment => assignment.TargetNumber));
 
         Assert.Equal(3, plan.Assignments.Single(assignment => assignment.ResultatId == 6).RelayNumber);
         Assert.Equal(3, plan.Assignments.Single(assignment => assignment.ResultatId == 7).RelayNumber);
@@ -73,8 +73,8 @@ public sealed class SeedStartLagPlannerTests
         var plan = SeedStartLagPlanner.Plan(input, rankings);
 
         Assert.Equal(1, plan.RequiredRelayCount);
-        Assert.Equal(new[] { 3, 8 }, plan.Assignments.Where(assignment => assignment.IsSeed).Select(assignment => assignment.TargetNumber));
-        Assert.Equal(13, plan.Assignments.Single(assignment => assignment.ResultatId == 3).TargetNumber);
+        Assert.Equal(new[] { 2, 4 }, plan.Assignments.Where(assignment => assignment.IsSeed).Select(assignment => assignment.TargetNumber));
+        Assert.Equal(7, plan.Assignments.Single(assignment => assignment.ResultatId == 3).TargetNumber);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class SeedStartLagPlannerTests
             new StevneInfo(406, "Silhuett", "2026-07-07 09:00:00", 378),
             ovelse ?? new OvelseInfo(11, "Silhuett", "Sil", 8),
             "discipline",
-            targets ?? [3, 8, 13],
+        targets ?? [2, 4, 7],
             TimeSpan.FromMinutes(45),
             [],
             shooters);

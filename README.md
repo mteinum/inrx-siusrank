@@ -184,7 +184,7 @@ Before writing, the command creates a backup named:
 storage.db3.bak-seed-YYYYMMDD-HHMMSS
 ```
 
-Seeding matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`. Eligible seeded classes are `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`. Classes stay as contiguous blocks. Multi-shooter seed groups stay together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett keeps the requested seeded Å lag and always uses the seven target numbers `3, 8, 13, 18, 23, 28, 33`. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
+Seeding matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`. Eligible seeded classes are `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`. Classes stay as contiguous blocks. Multi-shooter seed groups stay together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett/RFP uses side targets `2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34` so SIUS Rank can import two shooters per skivestativ with V/H filters. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
 
 ## Show NM Timetable
 
