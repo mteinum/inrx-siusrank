@@ -31,6 +31,12 @@ public static class SiusRankEventDiscipline
             return 11;
         }
 
+        if (normalizedShortName.StartsWith("RFP", StringComparison.Ordinal) ||
+            normalizedEventCode.StartsWith("RFP", StringComparison.Ordinal))
+        {
+            return 11;
+        }
+
         if (normalizedShortName.StartsWith("FRI", StringComparison.Ordinal) ||
             normalizedShortName.Contains("FRIPISTOL", StringComparison.Ordinal))
         {
