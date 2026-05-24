@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace InrxToSiusRank;
 
 public sealed record SiusRankWritebackOptions(
@@ -73,7 +75,39 @@ public sealed record InrxResultRow(
     int ExistingTotal,
     int ExistingInnerTens,
     int ExistingShotCount,
-    IReadOnlyDictionary<string, object?> ExistingValues);
+    IReadOnlyDictionary<string, object?> ExistingValues)
+{
+    public bool HasTerminalStatus => IsFlagSet("statdns") || IsFlagSet("statdnf") || IsFlagSet("statdsq");
+
+    private bool IsFlagSet(string column) =>
+        ExistingValues.TryGetValue(column, out var value) && NormalizeFlag(value);
+
+    private static bool NormalizeFlag(object? value)
+    {
+        if (value is null || value == DBNull.Value)
+        {
+            return false;
+        }
+
+        return value switch
+        {
+            bool boolValue => boolValue,
+            int intValue => intValue != 0,
+            long longValue => longValue != 0,
+            double doubleValue => doubleValue != 0,
+            decimal decimalValue => decimalValue != 0,
+            _ => int.TryParse(
+                    Convert.ToString(value, CultureInfo.InvariantCulture),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var parsed)
+                ? parsed != 0
+                : bool.TryParse(
+                    Convert.ToString(value, CultureInfo.InvariantCulture),
+                    out var parsedBool) && parsedBool
+        };
+    }
+}
 
 public sealed record InrxOvelseDefinition(
     int Id,

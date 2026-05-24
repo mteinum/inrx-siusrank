@@ -55,12 +55,6 @@ public static class SiusRankWritebackPlanner
                 athlete.NameForDisplay,
                 string.Empty);
 
-            if (athlete.Result is null || athlete.Shots.Count == 0)
-            {
-                skipped.Add(identity with { Reason = "No complete result with shots in SIUS Rank export." });
-                continue;
-            }
-
             var candidates = ResolveCandidates(input.Results, ovelseId.Value, athlete, bibMapByBib).ToList();
             if (candidates.Count == 0)
             {
@@ -78,6 +72,18 @@ public static class SiusRankWritebackPlanner
                 continue;
             }
 
+            var row = candidates[0];
+            if (athlete.Result is null || athlete.Shots.Count == 0)
+            {
+                if (AddUnchangedWhenTerminalStatus(unchanged, export, athlete, row))
+                {
+                    continue;
+                }
+
+                skipped.Add(identity with { Reason = "No complete result with shots in SIUS Rank export." });
+                continue;
+            }
+
             InrxResultFields fields;
             try
             {
@@ -85,6 +91,11 @@ public static class SiusRankWritebackPlanner
             }
             catch (InvalidOperationException ex)
             {
+                if (AddUnchangedWhenTerminalStatus(unchanged, export, athlete, row))
+                {
+                    continue;
+                }
+
                 skipped.Add(identity with { Reason = ex.Message });
                 continue;
             }
@@ -107,7 +118,6 @@ public static class SiusRankWritebackPlanner
                 continue;
             }
 
-            var row = candidates[0];
             var update = new PlannedSiusRankWriteback(
                 export.ShortName,
                 export.SourcePath,
@@ -143,6 +153,30 @@ public static class SiusRankWritebackPlanner
         }
 
         return new SiusRankWritebackEventPlan(export, ovelseId, updates, unchanged, skipped, warnings);
+    }
+
+    private static bool AddUnchangedWhenTerminalStatus(
+        List<UnchangedSiusRankWriteback> unchanged,
+        SiusRankExportCompetition export,
+        SiusRankExportAthlete athlete,
+        InrxResultRow row)
+    {
+        if (!row.HasTerminalStatus)
+        {
+            return false;
+        }
+
+        unchanged.Add(new UnchangedSiusRankWriteback(
+            export.ShortName,
+            athlete.BibNumber,
+            athlete.AccreditationNumber,
+            athlete.NameForDisplay,
+            row.ResultatId,
+            row.StevneId,
+            row.ExistingTotal,
+            row.ExistingInnerTens,
+            row.ExistingShotCount));
+        return true;
     }
 
     private static IEnumerable<InrxResultRow> ResolveCandidates(
