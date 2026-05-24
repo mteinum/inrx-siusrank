@@ -572,11 +572,7 @@ public partial class MainWindow : Window
         foreach (var eventPlan in result.Events)
         {
             builder.AppendLine();
-            builder.AppendLine(
-                $"{eventPlan.Export.ShortName}: OvelseDef.Id={eventPlan.OvelseDefId?.ToString() ?? "?"}, " +
-                $"source={Path.GetFileName(eventPlan.Export.SourcePath)}, " +
-                $"results={eventPlan.Export.ResultCount}, with shots={eventPlan.Export.ShotResultCount}, " +
-                $"updates={eventPlan.Updates.Count}, unchanged={eventPlan.Unchanged.Count}, skipped={eventPlan.Skipped.Count}");
+            builder.AppendLine(SiusRankWritebackReporter.FormatEventSummary(eventPlan));
 
             foreach (var update in eventPlan.Updates)
             {

@@ -62,11 +62,7 @@ public static class SiusRankWritebackReporter
     private static void PrintEvent(SiusRankWritebackEventPlan eventPlan)
     {
         Console.WriteLine();
-        Console.WriteLine(
-            $"{eventPlan.Export.ShortName}: OvelseDef.Id={eventPlan.OvelseDefId?.ToString() ?? "?"}, " +
-            $"source={Path.GetFileName(eventPlan.Export.SourcePath)}, " +
-            $"results={eventPlan.Export.ResultCount}, with shots={eventPlan.Export.ShotResultCount}, " +
-            $"updates={eventPlan.Updates.Count}, unchanged={eventPlan.Unchanged.Count}, skipped={eventPlan.Skipped.Count}");
+        Console.WriteLine(FormatEventSummary(eventPlan));
 
         foreach (var update in eventPlan.Updates)
         {
@@ -89,4 +85,11 @@ public static class SiusRankWritebackReporter
             Console.WriteLine($"  WARNING: {warning}");
         }
     }
+
+    public static string FormatEventSummary(SiusRankWritebackEventPlan eventPlan) =>
+        $"{eventPlan.Export.ShortName}: OvelseDef.Id={eventPlan.OvelseDefId?.ToString() ?? "?"}, " +
+        $"source={Path.GetFileName(eventPlan.Export.SourcePath)}, " +
+        $"file={Path.GetFullPath(eventPlan.Export.SourcePath)}, " +
+        $"results={eventPlan.Export.ResultCount}, with shots={eventPlan.Export.ShotResultCount}, " +
+        $"updates={eventPlan.Updates.Count}, unchanged={eventPlan.Unchanged.Count}, skipped={eventPlan.Skipped.Count}";
 }
