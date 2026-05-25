@@ -211,7 +211,7 @@ public sealed class ShooterGroupsTemplateTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var candidate = Path.Combine(directory.FullName, "src", "InrxToSiusRank", "Templates");
+            var candidate = Path.Combine(directory.FullName, "Templates");
             if (Directory.Exists(candidate))
             {
                 return candidate;
@@ -220,7 +220,7 @@ public sealed class ShooterGroupsTemplateTests
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not find src/InrxToSiusRank/Templates.");
+        throw new DirectoryNotFoundException("Could not find Templates directory.");
     }
 
     private static string[] ShootEventTemplatePaths() =>

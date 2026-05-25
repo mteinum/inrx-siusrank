@@ -94,6 +94,7 @@ public partial class MainWindow : Window
             await BrowseFolderAsync(ExportsDirectoryInput, "Select SIUS Rank Exports directory");
 
         Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Inspecting database", InspectDatabaseAsync);
+        Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Copying templates", CopyTemplatesToSiusRankAsync);
         Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Creating bib-map.csv", RunCreateBibMapAsync);
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Creating CSV files", RunExportAsync);
         Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Running writeback dry-run", () => RunWritebackAsync(apply: false));
@@ -147,7 +148,7 @@ public partial class MainWindow : Window
             await action();
             StatusLabel.Text = "Klar";
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or Microsoft.Data.Sqlite.SqliteException or System.Xml.XmlException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or System.Xml.XmlException)
         {
             AppendLog($"ERROR: {ex.Message}");
             StatusLabel.Text = "Feil";
@@ -215,6 +216,25 @@ public partial class MainWindow : Window
             var result = BulkExportRunner.Run(options);
             AppendLog(FormatBulkExportResult(result));
         });
+    }
+
+    private async Task CopyTemplatesToSiusRankAsync()
+    {
+        var sourceDirectory = ResolveBundledTemplatesDirectory();
+        var targetDirectory = ResolveSiusRankTemplatesDirectory();
+        AppendLog($"Copying SIUS Rank templates from {sourceDirectory} to {targetDirectory}");
+
+        var result = await Task.Run(() => SiusRankTemplateCopier.Copy(sourceDirectory, targetDirectory));
+        var shooterGroupsTemplatePath = result.Files
+            .Select(file => file.TargetPath)
+            .FirstOrDefault(path => Path.GetFileName(path).Equals("ShooterGroupsTemplate.xml", StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(shooterGroupsTemplatePath))
+        {
+            ShooterGroupsTemplateInput.Text = shooterGroupsTemplatePath;
+            SaveDesktopSettings();
+        }
+
+        AppendLog(FormatTemplateCopyResult(result));
     }
 
     private async Task RunCreateBibMapAsync()
@@ -433,6 +453,58 @@ public partial class MainWindow : Window
         return value.Trim();
     }
 
+    private static string ResolveBundledTemplatesDirectory()
+    {
+        var fallback = Path.Combine(AppContext.BaseDirectory, "Templates");
+        var candidates = new string?[]
+        {
+            fallback,
+            Path.Combine(Directory.GetCurrentDirectory(), "Templates"),
+            FindRepositoryTemplatesDirectory()
+        };
+
+        return candidates
+            .OfType<string>()
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(Directory.Exists)
+            ?? Path.GetFullPath(fallback);
+    }
+
+    private static string? FindRepositoryTemplatesDirectory()
+    {
+        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(directory.FullName, "Templates");
+            if (File.Exists(Path.Combine(candidate, "ShooterGroupsTemplate.xml")))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+
+    private static string ResolveSiusRankTemplatesDirectory()
+    {
+        var settings = AppSettings.Load();
+        var path = string.IsNullOrWhiteSpace(settings.SiusRankTemplatesPath)
+            ? AppSettings.DefaultSiusRankTemplatesPath
+            : settings.SiusRankTemplatesPath;
+
+        if (!OperatingSystem.IsWindows() && !Path.IsPathFullyQualified(path))
+        {
+            throw new InvalidOperationException(
+                $"SIUS Rank template path is not a local absolute path on this machine: {path}. " +
+                "Set Paths:SiusRankTemplates in appsettings.json to test this outside Windows.");
+        }
+
+        return path;
+    }
+
     private static string BuildExportCommand(AppOptions options)
     {
         var parts = new List<string>
@@ -547,6 +619,22 @@ public partial class MainWindow : Window
         builder.AppendLine($"Events: {result.EventCount}");
         builder.AppendLine($"Starters: {result.StarterCount}");
         builder.AppendLine($"Unique shooters: {result.ShooterCount}");
+        return builder.ToString();
+    }
+
+    private static string FormatTemplateCopyResult(SiusRankTemplateCopyResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SIUS Rank template files copied.");
+        builder.AppendLine($"Source: {result.SourceDirectory}");
+        builder.AppendLine($"Target: {result.TargetDirectory}");
+        builder.AppendLine($"Files copied: {result.Files.Count}");
+        foreach (var file in result.Files)
+        {
+            var action = file.Overwritten ? "overwritten" : "created";
+            builder.AppendLine($"- {Path.GetFileName(file.TargetPath)} ({action})");
+        }
+
         return builder.ToString();
     }
 

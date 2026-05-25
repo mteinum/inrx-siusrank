@@ -122,9 +122,9 @@ Example output files:
 The repository includes the SIUS Rank templates:
 
 ```text
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
+Templates/ShooterGroupsTemplate.xml
+Templates/ShootEventsTemplate2026_NM_Pistol.xml
+Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
 ```
 
 The standard location in a SIUS Rank Windows installation is:
@@ -140,7 +140,7 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
   --db storage.db3 \
   --stevne-ids 405-411 \
   --output-dir siusrank-import \
-  --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
+  --shooter-groups-template Templates/ShooterGroupsTemplate.xml
 ```
 
 This does not change the export. It only stops the run if a `Groups` value is not found in the template file.
@@ -261,6 +261,7 @@ Matching is done by `bib-map.csv` first, then by old inrX result id, NSF/accredi
 An Avalonia desktop app is available for Mac and Windows testing. It wraps the same export and writeback code as the CLI and provides:
 
 - CSV export with `bib-map.csv` reuse.
+- Copy bundled SIUS Rank template XML files to `C:\SIUS\SiusRank\Resources\Templates`.
 - SIUS Rank writeback dry-run and apply.
 - Read-only database diagnostics for selected `Stevne.Id` values.
 

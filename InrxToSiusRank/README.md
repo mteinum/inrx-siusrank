@@ -60,13 +60,13 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --ste
 Validate the generated `Groups` values against the SIUS Rank shooter group template:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --output-dir siusrank-import --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-id 405 --output-dir siusrank-import --shooter-groups-template Templates/ShooterGroupsTemplate.xml
 ```
 
 Create one import file per KM/NM class for several events:
 
 ```powershell
-dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-ids 405-411 --output-dir siusrank-import --shooter-groups-template InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- --db storage.db3 --stevne-ids 405-411 --output-dir siusrank-import --shooter-groups-template Templates/ShooterGroupsTemplate.xml
 ```
 
 `--stevne-ids` accepts comma-separated ids and ranges, for example `405,406,407` or `405-411`. If `--ovelse`/`--ovelse-id` is omitted, all exercises in the selected events are exported in the same run. This keeps the shared championship start and bib number sequence stable across the generated files.
@@ -88,9 +88,9 @@ This creates SIUS Rank import files with:
 The repository includes the SIUS Rank templates used for NM Pistol:
 
 ```text
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
-InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
+Templates/ShooterGroupsTemplate.xml
+Templates/ShootEventsTemplate2026_NM_Pistol.xml
+Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
 ```
 
 The standard location in a SIUS Rank Windows installation is:
@@ -160,6 +160,7 @@ The command creates `storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS` before 
 The Avalonia desktop app runs on Mac and Windows and uses the same application code as the CLI. It supports CSV export, SIUS Rank writeback dry-run/apply, and read-only diagnostics for selected `Stevne.Id` values.
 
 Selected paths and filters are remembered in a per-user `desktop-settings.json`, including `storage.db3`, output directory, shooter groups XML, exports directory, and related fields.
+The CSV export tab can copy the bundled SIUS Rank template XML files to the configured templates directory, normally `C:\SIUS\SiusRank\Resources\Templates`.
 
 Run it from the repository root:
 
