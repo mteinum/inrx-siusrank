@@ -76,10 +76,10 @@ This creates SIUS Rank import files with:
 - Semicolon-delimited columns.
 - The same header as `SiusRank_importExample.csv`.
 - UTF-8 BOM and CRLF line endings by default.
-- One output file per inrX `KM/NM` class (`Resultat.MklasseId1`).
-- If `Resultat.MklasseId1` is missing or `-`, `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
-- KM/NM classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`.
-- Output file names use Norwegian class-specific SIUS Rank event codes, for example `Fri_V73`, `Standard_M`, `Fin_K`, `Fin_SH1-P3`, `Grov_Apen`, `HurtigFin_M`, and `HurtigGrov_V55`. The bundled shoot-event XML uses the same Norwegian event codes.
+- One output file per effective class. The class is normally the inrX `KM/NM` class (`Resultat.MklasseId1`).
+- If `Resultat.MklasseId1` is missing or `-` and the ordinary inrX class matches an approbert 25m/50m pistol class for the exercise, that class is used instead, for example `A` and `D` in 50m Fripistol `2A`. Otherwise `Hurtig Grov`, `Grovpistol`, `Silhuett`, and `Fripistol` are exported as `Apen`; other exercises fall back to gender, with male shooters exported as class `M` and female shooters as class `K`.
+- Classes are mapped to the SIUS Rank shooter group names used by `ShooterGroupsTemplate.xml`, for example `Å -> Apen`, `M -> Menn`, `K -> Kvinner`, `Jm -> Jrm`, `Jk -> Jrk`, `V55 -> V55`, `SH-Åpen -> SH Å`.
+- Output file names use Norwegian class-specific SIUS Rank event codes, for example `Fri_V73`, `Standard_M`, `Fin_K`, `Fin_SH1-P3`, `Grov_Apen`, `HurtigFin_M`, `HurtigGrov_V55`, `2A_A`, and `2A_D`. The bundled shoot-event XML uses the same Norwegian event codes.
 - `StartNumber`, `BibNumber`, and `StarterId` are assigned as championship numbers using the event year plus a shared shooter sequence, for example `26001` for 2026. The same `Deltaker.Id` receives the same number across all selected events. The exporter reads and writes `bib-map.csv` in the output directory so regenerated files keep existing `Deltaker.Id` to bib mappings and only allocate new numbers for new shooters. `nsfId` is stored in the map for control and traceability. `AccreditationNumber` keeps the existing membership-number fallback behavior, using the assigned start number when no membership number exists.
 - `Team` and `TeamDisplay` are filled with the club short name.
 
@@ -104,6 +104,7 @@ For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 If `Paths.SiusRankTemplates` points to this directory, `ShooterGroupsTemplate.xml` is used automatically for validation.
 `ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events, so SIUS Rank reports show the class in the event heading.
 `ShootEventsTemplate2026_Approberte_Pistol.xml` contains normal approberte 25m/50m pistol events for the NSF 2026 classes, excluding 25m NAIS Fin/Grov.
+When an export uses an approbert pistol class, output file names use those event codes, for example `2A_A`, `2A_D`, and `6F_SH-Apen`.
 
 ## Seed NM startlag
 

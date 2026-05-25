@@ -30,6 +30,16 @@ public sealed class EffectiveKmNmClassTests
         Assert.Equal("Apen", EffectiveKmNmClass.Resolve(femaleStarter, ovelse));
     }
 
+    [Theory]
+    [InlineData("A")]
+    [InlineData("D")]
+    public void Missing_km_nm_class_uses_inrx_class_for_approbert_pistol_events(string inrxClass)
+    {
+        var starter = CreateStarter("-", "M", inrxClass);
+
+        Assert.Equal(inrxClass, EffectiveKmNmClass.Resolve(starter, CreateOvelse(18, "Fripistol")));
+    }
+
     [Fact]
     public void Existing_class_is_preserved()
     {
@@ -60,7 +70,7 @@ public sealed class EffectiveKmNmClassTests
     private static OvelseInfo CreateOvelse(int id, string name) =>
         new(id, name, string.Empty, 0);
 
-    private static InrxStarter CreateStarter(string kmNmClass, string gender) =>
+    private static InrxStarter CreateStarter(string kmNmClass, string gender, string inrxClass = "-") =>
         new(
             ResultatId: 1,
             DeltakerId: 100,
@@ -78,7 +88,7 @@ public sealed class EffectiveKmNmClassTests
             Land: "NOR",
             ClubName: "Club",
             ClubShortName: "CLB",
-            InrxClass: "-",
+            InrxClass: inrxClass,
             KmNmClass: kmNmClass,
             DmClass: "-",
             OvelseName: "Standard",

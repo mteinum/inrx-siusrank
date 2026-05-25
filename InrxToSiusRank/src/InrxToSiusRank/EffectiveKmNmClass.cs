@@ -15,6 +15,13 @@ public static class EffectiveKmNmClass
             return configuredClass;
         }
 
+        if (ovelse is not null &&
+            !IsMissing(starter.InrxClass) &&
+            ApprobertPistolEventCodes.IsSupportedClass(ovelse, starter.InrxClass))
+        {
+            return GroupNormalizer.Normalize(starter.InrxClass);
+        }
+
         if (ovelse is not null && IsOpenCombinedExercise(ovelse))
         {
             return "Apen";

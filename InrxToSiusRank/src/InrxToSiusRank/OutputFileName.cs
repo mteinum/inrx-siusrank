@@ -8,8 +8,10 @@ public static class OutputFileName
             ? stevne.Date[..10].Replace("-", string.Empty, StringComparison.Ordinal)
             : "event";
         var classSuffix = ClassSuffix(kmNmClass);
-        var exercise = ExerciseSuffix(ovelse, classSuffix);
-        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(exercise)}_{SanitizeFilePart(classSuffix)}.csv";
+        var eventCode = ApprobertPistolEventCodes.TryResolveEventCode(ovelse, kmNmClass, out var approbertEventCode)
+            ? approbertEventCode
+            : $"{ExerciseSuffix(ovelse, classSuffix)}_{classSuffix}";
+        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(eventCode)}.csv";
     }
 
     public static string ForImport(StevneInfo stevne, OvelseSummary ovelse, KmNmClassSummary kmNmClass)

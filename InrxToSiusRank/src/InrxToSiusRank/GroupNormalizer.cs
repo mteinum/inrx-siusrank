@@ -33,6 +33,7 @@ public static class GroupNormalizer
             "JM" or "JRM" or "JUNIORMENN" => "Jrm",
             "JK" or "JRK" or "JUNIORKVINNER" => "Jrk",
             "J" or "JR" or "JUNIOR" => "Jr",
+            "SHA" or "SHAPEN" or "SHOPEN" => "SH Å",
             _ when folded.StartsWith("SH1", StringComparison.Ordinal) => "SH1",
             _ when folded.StartsWith("SH2", StringComparison.Ordinal) => "SH2",
             _ => trimmed

@@ -29,6 +29,8 @@ public sealed class GroupNormalizationTests
     [InlineData("SH1-P4", "SH1")]
     [InlineData("SH1-P3", "SH1")]
     [InlineData("SH2-R5", "SH2")]
+    [InlineData("SH-Åpen", "SH Å")]
+    [InlineData("SH Å", "SH Å")]
     public void Km_nm_classes_normalize_to_shooter_group_template_names(string value, string expected)
     {
         Assert.Equal(expected, GroupNormalizer.Normalize(value));

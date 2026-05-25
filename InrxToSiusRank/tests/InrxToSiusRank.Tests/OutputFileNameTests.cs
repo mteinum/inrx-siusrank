@@ -24,6 +24,37 @@ public sealed class OutputFileNameTests
     }
 
     [Theory]
+    [InlineData(18, "Fripistol", "A", "20260711_2A_A.csv")]
+    [InlineData(18, "Fripistol", "D", "20260711_2A_D.csv")]
+    [InlineData(18, "50m pistol, skyting med støtte, vet.", "V55", "20260711_2C_V55.csv")]
+    [InlineData(9, "Finpistol", "SH Å", "20260711_6F_SH-Apen.csv")]
+    [InlineData(7, "Hurtig Fin", "U16", "20260711_7F_U16.csv")]
+    public void Uses_approbert_event_code_when_class_matches_approbert_template(
+        int id,
+        string name,
+        string kmNmClass,
+        string expected)
+    {
+        var fileName = OutputFileName.ForImport(
+            CreateStevne(),
+            new OvelseInfo(id, name, string.Empty, 0),
+            kmNmClass);
+
+        Assert.Equal(expected, fileName);
+    }
+
+    [Fact]
+    public void Keeps_nm_fripistol_code_when_class_is_not_an_approbert_2a_class()
+    {
+        var fileName = OutputFileName.ForImport(
+            CreateStevne(),
+            new OvelseInfo(18, "Fripistol", "Fri", 2),
+            "V55");
+
+        Assert.Equal("20260711_Fri_V55.csv", fileName);
+    }
+
+    [Theory]
     [InlineData("K", "20260711_Fin_K.csv")]
     [InlineData("Kvinner", "20260711_Fin_K.csv")]
     [InlineData("Jk", "20260711_Fin_Jk.csv")]
