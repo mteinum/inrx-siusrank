@@ -353,4 +353,121 @@
         <EligibleForRecords>true</EligibleForRecords>
         <AddShortnameToRemarks>false</AddShortnameToRemarks>
     </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>A</Name>
+        <Description>Approbert klasse A</Description>
+        <Index>120</Index>
+        <ShortName>A</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>B</Name>
+        <Description>Approbert klasse B</Description>
+        <Index>121</Index>
+        <ShortName>B</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>C</Name>
+        <Description>Approbert klasse C</Description>
+        <Index>122</Index>
+        <ShortName>C</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>D</Name>
+        <Description>Approbert klasse D</Description>
+        <Index>123</Index>
+        <ShortName>D</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>U16</Name>
+        <Description>Approbert klasse U16</Description>
+        <Index>124</Index>
+        <ShortName>U16</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>U14</Name>
+        <Description>Approbert klasse U14</Description>
+        <Index>125</Index>
+        <ShortName>U14</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>U12</Name>
+        <Description>Approbert klasse U12</Description>
+        <Index>126</Index>
+        <ShortName>U12</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>ÅR</Name>
+        <Description>Approbert klasse Åpen rekrutt</Description>
+        <Index>127</Index>
+        <ShortName>ÅR</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
+    <ShooterGroupConfiguration>
+        <Name>SH Å</Name>
+        <Description>Approbert klasse SH Åpen</Description>
+        <Index>128</Index>
+        <ShortName>SH Å</ShortName>
+        <ReadOnly>true</ReadOnly>
+        <HideRank>false</HideRank>
+        <HideOnScoreboard>false</HideOnScoreboard>
+        <CombineEliminationRelays>false</CombineEliminationRelays>
+        <PreventsToParticipateInNextPhase>false</PreventsToParticipateInNextPhase>
+        <EligibleForRecords>true</EligibleForRecords>
+        <AddShortnameToRemarks>false</AddShortnameToRemarks>
+    </ShooterGroupConfiguration>
 </Configuration>

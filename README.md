@@ -124,6 +124,7 @@ The repository includes the SIUS Rank templates:
 ```text
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
 ```
 
 The standard location in a SIUS Rank Windows installation is:
@@ -144,10 +145,11 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 
 This does not change the export. It only stops the run if a `Groups` value is not found in the template file.
 
-If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. Both XML templates are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
+If `Paths.SiusRankTemplates` points to a directory containing `ShooterGroupsTemplate.xml`, validation is enabled automatically. The XML template files are copied to `Templates/` next to the published executable when you run `dotnet publish`; `appsettings.json` is also copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 `ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events such as `Fri_V73`,
 `Standard_M`, and `Fri_SH1-P4`, so SIUS Rank reports show the class in the event heading.
+`ShootEventsTemplate2026_Approberte_Pistol.xml` contains normal approberte 25m/50m pistol events for the NSF 2026 classes, excluding 25m NAIS Fin/Grov.
 
 ## Seed NM Startlag
 

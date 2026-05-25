@@ -90,6 +90,7 @@ The repository includes the SIUS Rank templates used for NM Pistol:
 ```text
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShooterGroupsTemplate.xml
 InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_NM_Pistol.xml
+InrxToSiusRank/src/InrxToSiusRank/Templates/ShootEventsTemplate2026_Approberte_Pistol.xml
 ```
 
 The standard location in a SIUS Rank Windows installation is:
@@ -98,10 +99,11 @@ The standard location in a SIUS Rank Windows installation is:
 C:\SIUS\SiusRank\Resources\Templates
 ```
 
-Both XML files are copied to the `Templates/` directory in `dotnet publish` output, and `appsettings.json` is copied next to the executable.
+The XML template files are copied to the `Templates/` directory in `dotnet publish` output, and `appsettings.json` is copied next to the executable.
 For use in SIUS Rank, copy the files to `C:\SIUS\SiusRank\Resources\Templates`.
 If `Paths.SiusRankTemplates` points to this directory, `ShooterGroupsTemplate.xml` is used automatically for validation.
 `ShootEventsTemplate2026_NM_Pistol.xml` contains class-specific NM shoot events, so SIUS Rank reports show the class in the event heading.
+`ShootEventsTemplate2026_Approberte_Pistol.xml` contains normal approberte 25m/50m pistol events for the NSF 2026 classes, excluding 25m NAIS Fin/Grov.
 
 ## Seed NM startlag
 

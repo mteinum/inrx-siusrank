@@ -26,7 +26,7 @@ public sealed class ShooterGroupsTemplateTests
     }
 
     [Fact]
-    public void Embedded_shooter_group_template_contains_standard_and_nm_25_50m_pistol_classes()
+    public void Embedded_shooter_group_template_contains_standard_nm_and_approbert_25_50m_pistol_classes()
     {
         var template = ShooterGroupsTemplate.Load(Path.Combine(TemplatesDirectory(), "ShooterGroupsTemplate.xml"));
 
@@ -42,6 +42,10 @@ public sealed class ShooterGroupsTemplateTests
         Assert.True(
             new[] { "Apen", "Menn", "Kvinner", "Jr", "Jr-NM", "Jrm", "Jrk", "U", "U-NM", "V55", "V65", "V73" }
                 .All(groupNames.Contains));
+
+        Assert.True(
+            new[] { "A", "B", "C", "D", "U16", "U14", "U12", "ÅR", "SH Å" }
+                .All(groupNames.Contains));
     }
 
     [Fact]
@@ -49,33 +53,38 @@ public sealed class ShooterGroupsTemplateTests
     {
         var templatesDirectory = TemplatesDirectory();
         var shooterGroupsTemplate = ShooterGroupsTemplate.Load(Path.Combine(templatesDirectory, "ShooterGroupsTemplate.xml"));
-        var document = XDocument.Load(Path.Combine(templatesDirectory, "ShootEventsTemplate2026_NM_Pistol.xml"));
+        foreach (var templatePath in ShootEventTemplatePaths())
+        {
+            var document = XDocument.Load(templatePath);
+            var events = document.Root!
+                .Elements("ShootEventConfiguration")
+                .Select(element => new
+                {
+                    Name = element.Element("Name")!.Value,
+                    DefaultGroup = element.Element("DefaultShooterGroup")!.Value
+                })
+                .ToArray();
 
-        var events = document.Root!
-            .Elements("ShootEventConfiguration")
-            .Select(element => new
-            {
-                Name = element.Element("Name")!.Value,
-                DefaultGroup = element.Element("DefaultShooterGroup")!.Value
-            })
-            .ToArray();
-
-        Assert.NotEmpty(events);
-        Assert.All(events, shootEvent => Assert.True(
-            shooterGroupsTemplate.TryGet(shootEvent.DefaultGroup, out _),
-            $"{shootEvent.Name} has unknown default group {shootEvent.DefaultGroup}."));
+            Assert.NotEmpty(events);
+            Assert.All(events, shootEvent => Assert.True(
+                shooterGroupsTemplate.TryGet(shootEvent.DefaultGroup, out _),
+                $"{Path.GetFileName(templatePath)}: {shootEvent.Name} has unknown default group {shootEvent.DefaultGroup}."));
+        }
     }
 
     [Fact]
     public void Embedded_shoot_events_have_unique_event_codes()
     {
-        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
-        var eventCodes = document.Root!
-            .Elements("ShootEventConfiguration")
-            .Select(element => element.Element("EventCode")!.Value)
-            .ToArray();
+        foreach (var templatePath in ShootEventTemplatePaths())
+        {
+            var document = XDocument.Load(templatePath);
+            var eventCodes = document.Root!
+                .Elements("ShootEventConfiguration")
+                .Select(element => element.Element("EventCode")!.Value)
+                .ToArray();
 
-        Assert.Equal(eventCodes.Length, eventCodes.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.Equal(eventCodes.Length, eventCodes.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
     }
 
     [Theory]
@@ -100,27 +109,84 @@ public sealed class ShooterGroupsTemplateTests
         Assert.Equal(expectedDefaultGroup, shootEvent.Element("DefaultShooterGroup")!.Value);
     }
 
+    [Theory]
+    [InlineData("2A_A", "2A_A", "50m Fripistol A", "A")]
+    [InlineData("2C_V73", "2C_V73", "50m pistol, skyting med støtte, vet. V73", "V73")]
+    [InlineData("2B_U14", "2B_U14", "25m Fripistol, Coltskive U14", "U14")]
+    [InlineData("4_U16", "4_U16", "25m Silhuettpistol U16", "U16")]
+    [InlineData("5_SH1", "5_SH1", "25m Standardpistol SH1", "SH1")]
+    [InlineData("6F_SH-Apen", "6F_SH-Apen", "25m Finpistol SH Å", "SH Å")]
+    [InlineData("6G_D", "6G_D", "25m Grovpistol D", "D")]
+    [InlineData("7F_SH1", "7F_SH1", "25m Hurtigpistol Fin SH1", "SH1")]
+    [InlineData("7G_A", "7G_A", "25m Hurtigpistol Grov A", "A")]
+    public void Embedded_shoot_events_include_approbert_25_50m_pistol_events(
+        string eventCode,
+        string expectedShortEventCode,
+        string expectedName,
+        string expectedDefaultGroup)
+    {
+        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_Approberte_Pistol.xml"));
+        var shootEvent = document.Root!
+            .Elements("ShootEventConfiguration")
+            .Single(element => element.Element("EventCode")!.Value == eventCode);
+
+        Assert.Equal(expectedShortEventCode, shootEvent.Element("ShortEventCode")!.Value);
+        Assert.Equal(expectedName, shootEvent.Element("Name")!.Value);
+        Assert.Equal(expectedDefaultGroup, shootEvent.Element("DefaultShooterGroup")!.Value);
+    }
+
+    [Fact]
+    public void Embedded_approbert_shoot_events_exclude_nais_fin_and_grov()
+    {
+        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_Approberte_Pistol.xml"));
+        var eventNames = document.Root!
+            .Elements("ShootEventConfiguration")
+            .Select(element => element.Element("Name")!.Value)
+            .ToArray();
+
+        Assert.DoesNotContain(eventNames, name => name.Contains("NAIS", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Embedded_50m_support_pistol_uses_30_shots()
+    {
+        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_Approberte_Pistol.xml"));
+        var shootEvent = document.Root!
+            .Elements("ShootEventConfiguration")
+            .Single(element => element.Element("EventCode")!.Value == "2C_V55");
+        var phase = shootEvent
+            .Element("PhaseConfigurations")!
+            .Elements("PhaseConfiguration")
+            .Single(phase => phase.Element("PhaseName")!.Value == "Individual");
+
+        Assert.Equal("3", phase.Element("NumberOfEnabledShotGroups")!.Value);
+        Assert.Equal(3, phase.Element("ShotGroupConfigurations")!.Elements("ShotGroupConfiguration").Count());
+    }
+
     [Fact]
     public void Embedded_shoot_events_keep_imported_bib_numbers()
     {
-        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
-        var phases = document.Root!
-            .Elements("ShootEventConfiguration")
-            .SelectMany(shootEvent => shootEvent
-                .Element("PhaseConfigurations")!
-                .Elements("PhaseConfiguration")
-                .Select(phase => new
-                {
-                    EventName = shootEvent.Element("Name")!.Value,
-                    PhaseName = phase.Element("PhaseName")!.Value,
-                    BibNumberAssignment = phase.Element("BibNumberAssignment")?.Value
-                }))
-            .ToArray();
+        foreach (var templatePath in ShootEventTemplatePaths())
+        {
+            var document = XDocument.Load(templatePath);
+            var phases = document.Root!
+                .Elements("ShootEventConfiguration")
+                .SelectMany(shootEvent => shootEvent
+                    .Element("PhaseConfigurations")!
+                    .Elements("PhaseConfiguration")
+                    .Select(phase => new
+                    {
+                        EventName = shootEvent.Element("Name")!.Value,
+                        PhaseName = phase.Element("PhaseName")!.Value,
+                        BibNumberAssignment = phase.Element("BibNumberAssignment")?.Value
+                    }))
+                .ToArray();
 
-        Assert.NotEmpty(phases);
-        Assert.All(phases, phase => Assert.Equal(
-            "KeepTheSame",
-            phase.BibNumberAssignment));
+            Assert.NotEmpty(phases);
+            Assert.All(phases, phase => Assert.Equal(
+                "KeepTheSame",
+                phase.BibNumberAssignment));
+        }
     }
 
     [Fact]
@@ -156,6 +222,9 @@ public sealed class ShooterGroupsTemplateTests
 
         throw new DirectoryNotFoundException("Could not find src/InrxToSiusRank/Templates.");
     }
+
+    private static string[] ShootEventTemplatePaths() =>
+        Directory.GetFiles(TemplatesDirectory(), "ShootEventsTemplate*.xml");
 
     private sealed class TempFile : IDisposable
     {
