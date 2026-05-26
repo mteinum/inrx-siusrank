@@ -30,6 +30,14 @@ public static class ChampionshipStartNumbers
         return plan.StartNumbers;
     }
 
+    public static IReadOnlyDictionary<int, string> Resolve(
+        IEnumerable<InrxStarter> starters,
+        IEnumerable<StevneInfo> stevner,
+        string? bibMapPath)
+    {
+        return CreatePlan(starters, stevner, bibMapPath).StartNumbers;
+    }
+
     private static StartNumberPlan CreatePlan(
         IEnumerable<InrxStarter> starters,
         IEnumerable<StevneInfo> stevner,

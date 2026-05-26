@@ -101,6 +101,43 @@
           </Grid>
         </TabItem>
 
+        <TabItem Header="SSC">
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
+            <TextBlock Text="Organization name" VerticalAlignment="Center" />
+            <TextBox x:Name="SscOrganizationNameBox" Grid.Column="1" PlaceholderText="Legacy" />
+
+            <TextBlock Grid.Row="1" Text="Organization id" VerticalAlignment="Center" />
+            <TextBox x:Name="SscOrganizationIdBox" Grid.Row="1" Grid.Column="1" PlaceholderText="f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf" />
+
+            <TextBlock Grid.Row="2" Text="bib-map.csv" VerticalAlignment="Center" />
+            <TextBox x:Name="SscBibMapPathBox" Grid.Row="2" Grid.Column="1" PlaceholderText="siusrank-import/bib-map.csv" />
+            <Button x:Name="BrowseSscBibMapButton" Grid.Row="2" Grid.Column="2" Content="Velg fil" />
+
+            <TextBlock Grid.Row="3" Text="Output directory" VerticalAlignment="Center" />
+            <TextBox x:Name="SscOutputDirectoryBox" Grid.Row="3" Grid.Column="1" PlaceholderText="ssc setup output directory" />
+            <Button x:Name="BrowseSscOutputButton" Grid.Row="3" Grid.Column="2" Content="Velg mappe" />
+
+            <TextBlock Grid.Row="4" Text="Users CSV" VerticalAlignment="Center" />
+            <TextBox x:Name="SscUsersCsvPathBox" Grid.Row="4" Grid.Column="1" PlaceholderText="ssc-users.csv for validation" />
+            <Button x:Name="BrowseSscUsersCsvButton" Grid.Row="4" Grid.Column="2" Content="Velg fil" />
+
+            <TextBlock Grid.Row="5" Text="Startlag" VerticalAlignment="Center" />
+            <TextBox x:Name="SscStartlagBox" Grid.Row="5" Grid.Column="1" PlaceholderText="2026-07-06T09:00:00" />
+
+            <TextBlock Grid.Row="6" Text="Lane count" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <ComboBox x:Name="SscLaneCountBox" Width="90" SelectedIndex="2">
+                <ComboBoxItem Content="10" />
+                <ComboBoxItem Content="25" />
+                <ComboBoxItem Content="40" />
+              </ComboBox>
+              <Button x:Name="RunSscUsersButton" Content="Export SSC Users" />
+              <Button x:Name="RunSscValidateButton" Content="Validate SSC" />
+              <Button x:Name="RunSscLanesButton" Content="Export SSC Lanes/Reset" />
+            </StackPanel>
+          </Grid>
+        </TabItem>
+
         <TabItem Header="Diagnostics">
           <Grid Margin="0,12,0,0" RowDefinitions="Auto,*" RowSpacing="10">
             <StackPanel Orientation="Horizontal" Spacing="8">

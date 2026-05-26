@@ -92,6 +92,7 @@ public static class CsvEncoding
 
     public static Encoding GetEncoding(string encodingName)
     {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         return NormalizeName(encodingName) switch
         {
             Utf8Bom => new UTF8Encoding(encoderShouldEmitUTF8Identifier: true),

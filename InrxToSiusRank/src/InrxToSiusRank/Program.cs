@@ -46,6 +46,30 @@ public static class Program
                 return 0;
             }
 
+            if (ExportSscUsersCommand.IsCommand(args))
+            {
+                var sscUsersOptions = ExportSscUsersCommand.Parse(args.Skip(1).ToArray());
+                var result = SscUsersRunner.Run(sscUsersOptions);
+                SscReporter.PrintUsers(result);
+                return result.HasErrors ? 1 : 0;
+            }
+
+            if (ValidateSscCommand.IsCommand(args))
+            {
+                var sscValidationOptions = ValidateSscCommand.Parse(args.Skip(1).ToArray());
+                var result = SscValidationRunner.Run(sscValidationOptions);
+                SscReporter.PrintValidation(result);
+                return result.HasErrors ? 1 : 0;
+            }
+
+            if (ExportSscLanesCommand.IsCommand(args))
+            {
+                var sscLanesOptions = ExportSscLanesCommand.Parse(args.Skip(1).ToArray());
+                var result = SscLanesRunner.Run(sscLanesOptions);
+                SscReporter.PrintLanes(result);
+                return result.HasErrors ? 1 : 0;
+            }
+
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
@@ -136,6 +160,9 @@ internal static class Usage
           InrxToSiusRank show-timetable --db storage.db3
           InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports
           InrxToSiusRank writeback-siusrank --db storage.db3 --stevne-ids 413-417 --exports Rank_A\Exports --bib-map siusrank-import\bib-map.csv --apply
+          InrxToSiusRank export-ssc-users --db storage.db3 --stevne-ids 405-411 --bib-map siusrank-import\bib-map.csv --output ssc-setup\ssc-users.csv
+          InrxToSiusRank validate-ssc --db storage.db3 --stevne-ids 405-411 --bib-map siusrank-import\bib-map.csv --users-csv ssc-setup\ssc-users.csv
+          InrxToSiusRank export-ssc-lanes --db storage.db3 --stevne-id 405 --startlag "2026-07-06T09:00:00" --bib-map siusrank-import\bib-map.csv --output-dir ssc-setup\lanes --lane-count 40
           InrxToSiusRank apply-nm2026-timetable --db storage.db3 --siusrank "NM Bane Pistol 2026.srkl" --proposal "FORSLAG_Tidsplan mannskap NM2026.xlsx" --output-dir inrx-export
 
         appsettings.json:
@@ -185,6 +212,24 @@ internal static class Usage
           --bib-map <path>                    Optional bib-map.csv. If omitted, siusrank-import\bib-map.csv is auto-detected when possible.
           --event <name>                      Optional comma-separated SIUS event filter, for example HurtigFin_M,HurtigGrov_Apen.
           --apply                             Write updates after creating storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS.
+
+        ShootingSportsCloud setup options:
+          export-ssc-users                    Export SSC user import CSV from inrX starters.
+          validate-ssc                        Validate SSC users CSV, bib-map, targets, and exercise mapping.
+          export-ssc-lanes                    Write SSC reset and active-lanes JSON payload files.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --stevne-id <id>                    Select one inrX event. Required for export-ssc-lanes.
+          --stevne-ids <ids>                  Select several inrX events, for example 405-411.
+          --bib-map <path>                    Optional bib-map.csv. Reused/updated when output is written.
+          --output <path>                     Output CSV path for export-ssc-users. Omit for dry-run.
+          --users-csv <path>                  SSC users CSV for validate-ssc.
+          --organization-name <name>          SSC OrganizationName. Default: Legacy.
+          --organization-id <guid>            SSC OrganizationId.
+          --encoding <utf8-bom|windows-1252>  SSC users CSV encoding. Default: utf8-bom.
+          --startlag <datetime>               Startlag datetime for active lanes, for example 2026-07-06T09:00:00.
+          --output-dir <path>                 Output directory for export-ssc-lanes JSON files.
+          --lane-count <10|25|40>             Lane count. Default: 40.
 
         apply-nm2026-timetable options:
           apply-nm2026-timetable             Preview or apply NM2026 timetable/capacity fixes to inrX and SIUS Rank.

@@ -39,6 +39,20 @@ public partial class MainWindow : Window
 
     private TextBox EventFilterInput => Get<TextBox>("EventFilterBox");
 
+    private TextBox SscOrganizationNameInput => Get<TextBox>("SscOrganizationNameBox");
+
+    private TextBox SscOrganizationIdInput => Get<TextBox>("SscOrganizationIdBox");
+
+    private TextBox SscBibMapPathInput => Get<TextBox>("SscBibMapPathBox");
+
+    private TextBox SscOutputDirectoryInput => Get<TextBox>("SscOutputDirectoryBox");
+
+    private TextBox SscUsersCsvPathInput => Get<TextBox>("SscUsersCsvPathBox");
+
+    private TextBox SscStartlagInput => Get<TextBox>("SscStartlagBox");
+
+    private ComboBox SscLaneCountInput => Get<ComboBox>("SscLaneCountBox");
+
     private TextBox LogInput => Get<TextBox>("LogBox");
 
     private TextBlock StatusLabel => Get<TextBlock>("StatusText");
@@ -51,6 +65,12 @@ public partial class MainWindow : Window
     {
         StevneIdsInput.Text = "413-417";
         OutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import");
+        SscOrganizationNameInput.Text = "Legacy";
+        SscOrganizationIdInput.Text = "f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf";
+        SscOutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "ssc-setup");
+        SscBibMapPathInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import", ChampionshipStartNumbers.BibMapFileName);
+        SscUsersCsvPathInput.Text = Path.Combine(SscOutputDirectoryInput.Text, "ssc-users.csv");
+        SscStartlagInput.Text = "2026-07-06T09:00:00";
         EncodingInput.SelectedIndex = 0;
 
         try
@@ -74,6 +94,13 @@ public partial class MainWindow : Window
         SetTextIfPresent(ShooterGroupsTemplateInput, desktopSettings.ShooterGroupsTemplatePath);
         SetTextIfPresent(ExportsDirectoryInput, desktopSettings.ExportsDirectory);
         SetTextIfPresent(BibMapPathInput, desktopSettings.BibMapPath);
+        SetTextIfPresent(SscBibMapPathInput, desktopSettings.SscBibMapPath);
+        SetTextIfPresent(SscOutputDirectoryInput, desktopSettings.SscOutputDirectory);
+        SetTextIfPresent(SscUsersCsvPathInput, desktopSettings.SscUsersCsvPath);
+        SetTextIfPresent(SscStartlagInput, desktopSettings.SscStartlag);
+        SetTextIfPresent(SscOrganizationNameInput, desktopSettings.SscOrganizationName);
+        SetTextIfPresent(SscOrganizationIdInput, desktopSettings.SscOrganizationId);
+        SetSscLaneCount(desktopSettings.SscLaneCount);
         SetTextIfPresent(StevneIdsInput, desktopSettings.StevneIds);
         SetTextIfPresent(OvelseFilterInput, desktopSettings.OvelseFilter);
         SetTextIfPresent(EventFilterInput, desktopSettings.EventFilter);
@@ -92,6 +119,12 @@ public partial class MainWindow : Window
             await BrowseFolderAsync(OutputDirectoryInput, "Select SIUS Rank import output directory");
         Get<Button>("BrowseExportsButton").Click += async (_, _) =>
             await BrowseFolderAsync(ExportsDirectoryInput, "Select SIUS Rank Exports directory");
+        Get<Button>("BrowseSscBibMapButton").Click += async (_, _) =>
+            await BrowseFileAsync(SscBibMapPathInput, "Select bib-map.csv", "CSV", ["*.csv"]);
+        Get<Button>("BrowseSscOutputButton").Click += async (_, _) =>
+            await BrowseFolderAsync(SscOutputDirectoryInput, "Select SSC setup output directory");
+        Get<Button>("BrowseSscUsersCsvButton").Click += async (_, _) =>
+            await BrowseFileAsync(SscUsersCsvPathInput, "Select SSC users CSV", "CSV", ["*.csv"]);
 
         Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Inspecting database", InspectDatabaseAsync);
         Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Copying templates", CopyTemplatesToSiusRankAsync);
@@ -99,6 +132,9 @@ public partial class MainWindow : Window
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Creating CSV files", RunExportAsync);
         Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Running writeback dry-run", () => RunWritebackAsync(apply: false));
         Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Applying writeback", () => RunWritebackAsync(apply: true));
+        Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Exporting SSC users", RunSscUsersAsync);
+        Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Validating SSC setup", RunSscValidateAsync);
+        Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Exporting SSC lanes", RunSscLanesAsync);
         Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Loading stevner", ShowRecentStevnerAsync);
         Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Loading øvelser", ShowSelectedOvelserAsync);
         Get<Button>("ClearLogButton").Click += (_, _) => LogInput.Text = string.Empty;
@@ -262,6 +298,51 @@ public partial class MainWindow : Window
         });
     }
 
+    private Task RunSscUsersAsync()
+    {
+        var options = BuildSscUsersOptions();
+        AppendLog(BuildSscUsersCommand(options));
+
+        return Task.Run(() =>
+        {
+            var result = SscUsersRunner.Run(options);
+            if (result.Written && !string.IsNullOrWhiteSpace(result.OutputPath))
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    SscUsersCsvPathInput.Text = result.OutputPath;
+                    SaveDesktopSettings();
+                });
+            }
+
+            AppendLog(FormatSscUsersResult(result));
+        });
+    }
+
+    private Task RunSscValidateAsync()
+    {
+        var options = BuildSscValidateOptions();
+        AppendLog(BuildSscValidateCommand(options));
+
+        return Task.Run(() =>
+        {
+            var result = SscValidationRunner.Run(options);
+            AppendLog(FormatSscValidationResult(result));
+        });
+    }
+
+    private Task RunSscLanesAsync()
+    {
+        var options = BuildSscLanesOptions();
+        AppendLog(BuildSscLanesCommand(options));
+
+        return Task.Run(() =>
+        {
+            var result = SscLanesRunner.Run(options);
+            AppendLog(FormatSscLanesResult(result));
+        });
+    }
+
     private AppOptions BuildExportOptions(bool includeTemplate = true)
     {
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
@@ -313,6 +394,50 @@ public partial class MainWindow : Window
             apply);
     }
 
+    private ExportSscUsersOptions BuildSscUsersOptions()
+    {
+        var outputDirectory = RequireText(SscOutputDirectoryInput.Text, "SSC output directory");
+        var outputPath = Path.Combine(outputDirectory, "ssc-users.csv");
+        return new ExportSscUsersOptions(
+            RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
+            ParseIdList(StevneIdsInput.Text, "Stevne ids"),
+            CleanSetting(SscBibMapPathInput.Text),
+            outputPath,
+            RequireText(SscOrganizationNameInput.Text, "SSC organization name"),
+            RequireText(SscOrganizationIdInput.Text, "SSC organization id"),
+            SelectedEncoding());
+    }
+
+    private ValidateSscOptions BuildSscValidateOptions()
+    {
+        var usersCsvPath = string.IsNullOrWhiteSpace(SscUsersCsvPathInput.Text)
+            ? Path.Combine(RequireText(SscOutputDirectoryInput.Text, "SSC output directory"), "ssc-users.csv")
+            : SscUsersCsvPathInput.Text;
+
+        return new ValidateSscOptions(
+            RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
+            ParseIdList(StevneIdsInput.Text, "Stevne ids"),
+            CleanSetting(SscBibMapPathInput.Text),
+            RequireExistingFile(usersCsvPath, "SSC users CSV"));
+    }
+
+    private ExportSscLanesOptions BuildSscLanesOptions()
+    {
+        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
+        if (ids.Count != 1)
+        {
+            throw new ArgumentException("SSC lanes export requires exactly one Stevne.Id in the top Stevne ids field.");
+        }
+
+        return new ExportSscLanesOptions(
+            RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
+            ids[0],
+            RequireText(SscStartlagInput.Text, "SSC startlag"),
+            CleanSetting(SscBibMapPathInput.Text),
+            RequireText(SscOutputDirectoryInput.Text, "SSC output directory"),
+            SelectedSscLaneCount());
+    }
+
     private string SelectedEncoding()
     {
         if (EncodingInput.SelectedItem is ComboBoxItem item && item.Content is not null)
@@ -333,6 +458,27 @@ public partial class MainWindow : Window
         EncodingInput.SelectedIndex = encodingName.Equals(CsvEncoding.Windows1252, StringComparison.OrdinalIgnoreCase)
             ? 1
             : 0;
+    }
+
+    private int SelectedSscLaneCount()
+    {
+        if (SscLaneCountInput.SelectedItem is ComboBoxItem item &&
+            int.TryParse(item.Content?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var laneCount))
+        {
+            return laneCount;
+        }
+
+        return 40;
+    }
+
+    private void SetSscLaneCount(string? laneCount)
+    {
+        SscLaneCountInput.SelectedIndex = laneCount switch
+        {
+            "10" => 0,
+            "25" => 1,
+            _ => 2
+        };
     }
 
     private void SaveDesktopSettings(bool logWarning = true)
@@ -356,6 +502,13 @@ public partial class MainWindow : Window
         ShooterGroupsTemplatePath: CleanSetting(ShooterGroupsTemplateInput.Text),
         ExportsDirectory: CleanSetting(ExportsDirectoryInput.Text),
         BibMapPath: CleanSetting(BibMapPathInput.Text),
+        SscBibMapPath: CleanSetting(SscBibMapPathInput.Text),
+        SscOutputDirectory: CleanSetting(SscOutputDirectoryInput.Text),
+        SscUsersCsvPath: CleanSetting(SscUsersCsvPathInput.Text),
+        SscStartlag: CleanSetting(SscStartlagInput.Text),
+        SscLaneCount: SelectedSscLaneCount().ToString(CultureInfo.InvariantCulture),
+        SscOrganizationName: CleanSetting(SscOrganizationNameInput.Text),
+        SscOrganizationId: CleanSetting(SscOrganizationIdInput.Text),
         StevneIds: CleanSetting(StevneIdsInput.Text),
         EncodingName: SelectedEncoding(),
         OvelseFilter: CleanSetting(OvelseFilterInput.Text),
@@ -585,6 +738,68 @@ public partial class MainWindow : Window
         return "$ " + string.Join(' ', parts);
     }
 
+    private static string BuildSscUsersCommand(ExportSscUsersOptions options)
+    {
+        var parts = new List<string>
+        {
+            "InrxToSiusRank",
+            "export-ssc-users",
+            "--db", Quote(options.DatabasePath),
+            "--stevne-ids", Quote(FormatIds(options.StevneIds)),
+            "--output", Quote(options.OutputPath ?? string.Empty),
+            "--organization-name", Quote(options.OrganizationName),
+            "--organization-id", Quote(options.OrganizationId),
+            "--encoding", options.EncodingName
+        };
+
+        if (!string.IsNullOrWhiteSpace(options.BibMapPath))
+        {
+            parts.AddRange(["--bib-map", Quote(options.BibMapPath)]);
+        }
+
+        return "$ " + string.Join(' ', parts);
+    }
+
+    private static string BuildSscValidateCommand(ValidateSscOptions options)
+    {
+        var parts = new List<string>
+        {
+            "InrxToSiusRank",
+            "validate-ssc",
+            "--db", Quote(options.DatabasePath),
+            "--stevne-ids", Quote(FormatIds(options.StevneIds)),
+            "--users-csv", Quote(options.UsersCsvPath)
+        };
+
+        if (!string.IsNullOrWhiteSpace(options.BibMapPath))
+        {
+            parts.AddRange(["--bib-map", Quote(options.BibMapPath)]);
+        }
+
+        return "$ " + string.Join(' ', parts);
+    }
+
+    private static string BuildSscLanesCommand(ExportSscLanesOptions options)
+    {
+        var parts = new List<string>
+        {
+            "InrxToSiusRank",
+            "export-ssc-lanes",
+            "--db", Quote(options.DatabasePath),
+            "--stevne-id", options.StevneId.ToString(CultureInfo.InvariantCulture),
+            "--startlag", Quote(options.Startlag),
+            "--output-dir", Quote(options.OutputDirectory),
+            "--lane-count", options.LaneCount.ToString(CultureInfo.InvariantCulture)
+        };
+
+        if (!string.IsNullOrWhiteSpace(options.BibMapPath))
+        {
+            parts.AddRange(["--bib-map", Quote(options.BibMapPath)]);
+        }
+
+        return "$ " + string.Join(' ', parts);
+    }
+
     private static string FormatBulkExportResult(BulkExportResult result)
     {
         var builder = new StringBuilder();
@@ -685,6 +900,61 @@ public partial class MainWindow : Window
         }
 
         return builder.ToString();
+    }
+
+    private static string FormatSscUsersResult(SscUsersExportResult result)
+    {
+        var builder = new StringBuilder();
+        var status = result.Written
+            ? "SSC users CSV created."
+            : string.IsNullOrWhiteSpace(result.OutputPath)
+                ? "SSC users CSV dry-run."
+                : "SSC users CSV not written because validation errors were found.";
+        builder.AppendLine(status);
+        if (!string.IsNullOrWhiteSpace(result.OutputPath))
+        {
+            builder.AppendLine($"Output: {result.OutputPath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.BibMapPath))
+        {
+            builder.AppendLine($"bib-map.csv: {result.BibMapPath}");
+        }
+
+        builder.AppendLine($"Users: {result.UserCount}");
+        AppendSscMessages(builder, result.Messages);
+        return builder.ToString();
+    }
+
+    private static string FormatSscValidationResult(SscValidationResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SSC validation complete.");
+        builder.AppendLine($"Starters: {result.StarterCount}");
+        builder.AppendLine($"Users: {result.UserCount}");
+        AppendSscMessages(builder, result.Messages);
+        return builder.ToString();
+    }
+
+    private static string FormatSscLanesResult(SscLanesExportResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SSC lane payload files created.");
+        builder.AppendLine($"Output directory: {result.OutputDirectory}");
+        builder.AppendLine($"Reset: {result.ResetPath}");
+        builder.AppendLine($"Active lanes: {result.ActiveLanesPath}");
+        builder.AppendLine($"Lane count: {result.LaneCount}");
+        builder.AppendLine($"Active lanes: {result.ActiveLaneCount}");
+        AppendSscMessages(builder, result.Messages);
+        return builder.ToString();
+    }
+
+    private static void AppendSscMessages(StringBuilder builder, IReadOnlyList<SscValidationMessage> messages)
+    {
+        foreach (var message in messages)
+        {
+            builder.AppendLine($"{SscValidationMessageFormatter.Prefix(message)}: {message.Message}");
+        }
     }
 
     private static string FormatDate(string value) =>

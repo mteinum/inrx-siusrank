@@ -189,6 +189,8 @@ storage.db3.bak-seed-YYYYMMDD-HHMMSS
 
 Seeding matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`. Eligible seeded classes are `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`. Classes stay as contiguous blocks. Multi-shooter seed groups stay together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett/RFP uses side targets `2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34` so SIUS Rank can import two shooters per skivestativ with V/H filters. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
 
+The next proposed seeding rule set is documented as [NM2026 seeding proposal v1.3](docs/nm2026-seeding-proposal-v1.3.md). It covers club spreading, Finpistol-to-Grovpistol turnaround conflicts, and junior finalist placement constraints.
+
 ## Show NM Timetable
 
 Show the NM startlag timetable from `storage.db3`:
@@ -257,6 +259,61 @@ dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
 
 Matching is done by `bib-map.csv` first, then by old inrX result id, NSF/accreditation number, and finally by unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports contain total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
 
+## ShootingSportsCloud Setup
+
+The tool can also create deterministic ShootingSportsCloud setup files for the NM2026/SIUS Rank workflow. This is file generation only; it does not forward live results to SSC.
+
+Export SSC users from the same inrX events and `bib-map.csv` used for SIUS Rank:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  export-ssc-users \
+  --db storage.db3 \
+  --stevne-ids 405-411 \
+  --bib-map siusrank-import/bib-map.csv \
+  --output ssc-setup/ssc-users.csv \
+  --organization-name Legacy \
+  --organization-id f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf
+```
+
+The CSV header matches the SSC user export/import columns:
+
+```text
+OrganizationName,OrganizationId,UserId,Name,FirstName,DisplayName,NationName,DisplayNationName,ISOCode,IOCCode,UserClassName,UserClassId,UserGroupName,UserGroupId,ShootingSportsCloudUserId,DateOfBirth,Gender,UserPictureId,UserPreferredLanguage
+```
+
+`UserId` uses the same stable `26xxx` number as SIUS Rank `StartNumber`/`BibNumber`. Date of birth is exported as `yyyy-MM-dd` only when the inrX value is a full supported date; gender is exported as `M`/`F` when it maps safely. Default encoding is UTF-8 BOM; `--encoding windows-1252` is also supported.
+
+Validate before match day:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  validate-ssc \
+  --db storage.db3 \
+  --stevne-ids 405-411 \
+  --bib-map siusrank-import/bib-map.csv \
+  --users-csv ssc-setup/ssc-users.csv
+```
+
+Generate lane/reset payload files:
+
+```bash
+dotnet run --project InrxToSiusRank/src/InrxToSiusRank -- \
+  export-ssc-lanes \
+  --db storage.db3 \
+  --stevne-id 405 \
+  --startlag "2026-07-06T09:00:00" \
+  --bib-map siusrank-import/bib-map.csv \
+  --output-dir ssc-setup/lanes \
+  --lane-count 40
+```
+
+`export-ssc-lanes` writes a reset JSON covering every lane `1..lane-count` and an active-lanes JSON for the selected startlag containing `lane`, `UserId`, `DisplayName`, and `ExerciseName`. The JSON is marked as an internal payload spec candidate until a final SSC API/MQTT contract is confirmed.
+
+NM2026 uses SIUS SA951 shooting monitors. SA951 is not Watchtower AthleteMonitor, and `AthleteMonitorConnected=false` is correct. Watchtower Range Live Results in Kanopus 2026.1.3 reads from the `AthleteMonitor` viewdata source and can throw `NullReferenceException` in `GetExerciseViewDataFromClient` when no AthleteMonitor client exists. These SSC commands do not require or change AthleteMonitor settings.
+
+More detail: [docs/ssc-integration.md](docs/ssc-integration.md).
+
 ## Desktop UI
 
 An Avalonia desktop app is available for Mac and Windows testing. It wraps the same export and writeback code as the CLI and provides:
@@ -264,6 +321,7 @@ An Avalonia desktop app is available for Mac and Windows testing. It wraps the s
 - CSV export with `bib-map.csv` reuse.
 - Copy bundled SIUS Rank template XML files to `C:\SIUS\SiusRank\Resources\Templates`.
 - SIUS Rank writeback dry-run and apply.
+- SSC users export, validation, and lane/reset payload generation.
 - Read-only database diagnostics for selected `Stevne.Id` values.
 
 The desktop app remembers selected paths and filters in a per-user `desktop-settings.json`, so `storage.db3`, output directory, shooter groups XML, exports directory, and related fields are restored on the next launch.
@@ -379,6 +437,15 @@ writeback-siusrank                  Preview or apply SIUS Rank Rank List Main OD
 --exports <path>                    SIUS Rank Exports directory for writeback-siusrank.
 --bib-map <path>                    Optional bib-map.csv for writeback-siusrank.
 --event <name>                      Optional comma-separated SIUS event filter for writeback-siusrank.
+export-ssc-users                    Export SSC user import CSV from inrX starters.
+--output <path>                     Output CSV path for export-ssc-users. Omit for dry-run.
+--organization-name <name>          SSC OrganizationName. Default: Legacy.
+--organization-id <guid>            SSC OrganizationId.
+validate-ssc                        Validate SSC users CSV, bib-map, targets, and exercise mapping.
+--users-csv <path>                  SSC users CSV for validate-ssc.
+export-ssc-lanes                    Write SSC reset and active-lanes JSON payload files.
+--startlag <datetime>               Startlag datetime for active lanes, for example 2026-07-06T09:00:00.
+--lane-count <10|25|40>             Lane count. Default: 40.
 ```
 
 ## Test

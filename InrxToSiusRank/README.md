@@ -122,6 +122,8 @@ Apply the planned changes:
 
 The command creates `storage.db3.bak-seed-YYYYMMDD-HHMMSS` before writing. It matches NSF ranking rows by `Deltaker.sa2Id == ranking.personId`, seeds `Å`, `M`, `K`, `Jr-NM`, `Jm`, and `Jk`, keeps classes as contiguous blocks, and keeps multi-shooter seed groups together. For non-Silhuett events, the seed group is placed at the latest point in its class block that avoids creating an underfilled startlag before it; remaining targets after a seed group can be filled by the same or next class. Silhuett keeps the requested seeded Å lag and uses target numbers `3, 8, 13, 18, 23, 28, 33`. Other 25m exercises use competition targets `1-35`; targets `36-38` are kept spare.
 
+The next proposed seeding rule set is documented as [../docs/nm2026-seeding-proposal-v1.3.md](../docs/nm2026-seeding-proposal-v1.3.md). It covers club spreading, Finpistol-to-Grovpistol turnaround conflicts, and junior finalist placement constraints.
+
 ## Show NM timetable
 
 Show the NM startlag timetable:
@@ -156,9 +158,39 @@ Apply updates:
 
 The command creates `storage.db3.bak-siusrank-writeback-YYYYMMDD-HHMMSS` before writing. Use `--event HurtigFin_M,HurtigFin_K` to limit the import. Matching uses `bib-map.csv` first, then old inrX result id, NSF/accreditation number, and finally unique name. Rows without a complete exported result with shots are skipped. SIUS Rank ODF exports include total inner tens but not a per-shot inner-ten flag, so the writeback reconstructs the per-shot `O` markers by assigning the closest exported 10s until the exported inner-ten total is reached.
 
+## ShootingSportsCloud setup
+
+Create deterministic SSC setup files for NM2026 without live result forwarding:
+
+```powershell
+.\InrxToSiusRank.exe export-ssc-users --db .\storage.db3 --stevne-ids 405-411 --bib-map .\siusrank-import\bib-map.csv --output .\ssc-setup\ssc-users.csv --organization-name Legacy --organization-id f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf
+```
+
+`UserId` uses the same stable `26xxx` value as SIUS Rank `StartNumber`/`BibNumber`. The SSC users CSV header is:
+
+```text
+OrganizationName,OrganizationId,UserId,Name,FirstName,DisplayName,NationName,DisplayNationName,ISOCode,IOCCode,UserClassName,UserClassId,UserGroupName,UserGroupId,ShootingSportsCloudUserId,DateOfBirth,Gender,UserPictureId,UserPreferredLanguage
+```
+
+Validate the import setup:
+
+```powershell
+.\InrxToSiusRank.exe validate-ssc --db .\storage.db3 --stevne-ids 405-411 --bib-map .\siusrank-import\bib-map.csv --users-csv .\ssc-setup\ssc-users.csv
+```
+
+Generate lane/reset JSON files:
+
+```powershell
+.\InrxToSiusRank.exe export-ssc-lanes --db .\storage.db3 --stevne-id 405 --startlag "2026-07-06T09:00:00" --bib-map .\siusrank-import\bib-map.csv --output-dir .\ssc-setup\lanes --lane-count 40
+```
+
+The lane JSON is an internal payload spec candidate until the final SSC API/MQTT contract is confirmed. NM2026 uses SIUS SA951 monitors, not Watchtower AthleteMonitor. Keep `AthleteMonitorConnected=false`; Kanopus 2026.1.3 Watchtower Range Live Results can fail with `NullReferenceException` in `GetExerciseViewDataFromClient` when no AthleteMonitor client exists. These commands only create setup files and do not enable live forwarding.
+
+See [../docs/ssc-integration.md](../docs/ssc-integration.md).
+
 ## Desktop UI
 
-The Avalonia desktop app runs on Mac and Windows and uses the same application code as the CLI. It supports CSV export, SIUS Rank writeback dry-run/apply, and read-only diagnostics for selected `Stevne.Id` values.
+The Avalonia desktop app runs on Mac and Windows and uses the same application code as the CLI. It supports CSV export, SIUS Rank writeback dry-run/apply, SSC users/validation/lane setup, and read-only diagnostics for selected `Stevne.Id` values.
 
 Selected paths and filters are remembered in a per-user `desktop-settings.json`, including `storage.db3`, output directory, shooter groups XML, exports directory, and related fields.
 The CSV export tab can copy the bundled SIUS Rank template XML files to the configured templates directory, normally `C:\SIUS\SiusRank\Resources\Templates`.
@@ -233,4 +265,13 @@ writeback-siusrank                  Preview or apply SIUS Rank Rank List Main OD
 --exports <path>                    SIUS Rank Exports directory for writeback-siusrank.
 --bib-map <path>                    Optional bib-map.csv for writeback-siusrank.
 --event <name>                      Optional comma-separated SIUS event filter for writeback-siusrank.
+export-ssc-users                    Export SSC user import CSV from inrX starters.
+--output <path>                     Output CSV path for export-ssc-users. Omit for dry-run.
+--organization-name <name>          SSC OrganizationName. Default: Legacy.
+--organization-id <guid>            SSC OrganizationId.
+validate-ssc                        Validate SSC users CSV, bib-map, targets, and exercise mapping.
+--users-csv <path>                  SSC users CSV for validate-ssc.
+export-ssc-lanes                    Write SSC reset and active-lanes JSON payload files.
+--startlag <datetime>               Startlag datetime for active lanes, for example 2026-07-06T09:00:00.
+--lane-count <10|25|40>             Lane count. Default: 40.
 ```
