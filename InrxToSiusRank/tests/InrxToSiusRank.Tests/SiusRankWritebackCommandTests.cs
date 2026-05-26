@@ -45,6 +45,40 @@ public sealed class SiusRankWritebackCommandTests
         Assert.Equal([413], options.StevneIds);
     }
 
+    [Fact]
+    public void ResolveBibMapPath_can_auto_detect_when_explicit_path_is_missing()
+    {
+        using var root = TempDirectory.Create();
+        var exports = System.IO.Path.Combine(root.Path, "2026-05-26 Fri 2A", "Exports");
+        Directory.CreateDirectory(exports);
+        var import = System.IO.Path.Combine(root.Path, "siusrank-import");
+        Directory.CreateDirectory(import);
+        var bibMap = System.IO.Path.Combine(import, "bib-map.csv");
+        File.WriteAllText(bibMap, "nsfId,bibNumber,deltakerId,name,source\r\n");
+
+        var resolved = SiusRankWritebackCommand.ResolveBibMapPath(
+            System.IO.Path.Combine(root.Path, "missing", "bib-map.csv"),
+            exports,
+            requireExplicitPath: false);
+
+        Assert.Equal(bibMap, resolved);
+    }
+
+    [Fact]
+    public void ResolveBibMapPath_rejects_missing_explicit_path_when_required()
+    {
+        using var exports = TempDirectory.Create();
+        var missing = System.IO.Path.Combine(exports.Path, "missing-bib-map.csv");
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            SiusRankWritebackCommand.ResolveBibMapPath(
+                missing,
+                exports.Path,
+                requireExplicitPath: true));
+
+        Assert.Contains("bib-map.csv file does not exist", ex.Message);
+    }
+
     private sealed class TempFile : IDisposable
     {
         private TempFile(string path)

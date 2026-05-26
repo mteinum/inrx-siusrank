@@ -96,7 +96,10 @@ public static class SiusRankWritebackCommand
             throw new ArgumentException("Use --stevne-id or --stevne-ids to select inrX event(s).");
         }
 
-        var resolvedBibMapPath = ResolveBibMapPath(bibMapPath, resolvedExportsDirectory);
+        var resolvedBibMapPath = ResolveBibMapPath(
+            bibMapPath,
+            resolvedExportsDirectory,
+            requireExplicitPath: true);
         var parsedEventFilters = ParseEventFilters(eventFilters);
 
         return new SiusRankWritebackOptions(
@@ -149,17 +152,23 @@ public static class SiusRankWritebackCommand
         return ids.Distinct().ToList();
     }
 
-    private static string? ResolveBibMapPath(string? bibMapPath, string exportsDirectory)
+    public static string? ResolveBibMapPath(
+        string? bibMapPath,
+        string exportsDirectory,
+        bool requireExplicitPath)
     {
         if (!string.IsNullOrWhiteSpace(bibMapPath))
         {
             var resolved = Path.GetFullPath(bibMapPath);
-            if (!File.Exists(resolved))
+            if (File.Exists(resolved))
+            {
+                return resolved;
+            }
+
+            if (requireExplicitPath)
             {
                 throw new ArgumentException($"bib-map.csv file does not exist: {resolved}");
             }
-
-            return resolved;
         }
 
         foreach (var candidate in DefaultBibMapCandidates(exportsDirectory))

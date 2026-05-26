@@ -382,14 +382,32 @@ public partial class MainWindow : Window
 
     private SiusRankWritebackOptions BuildWritebackOptions(bool apply)
     {
+        var exportsDirectory = RequireExistingDirectory(ExportsDirectoryInput.Text, "Exports directory");
+        var requestedBibMapPath = CleanSetting(BibMapPathInput.Text);
+        var resolvedBibMapPath = SiusRankWritebackCommand.ResolveBibMapPath(
+            requestedBibMapPath,
+            exportsDirectory,
+            requireExplicitPath: false);
+
+        if (!string.IsNullOrWhiteSpace(requestedBibMapPath) &&
+            !File.Exists(requestedBibMapPath))
+        {
+            AppendLog(resolvedBibMapPath is null
+                ? $"WARNING: bib-map.csv does not exist, continuing without it: {requestedBibMapPath}"
+                : $"WARNING: bib-map.csv does not exist at {requestedBibMapPath}; using auto-detected file: {resolvedBibMapPath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(resolvedBibMapPath))
+        {
+            BibMapPathInput.Text = resolvedBibMapPath;
+        }
+
         var eventFilters = ParseEventFilters(EventFilterInput.Text);
         return new SiusRankWritebackOptions(
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
-            RequireExistingDirectory(ExportsDirectoryInput.Text, "Exports directory"),
+            exportsDirectory,
             ParseIdList(StevneIdsInput.Text, "Stevne ids"),
-            string.IsNullOrWhiteSpace(BibMapPathInput.Text)
-                ? null
-                : RequireExistingFile(BibMapPathInput.Text, "bib-map.csv"),
+            resolvedBibMapPath,
             eventFilters,
             apply);
     }

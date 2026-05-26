@@ -15,6 +15,12 @@ public static class SiusRankWritebackRunner
 
         using var repository = new SiusRankWritebackRepository(options.DatabasePath);
         var input = repository.GetInput(options.StevneIds);
+        if (string.IsNullOrWhiteSpace(options.BibMapPath))
+        {
+            warnings.Add(
+                "No bib-map.csv was used. Matching falls back to old inrX result id, NSF/accreditation number, and unique name.");
+        }
+
         var bibMap = BibMapReader.Read(options.BibMapPath);
         var eventPlans = SiusRankWritebackPlanner.Plan(exports, input, bibMap, out var planWarnings);
         warnings.AddRange(planWarnings);

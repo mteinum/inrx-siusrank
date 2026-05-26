@@ -2,10 +2,43 @@ namespace InrxToSiusRank;
 
 public static class SiusRankEventDiscipline
 {
+    private static readonly (string BaseCode, int OvelseDefId)[] ApprobertBaseCodeMap =
+    [
+        ("2A", 18),
+        ("7G", 6),
+        ("7F", 7),
+        ("6G", 8),
+        ("6F", 9),
+        ("5", 10),
+        ("4", 11)
+    ];
+
+    private static readonly string[] ApprobertClassSuffixes =
+    [
+        "A",
+        "B",
+        "C",
+        "D",
+        "U16",
+        "U14",
+        "V55",
+        "V65",
+        "V73",
+        "SH1",
+        "SHAPEN"
+    ];
+
     public static int? ResolveOvelseDefId(string shortName, string eventCode)
     {
         var normalizedShortName = NormalizeFilter(shortName);
         var normalizedEventCode = NormalizeFilter(eventCode);
+
+        var approbertId = ResolveApprobertOvelseDefId(normalizedShortName) ??
+            ResolveApprobertOvelseDefId(normalizedEventCode);
+        if (approbertId is not null)
+        {
+            return approbertId;
+        }
 
         if (normalizedShortName.Contains("HURTIGFIN", StringComparison.Ordinal) ||
             normalizedEventCode.StartsWith("SPRF", StringComparison.Ordinal))
@@ -57,6 +90,31 @@ public static class SiusRankEventDiscipline
         }
 
         return null;
+    }
+
+    private static int? ResolveApprobertOvelseDefId(string normalizedCode)
+    {
+        foreach (var (baseCode, ovelseDefId) in ApprobertBaseCodeMap)
+        {
+            if (HasApprobertBaseCode(normalizedCode, baseCode))
+            {
+                return ovelseDefId;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasApprobertBaseCode(string normalizedCode, string baseCode)
+    {
+        if (!normalizedCode.StartsWith(baseCode, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var suffix = normalizedCode[baseCode.Length..];
+        return suffix.Length == 0 ||
+            ApprobertClassSuffixes.Contains(suffix, StringComparer.Ordinal);
     }
 
     public static bool MatchesFilters(
