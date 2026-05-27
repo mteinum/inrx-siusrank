@@ -101,9 +101,9 @@ public static class SiusRankClassWritebackStatusResolver
         {
             return new SiusRankClassWritebackStatus(
                 SiusRankClassWritebackStatusKind.WrittenBack,
-                "Skrevet tilbake",
+                "Allerede oppdatert",
                 result,
-                [$"{result.UnchangedCount} result row(s) are already up to date in inrX."]);
+                [$"{result.UnchangedCount} resultat(er) er allerede oppdatert i inrX."]);
         }
 
         return new SiusRankClassWritebackStatus(

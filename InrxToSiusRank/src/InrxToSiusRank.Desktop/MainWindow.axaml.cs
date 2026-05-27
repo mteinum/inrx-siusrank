@@ -403,6 +403,18 @@ public partial class MainWindow : Window
 
     private async Task OpenEventFileAsync()
     {
+        if (CleanSetting(EventFilePathInput.Text) is { } selectedPath)
+        {
+            var resolvedPath = ResolveEventPath(selectedPath);
+            if (File.Exists(resolvedPath))
+            {
+                await LoadEventFileAsync(resolvedPath);
+                return;
+            }
+
+            AppendLog($"event.json finnes ikke: {resolvedPath}");
+        }
+
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Open event.json",
@@ -419,6 +431,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        await LoadEventFileAsync(path);
+    }
+
+    private async Task LoadEventFileAsync(string path)
+    {
         var config = EventProjectFile.Load(path);
         await ApplyEventConfigAsync(path, config);
         AppendLog($"event.json opened: {path}");
@@ -1831,7 +1848,9 @@ public partial class MainWindow : Window
 
         if (!status.CanApply)
         {
-            AppendLog($"Writeback not applied for {className}: {status.Text}");
+            AppendLog(status.Kind == SiusRankClassWritebackStatusKind.WrittenBack
+                ? $"{className}: Ingen skriving nødvendig. Resultatene er allerede oppdatert i inrX."
+                : $"{className}: Skriver ikke til inrX: {status.Text}");
             return;
         }
 

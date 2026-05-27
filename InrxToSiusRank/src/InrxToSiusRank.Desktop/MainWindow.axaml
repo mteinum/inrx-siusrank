@@ -72,13 +72,8 @@
                   <Button x:Name="BrowseDatabaseButton" Grid.Row="1" Grid.Column="4" Content="Velg fil" />
                   <Button x:Name="LoadDatabaseButton" Grid.Row="1" Grid.Column="5" Content="Kontroller" />
 
-                  <TextBlock Grid.Row="1" Grid.Column="6" Text="Encoding" Classes="form-label" Margin="0,0,0,24" />
                   <ComboBox x:Name="EncodingBox"
-                            Grid.Row="1"
-                            Grid.Column="6"
-                            Width="150"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Bottom"
+                            IsVisible="False"
                             SelectedIndex="0">
                     <ComboBoxItem Content="utf8-bom" />
                     <ComboBoxItem Content="windows-1252" />

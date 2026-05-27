@@ -51,6 +51,8 @@ public sealed class SiusRankWritebackStatusTests
         var status = SiusRankClassWritebackStatusResolver.FromDryRun([export], result);
 
         Assert.Equal(SiusRankClassWritebackStatusKind.WrittenBack, status.Kind);
+        Assert.Equal("Allerede oppdatert", status.Text);
+        Assert.Contains("allerede oppdatert i inrX", status.Messages.Single());
     }
 
     [Fact]
