@@ -68,6 +68,18 @@ public sealed class DesktopUiStateTests
     }
 
     [Fact]
+    public void Desktop_event_paths_force_project_output_directory_to_event_local_path()
+    {
+        var eventPath = Path.Combine("/Users/me/Stevner/Pinse2026", EventProjectFile.FileName);
+        var localOutput = Path.Combine("/Users/me/Stevner/Pinse2026", "siusrank-import");
+        const string externalOutput = "/Users/me/siusrank-import";
+
+        Assert.Equal("./siusrank-import", DesktopEventPaths.ToEventLocalDisplayPath(eventPath, localOutput, "./siusrank-import"));
+        Assert.Equal("./siusrank-import", DesktopEventPaths.ToEventLocalDisplayPath(eventPath, externalOutput, "./siusrank-import"));
+        Assert.Equal("./siusrank-import", DesktopEventPaths.ToEventLocalDisplayPath(eventPath, null, "./siusrank-import"));
+    }
+
+    [Fact]
     public void Ssc_status_rows_provide_actionable_next_steps()
     {
         var rows = SscActionStatusBuilder.Build(new SscActionStatusInput(
@@ -75,6 +87,7 @@ public sealed class DesktopUiStateTests
             StevneIdsValid: true,
             StevneIds: [413, 414, 415, 416, 417],
             SelectedStevneIdsText: "413-417",
+            LaneStevneId: null,
             OutputDirectoryPresent: true,
             UsersCsvExists: false,
             BibMapExists: false,
@@ -90,8 +103,8 @@ public sealed class DesktopUiStateTests
 
         var lanes = rows.Single(row => row.Action == "Eksporter SSC baner/reset");
         Assert.False(lanes.CanRun);
-        Assert.Equal("Krever nøyaktig én Stevne.Id", lanes.Status);
-        Assert.Contains("Nå valgt: 413-417 (5).", lanes.NextStep);
+        Assert.Equal("Mangler stevnevalg", lanes.Status);
+        Assert.Contains("Prosjektet har nå: 413-417 (5).", lanes.NextStep);
     }
 
     [Fact]
@@ -120,6 +133,123 @@ public sealed class DesktopUiStateTests
         Assert.DoesNotContain("5", result.Keys);
     }
 
+    [Fact]
+    public void Writeback_instances_are_built_from_event_class_config()
+    {
+        var eventPath = Path.Combine("/Users/me/Stevner/Pinse2026", EventProjectFile.FileName);
+        var config = new EventProjectConfig
+        {
+            Exercise = new EventExerciseConfig { Id = 9, Name = "Finpistol", ShortName = "Fin", HovedOvelseId = 1 },
+            Inrx = new EventInrxConfig { Db = "./storage.db3", Stevner = "413-417" },
+            Classes =
+            [
+                new EventClassConfig
+                {
+                    Class = "B",
+                    Folder = "./SiusRank_Finpistol_B",
+                    Exports = "./SiusRank_Finpistol_B/Exports"
+                }
+            ]
+        };
+
+        var rows = DesktopWritebackInstances.Build(eventPath, config);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("B", row.Class);
+        Assert.Equal("./SiusRank_Finpistol_B", row.Folder);
+        Assert.Equal("./SiusRank_Finpistol_B/Exports", row.Exports);
+        Assert.Equal("6FB", row.EventFilter);
+    }
+
+    [Fact]
+    public void Writeback_instance_odf_count_is_per_exports_folder()
+    {
+        using var directory = TempDirectory.Create();
+        var exports = Path.Combine(directory.Path, "Exports");
+        Directory.CreateDirectory(exports);
+        File.WriteAllText(Path.Combine(exports, "result.odf.xml"), "<root />");
+        File.WriteAllText(Path.Combine(exports, "ignored.xml"), "<root />");
+
+        Assert.Equal(1, DesktopWritebackInstances.CountOdfFiles(exports));
+        Assert.Equal(0, DesktopWritebackInstances.CountOdfFiles(Path.Combine(directory.Path, "Missing")));
+    }
+
+    [Fact]
+    public void Writeback_scanner_finds_exports_and_ignores_build_folders()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        File.WriteAllText(eventPath, "{}");
+        var rankB = Path.Combine(directory.Path, "Rank_B", "Exports");
+        var ignored = Path.Combine(directory.Path, "bin", "Rank_C", "Exports");
+        Directory.CreateDirectory(rankB);
+        Directory.CreateDirectory(ignored);
+        File.WriteAllText(Path.Combine(rankB, "result.odf.xml"), "<root />");
+        File.WriteAllText(Path.Combine(ignored, "ignored.odf.xml"), "<root />");
+
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Rank_B/Exports"), ("C", "./Rank_C/Exports")));
+
+        Assert.Single(result.FoundExports);
+        Assert.Equal("./Rank_B/Exports", result.FoundExports[0].DisplayPath);
+        Assert.Contains(result.Rows, row => row.Class == "B" && row.Status == DesktopWritebackDiscoveryStatus.Ready);
+        Assert.Contains(result.Rows, row => row.Class == "C" && row.Status == DesktopWritebackDiscoveryStatus.NoMatch);
+    }
+
+    [Fact]
+    public void Writeback_scanner_prefers_exact_configured_exports_path()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        File.WriteAllText(eventPath, "{}");
+        var exact = Path.Combine(directory.Path, "Configured", "Exports");
+        var suggested = Path.Combine(directory.Path, "Rank_B", "Exports");
+        Directory.CreateDirectory(exact);
+        Directory.CreateDirectory(suggested);
+        File.WriteAllText(Path.Combine(exact, "exact.odf.xml"), "<root />");
+        File.WriteAllText(Path.Combine(suggested, "suggested.odf.xml"), "<root />");
+
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Configured/Exports")));
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("./Configured/Exports", row.ExportsDisplayPath);
+        Assert.Equal(DesktopWritebackDiscoveryStatus.Ready, row.Status);
+    }
+
+    [Fact]
+    public void Writeback_scanner_reports_no_files_and_ambiguous_matches()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        File.WriteAllText(eventPath, "{}");
+        Directory.CreateDirectory(Path.Combine(directory.Path, "Rank_B", "Exports"));
+        Directory.CreateDirectory(Path.Combine(directory.Path, "SiusRank_B", "Exports"));
+
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Expected_B/Exports")));
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(DesktopWritebackDiscoveryStatus.Ambiguous, row.Status);
+        Assert.Equal(2, row.Candidates.Count);
+        Assert.All(row.Candidates, candidate => Assert.Equal(0, candidate.FileCount));
+    }
+
+    [Fact]
+    public void Writeback_scanner_assumes_single_unmatched_folder_for_single_unmatched_class()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        File.WriteAllText(eventPath, "{}");
+        var exports = Path.Combine(directory.Path, "Ukjent", "Exports");
+        Directory.CreateDirectory(exports);
+        File.WriteAllText(Path.Combine(exports, "result.odf.xml"), "<root />");
+
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Expected_B/Exports")));
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(DesktopWritebackDiscoveryStatus.Assumed, row.Status);
+        Assert.Equal("./Ukjent/Exports", row.ExportsDisplayPath);
+        Assert.True(row.CanRun);
+    }
+
     private static CsvPreflightEventInput Event(
         int id,
         string name,
@@ -128,4 +258,45 @@ public sealed class DesktopUiStateTests
 
     private static CsvPreflightExerciseInput Exercise(int id, string name, int starters) =>
         new(id, name, name[..Math.Min(3, name.Length)], HovedOvelseId: 1, starters);
+
+    private static EventProjectConfig ConfigWithClasses(params (string Class, string Exports)[] classes) =>
+        new()
+        {
+            Exercise = new EventExerciseConfig { Id = 9, Name = "Finpistol", ShortName = "Fin", HovedOvelseId = 1 },
+            Inrx = new EventInrxConfig { Db = "./storage.db3", Stevner = "413" },
+            Csv = new EventCsvConfig { Output = "./siusrank-import" },
+            Classes = classes
+                .Select(item => new EventClassConfig
+                {
+                    Class = item.Class,
+                    Folder = item.Exports.Replace("/Exports", string.Empty, StringComparison.Ordinal),
+                    Exports = item.Exports
+                })
+                .ToList()
+        };
+
+    private sealed class TempDirectory : IDisposable
+    {
+        private TempDirectory(string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TempDirectory Create()
+        {
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return new TempDirectory(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+    }
 }

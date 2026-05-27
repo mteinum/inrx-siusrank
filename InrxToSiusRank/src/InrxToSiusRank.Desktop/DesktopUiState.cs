@@ -37,6 +37,20 @@ public static class DesktopEventPaths
             trimmed);
     }
 
+    public static string ToEventLocalDisplayPath(string? eventJsonPath, string? path, string fallbackRelativePath)
+    {
+        var fallback = NormalizeRelativeDisplayPath(fallbackRelativePath);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return fallback;
+        }
+
+        var resolved = ResolveEventPath(eventJsonPath, path);
+        return IsInsideEventDirectory(eventJsonPath, resolved)
+            ? ToEventDisplayPath(eventJsonPath, resolved)
+            : fallback;
+    }
+
     public static string ResolveEventPath(string? eventJsonPath, string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -314,6 +328,344 @@ public static class DesktopEventTypeSelections
             : EventProjectPlanner.ApprovedEventType;
 }
 
+public sealed record DesktopWritebackInstanceRow(
+    string Class,
+    string Folder,
+    string Exports,
+    string EventFilter);
+
+public enum DesktopWritebackDiscoveryStatus
+{
+    Ready,
+    Assumed,
+    NoFiles,
+    NoMatch,
+    Ambiguous
+}
+
+public sealed record DesktopDiscoveredExports(
+    string DisplayPath,
+    string FullPath,
+    int FileCount,
+    DateTime? NewestFileTime)
+{
+    public override string ToString() => DisplayPath;
+}
+
+public sealed record DesktopWritebackDiscoveryRow(
+    string Class,
+    string EventFilter,
+    string? ExportsDisplayPath,
+    string? ExportsFullPath,
+    int FileCount,
+    DesktopWritebackDiscoveryStatus Status,
+    IReadOnlyList<DesktopDiscoveredExports> Candidates)
+{
+    public bool CanRun => !string.IsNullOrWhiteSpace(ExportsFullPath) &&
+        FileCount > 0 &&
+        Status != DesktopWritebackDiscoveryStatus.Ambiguous;
+}
+
+public sealed record DesktopWritebackDiscoveryResult(
+    IReadOnlyList<DesktopDiscoveredExports> FoundExports,
+    IReadOnlyList<DesktopWritebackDiscoveryRow> Rows)
+{
+    public int ReadyCount => Rows.Count(row => row.CanRun);
+
+    public string Summary =>
+        FoundExports.Count == 0
+            ? "Ingen resultater funnet. Trykk Rank List Main i SIUS Rank og prøv igjen."
+            : $"Fant {FoundExports.Count} Exports-mapper. {ReadyCount} av {Rows.Count} klasser klare.";
+}
+
+public static class DesktopWritebackInstances
+{
+    public static IReadOnlyList<DesktopWritebackInstanceRow> Build(string eventJsonPath, EventProjectConfig config)
+    {
+        var ovelse = new OvelseInfo(
+            config.Exercise.Id,
+            config.Exercise.Name,
+            config.Exercise.ShortName,
+            config.Exercise.HovedOvelseId);
+
+        return config.Classes
+            .Select(classConfig => new DesktopWritebackInstanceRow(
+                classConfig.Class,
+                DesktopEventPaths.ToEventDisplayPath(eventJsonPath, EventProjectFile.ResolvePath(eventJsonPath, classConfig.Folder)),
+                DesktopEventPaths.ToEventDisplayPath(eventJsonPath, EventProjectFile.ResolvePath(eventJsonPath, classConfig.Exports)),
+                SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class))))
+            .ToList();
+    }
+
+    public static int CountOdfFiles(string exportsDirectory) =>
+        Directory.Exists(exportsDirectory)
+            ? Directory.EnumerateFiles(exportsDirectory, "*.odf.xml", SearchOption.AllDirectories).Count()
+            : 0;
+}
+
+public static class DesktopSiusRankExportsScanner
+{
+    private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".git",
+        "bin",
+        "obj",
+        "siusrank-import",
+        "ssc-setup",
+        "Templates"
+    };
+
+    public static DesktopWritebackDiscoveryResult Scan(string eventJsonPath, EventProjectConfig config)
+    {
+        var eventDirectory = EventProjectFile.GetEventDirectory(eventJsonPath);
+        var found = FindExportsDirectories(eventJsonPath, eventDirectory);
+        return Match(eventJsonPath, config, found);
+    }
+
+    public static DesktopWritebackDiscoveryResult Match(
+        string eventJsonPath,
+        EventProjectConfig config,
+        IReadOnlyList<DesktopDiscoveredExports> foundExports)
+    {
+        var rows = new List<DesktopWritebackDiscoveryRow>();
+        var pending = new List<(EventClassConfig ClassConfig, string EventFilter)>();
+        var assigned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var classConfig in config.Classes)
+        {
+            var eventFilter = BuildEventFilter(config, classConfig);
+            var expectedExports = EventProjectFile.ResolvePath(eventJsonPath, classConfig.Exports);
+            var exact = foundExports
+                .Where(found => PathsEqual(found.FullPath, expectedExports))
+                .ToList();
+            if (exact.Count == 1)
+            {
+                rows.Add(ToRow(classConfig, eventFilter, exact[0], DesktopWritebackDiscoveryStatus.Ready));
+                assigned.Add(exact[0].FullPath);
+            }
+            else
+            {
+                pending.Add((classConfig, eventFilter));
+            }
+        }
+
+        pending = MatchByCandidates(
+            pending,
+            foundExports,
+            assigned,
+            rows,
+            (found, item) => ParentFolderSuggestsClass(found.FullPath, item.ClassConfig.Class));
+
+        pending = MatchByCandidates(
+            pending,
+            foundExports,
+            assigned,
+            rows,
+            (found, item) => ExportsContainEventFilter(found.FullPath, item.EventFilter));
+
+        var unassigned = foundExports
+            .Where(found => !assigned.Contains(found.FullPath))
+            .ToList();
+        if (pending.Count == 1 && unassigned.Count == 1)
+        {
+            var item = pending[0];
+            rows.Add(ToRow(item.ClassConfig, item.EventFilter, unassigned[0], DesktopWritebackDiscoveryStatus.Assumed));
+            assigned.Add(unassigned[0].FullPath);
+            pending.Clear();
+        }
+
+        foreach (var item in pending)
+        {
+            rows.Add(new DesktopWritebackDiscoveryRow(
+                item.ClassConfig.Class,
+                item.EventFilter,
+                null,
+                null,
+                0,
+                DesktopWritebackDiscoveryStatus.NoMatch,
+                []));
+        }
+
+        return new DesktopWritebackDiscoveryResult(foundExports, rows
+            .OrderBy(row => row.Class, StringComparer.OrdinalIgnoreCase)
+            .ToList());
+    }
+
+    private static List<(EventClassConfig ClassConfig, string EventFilter)> MatchByCandidates(
+        List<(EventClassConfig ClassConfig, string EventFilter)> pending,
+        IReadOnlyList<DesktopDiscoveredExports> foundExports,
+        HashSet<string> assigned,
+        List<DesktopWritebackDiscoveryRow> rows,
+        Func<DesktopDiscoveredExports, (EventClassConfig ClassConfig, string EventFilter), bool> predicate)
+    {
+        var stillPending = new List<(EventClassConfig ClassConfig, string EventFilter)>();
+        foreach (var item in pending)
+        {
+            var candidates = foundExports
+                .Where(found => !assigned.Contains(found.FullPath))
+                .Where(found => predicate(found, item))
+                .ToList();
+            if (candidates.Count == 1)
+            {
+                rows.Add(ToRow(item.ClassConfig, item.EventFilter, candidates[0], DesktopWritebackDiscoveryStatus.Ready));
+                assigned.Add(candidates[0].FullPath);
+            }
+            else if (candidates.Count > 1)
+            {
+                rows.Add(new DesktopWritebackDiscoveryRow(
+                    item.ClassConfig.Class,
+                    item.EventFilter,
+                    null,
+                    null,
+                    0,
+                    DesktopWritebackDiscoveryStatus.Ambiguous,
+                    candidates));
+            }
+            else
+            {
+                stillPending.Add(item);
+            }
+        }
+
+        return stillPending;
+    }
+
+    private static DesktopWritebackDiscoveryRow ToRow(
+        EventClassConfig classConfig,
+        string eventFilter,
+        DesktopDiscoveredExports found,
+        DesktopWritebackDiscoveryStatus matchedStatus)
+    {
+        var status = found.FileCount == 0
+            ? DesktopWritebackDiscoveryStatus.NoFiles
+            : matchedStatus;
+        return new DesktopWritebackDiscoveryRow(
+            classConfig.Class,
+            eventFilter,
+            found.DisplayPath,
+            found.FullPath,
+            found.FileCount,
+            status,
+            []);
+    }
+
+    private static IReadOnlyList<DesktopDiscoveredExports> FindExportsDirectories(string eventJsonPath, string eventDirectory)
+    {
+        if (!Directory.Exists(eventDirectory))
+        {
+            return [];
+        }
+
+        var found = new List<DesktopDiscoveredExports>();
+        var pending = new Stack<string>();
+        pending.Push(eventDirectory);
+        while (pending.Count > 0)
+        {
+            var directory = pending.Pop();
+            IEnumerable<string> children;
+            try
+            {
+                children = Directory.EnumerateDirectories(directory);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                continue;
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                var name = Path.GetFileName(child);
+                if (IgnoredDirectoryNames.Contains(name))
+                {
+                    continue;
+                }
+
+                if (name.Equals("Exports", StringComparison.OrdinalIgnoreCase))
+                {
+                    found.Add(BuildFoundExports(eventJsonPath, child));
+                    continue;
+                }
+
+                pending.Push(child);
+            }
+        }
+
+        return found
+            .OrderBy(item => item.DisplayPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static DesktopDiscoveredExports BuildFoundExports(string eventJsonPath, string exportsDirectory)
+    {
+        var files = Directory.Exists(exportsDirectory)
+            ? Directory.EnumerateFiles(exportsDirectory, "*.odf.xml", SearchOption.AllDirectories).ToList()
+            : [];
+        var newest = files.Count == 0
+            ? (DateTime?)null
+            : files.Max(File.GetLastWriteTime);
+        return new DesktopDiscoveredExports(
+            DesktopEventPaths.ToEventDisplayPath(eventJsonPath, exportsDirectory),
+            Path.GetFullPath(exportsDirectory),
+            files.Count,
+            newest);
+    }
+
+    private static bool ParentFolderSuggestsClass(string exportsDirectory, string className)
+    {
+        var parent = Directory.GetParent(exportsDirectory)?.Name ?? string.Empty;
+        var tokens = parent
+            .Split(['_', '-', ' ', '.', '(', ')', '[', ']'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token => token.Equals(className, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ExportsContainEventFilter(string exportsDirectory, string eventFilter)
+    {
+        if (!Directory.Exists(exportsDirectory))
+        {
+            return false;
+        }
+
+        var filters = new HashSet<string>([eventFilter], StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Directory.EnumerateFiles(exportsDirectory, "*.odf.xml", SearchOption.AllDirectories))
+        {
+            try
+            {
+                var export = SiusRankOdfExportReader.Parse(file);
+                if (export is not null && SiusRankEventDiscipline.MatchesFilters(export.ShortName, export.EventCode, filters))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // A malformed export should not break discovery of other folders.
+            }
+        }
+
+        return false;
+    }
+
+    private static string BuildEventFilter(EventProjectConfig config, EventClassConfig classConfig)
+    {
+        var ovelse = new OvelseInfo(
+            config.Exercise.Id,
+            config.Exercise.Name,
+            config.Exercise.ShortName,
+            config.Exercise.HovedOvelseId);
+        return SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class));
+    }
+
+    private static bool PathsEqual(string left, string right) =>
+        Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Equals(
+                Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+}
+
 public sealed record DesktopExportOptionsInput(
     string DatabasePath,
     IReadOnlyList<int> StevneIds,
@@ -344,6 +696,7 @@ public sealed record SscActionStatusInput(
     bool StevneIdsValid,
     IReadOnlyList<int> StevneIds,
     string SelectedStevneIdsText,
+    int? LaneStevneId,
     bool OutputDirectoryPresent,
     bool UsersCsvExists,
     bool BibMapExists,
@@ -434,15 +787,15 @@ public static class SscActionStatusBuilder
             return common with { Action = "Eksporter SSC baner/reset" };
         }
 
-        if (input.StevneIds.Count != 1)
+        if (input.LaneStevneId is null)
         {
             var selected = string.IsNullOrWhiteSpace(input.SelectedStevneIdsText)
                 ? "ingen"
                 : input.SelectedStevneIdsText;
             return new SscActionStatusRow(
                 "Eksporter SSC baner/reset",
-                "Krever nøyaktig én Stevne.Id",
-                $"Velg ett stevne i Event-fanen, for eksempel 416. Nå valgt: {selected} ({input.StevneIds.Count}).",
+                "Mangler stevnevalg",
+                $"Velg ett stevne i SSC-fanen. Prosjektet har nå: {selected} ({input.StevneIds.Count}).",
                 false);
         }
 
@@ -470,7 +823,11 @@ public static class SscActionStatusBuilder
                 false);
         }
 
-        return new SscActionStatusRow("Eksporter SSC baner/reset", "Klar (1 Stevne.Id)", "Lager reset-fil og aktiv lane-fil for valgt startlag.", true);
+        return new SscActionStatusRow(
+            "Eksporter SSC baner/reset",
+            $"Klar (Stevne.Id {input.LaneStevneId.Value})",
+            "Lager reset-fil og aktiv lane-fil for valgt startlag.",
+            true);
     }
 
     private static SscActionStatusRow? CommonBlockingStatus(SscActionStatusInput input)

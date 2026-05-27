@@ -234,7 +234,7 @@
                   </Grid>
                 </Border>
 
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                   <StackPanel x:Name="CsvPreflightRowsPanel" Spacing="2" />
                 </ScrollViewer>
               </Grid>
@@ -245,39 +245,67 @@
         <TabItem Header="SIUS Rank writeback">
           <Grid RowDefinitions="Auto,Auto,*" Margin="0,10,0,0" RowSpacing="8">
             <Border Classes="section-card">
-              <Grid ColumnDefinitions="160,*,Auto,160,1.2*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="8">
-                <TextBlock Text="Eksportmappe" Classes="form-label" />
-                <TextBox x:Name="ExportsDirectoryBox" Grid.Column="1" PlaceholderText="SIUS Rank Exports mappe" />
-                <Button x:Name="BrowseExportsButton" Grid.Column="2" Content="Velg mappe" />
+              <Grid ColumnDefinitions="170,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                <TextBlock Text="SIUS Rank-resultater" Grid.ColumnSpan="3" Classes="section-title" />
+                <TextBlock Grid.Row="1"
+                           Grid.ColumnSpan="3"
+                           Text="Trykk Rank List Main i SIUS Rank. Deretter trykker du Finn resultater. Programmet søker i stevnemappen og finner Exports-mappene automatisk."
+                           Classes="helper" />
 
-                <TextBlock Grid.Column="3" Text="Eventfilter" Classes="form-label" />
-                <TextBox x:Name="EventFilterBox" Grid.Column="4" PlaceholderText="Valgfritt: HurtigFin_M,HurtigGrov_Apen" />
+                <TextBlock Grid.Row="2" Text="bib-map.csv" Classes="form-label" />
+                <TextBox x:Name="BibMapPathBox"
+                         Grid.Row="2"
+                         Grid.Column="1"
+                         IsReadOnly="True"
+                         PlaceholderText="Avledes fra CSV output" />
 
-                <TextBlock Grid.Row="1" Text="bib-map.csv" Classes="form-label" />
-                <TextBox x:Name="BibMapPathBox" Grid.Row="1" Grid.Column="1" PlaceholderText="Valgfri, auto-detekteres hvis tom" />
-                <Button x:Name="BrowseBibMapButton" Grid.Row="1" Grid.Column="2" Content="Velg fil" />
-                <TextBlock Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2" Text="Writeback leser Rank List Main ODF XML fra SIUS Rank Exports." Classes="helper" VerticalAlignment="Center" />
+                <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="ScanWritebackResultsButton" Classes="primary" Content="Finn resultater i stevnemappen" />
+                  <Button x:Name="OpenEventFromWritebackButton" Content="Åpne event.json" />
+                  <TextBlock x:Name="WritebackActionHelpText" Classes="warning-helper" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Expander Grid.Row="4" Grid.ColumnSpan="3" Header="Avansert: manuell import fra valgt Exports-mappe" IsExpanded="False">
+                  <Grid ColumnDefinitions="160,*,Auto,160,1.2*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8" Margin="0,8,0,0">
+                    <TextBlock Grid.ColumnSpan="5" Text="Brukes bare hvis automatisk søk ikke finner resultatene." Classes="helper" />
+                    <TextBlock Grid.Row="1" Text="Eksportmappe" Classes="form-label" />
+                    <TextBox x:Name="ExportsDirectoryBox" Grid.Row="1" Grid.Column="1" PlaceholderText="SIUS Rank Exports mappe" />
+                    <Button x:Name="BrowseExportsButton" Grid.Row="1" Grid.Column="2" Content="Velg mappe" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="3" Text="Eventfilter" Classes="form-label" />
+                    <TextBox x:Name="EventFilterBox" Grid.Row="1" Grid.Column="4" PlaceholderText="Valgfritt: HurtigFin_M,HurtigGrov_Apen" />
+
+                    <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8">
+                      <Button x:Name="RunWritebackPreviewButton" Content="Tørrkjør manuell" />
+                      <Button x:Name="RunWritebackApplyButton" Classes="danger" Content="Skriv manuell til inrX" />
+                      <TextBlock Text="Brukes bare for engangsimport fra en vilkårlig Exports-mappe." Classes="helper" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Grid>
+                </Expander>
               </Grid>
             </Border>
 
             <Border Grid.Row="1" Classes="section-card">
-              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
-                <Button x:Name="RunWritebackPreviewButton" Content="Tørrkjør writeback" />
-                <Button x:Name="RunWritebackApplyButton" Grid.Column="1" Classes="danger" Content="Skriv til inrX" />
-                <TextBlock x:Name="WritebackActionHelpText" Grid.Column="2" Classes="warning-helper" VerticalAlignment="Center" />
+              <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
+                <Button x:Name="ValidateAllWritebackButton" Content="Valider alle" />
+                <Button x:Name="DryRunReadyWritebackButton" Grid.Column="1" Content="Tørrkjør alle klare" />
+                <Button x:Name="ApplyValidatedWritebackButton" Grid.Column="2" Classes="danger" Content="Skriv validerte til inR" />
+                <TextBlock x:Name="WritebackScanSummaryText" Grid.Column="3" Classes="helper" VerticalAlignment="Center" />
               </Grid>
             </Border>
 
             <Border Grid.Row="2" Classes="section-card">
               <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
-                <TextBlock Text="Validering og writeback per klasse" Classes="section-title" />
-                <Grid Grid.Row="1" ColumnDefinitions="120,300,150,Auto,Auto" ColumnSpacing="8">
+                <TextBlock Text="Resultater per klasse" Classes="section-title" />
+                <Grid Grid.Row="1" ColumnDefinitions="70,150,1.6*,80,220" ColumnSpacing="8">
                   <TextBlock Text="Klasse" Classes="muted" FontWeight="SemiBold" />
-                  <TextBlock Grid.Column="1" Text="Eksportmappe" Classes="muted" FontWeight="SemiBold" />
-                  <TextBlock Grid.Column="2" Text="Status" Classes="muted" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="1" Text="Status" Classes="muted" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="2" Text="Resultatmappe" Classes="muted" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="3" Text="Filer" Classes="muted" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="4" Text="Handlinger" Classes="muted" FontWeight="SemiBold" />
                 </Grid>
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                  <StackPanel x:Name="WritebackClassRowsPanel" Spacing="6" />
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel x:Name="WritebackClassRowsPanel" Spacing="2" />
                 </ScrollViewer>
               </Grid>
             </Border>
@@ -313,24 +341,32 @@
               </Border>
 
               <Border Grid.Column="1" Classes="section-card">
-                <Grid ColumnDefinitions="150,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                <Grid ColumnDefinitions="150,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
                   <TextBlock Text="Baner og handlinger" Grid.ColumnSpan="3" Classes="section-title" />
 
                   <TextBlock Grid.Row="1" Text="Output-mappe" Classes="form-label" />
                   <TextBox x:Name="SscOutputDirectoryBox" Grid.Row="1" Grid.Column="1" PlaceholderText="ssc setup output mappe" />
                   <Button x:Name="BrowseSscOutputButton" Grid.Row="1" Grid.Column="2" Content="Velg mappe" />
 
-                  <TextBlock Grid.Row="2" Text="Startlag" Classes="form-label" />
-                  <TextBox x:Name="SscStartlagBox" Grid.Row="2" Grid.Column="1" PlaceholderText="2026-07-06T09:00:00" />
+                  <TextBlock Grid.Row="2" Text="Stevne" Classes="form-label" />
+                  <ComboBox x:Name="SscStevneBox"
+                            Grid.Row="2"
+                            Grid.Column="1"
+                            Grid.ColumnSpan="2"
+                            HorizontalAlignment="Stretch"
+                            PlaceholderText="Velg stevne for baner/reset" />
 
-                  <TextBlock Grid.Row="3" Text="Antall baner" Classes="form-label" />
-                  <ComboBox x:Name="SscLaneCountBox" Grid.Row="3" Grid.Column="1" Width="90" HorizontalAlignment="Left" SelectedIndex="2">
+                  <TextBlock Grid.Row="3" Text="Startlag" Classes="form-label" />
+                  <TextBox x:Name="SscStartlagBox" Grid.Row="3" Grid.Column="1" PlaceholderText="2026-07-06T09:00:00" />
+
+                  <TextBlock Grid.Row="4" Text="Antall baner" Classes="form-label" />
+                  <ComboBox x:Name="SscLaneCountBox" Grid.Row="4" Grid.Column="1" Width="90" HorizontalAlignment="Left" SelectedIndex="2">
                     <ComboBoxItem Content="10" />
                     <ComboBoxItem Content="25" />
                     <ComboBoxItem Content="40" />
                   </ComboBox>
 
-                  <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+                  <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="RunSscUsersButton" Classes="primary" Content="Eksporter SSC-brukere" />
                     <Button x:Name="RunSscValidateButton" Content="Valider SSC" />
                     <Button x:Name="RunSscLanesButton" Content="Eksporter SSC baner/reset" />

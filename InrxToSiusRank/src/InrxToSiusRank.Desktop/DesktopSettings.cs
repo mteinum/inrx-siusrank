@@ -16,7 +16,7 @@ public sealed record DesktopSettings
 
     public GlobalDesktopSettings Global { get; init; } = new();
 
-    public DesktopSessionSettings Session { get; init; } = new();
+    public RecentDesktopSettings Recent { get; init; } = new();
 
     public static string SettingsPath => Path.Combine(GetSettingsDirectory(), "desktop-settings.json");
 
@@ -47,7 +47,7 @@ public sealed record DesktopSettings
             version.ValueKind == JsonValueKind.Number &&
             version.GetInt32() >= 2 &&
             root.TryGetProperty(nameof(Global), out _) &&
-            root.TryGetProperty(nameof(Session), out _))
+            root.TryGetProperty(nameof(Recent), out _))
         {
             return JsonSerializer.Deserialize<DesktopSettings>(json, SerializerOptions) ?? Empty;
         }
@@ -72,23 +72,16 @@ public sealed record DesktopSettings
             SiusRankFolder = ReadString(root, "GlobalSiusRankFolder") ?? ReadString(root, "SiusRankFolder"),
             DefaultDatabasePath = ReadString(root, "DefaultDatabasePath")
         };
-        var session = new DesktopSessionSettings
+        var recent = new RecentDesktopSettings
         {
-            LastEventFilePath = ReadString(root, "EventFilePath"),
-            StevneIds = ReadString(root, "StevneIds"),
-            OvelseFilter = ReadString(root, "OvelseFilter"),
-            EventFilter = ReadString(root, "EventFilter"),
-            SscStartlag = ReadString(root, "SscStartlag"),
-            SscLaneCount = ReadString(root, "SscLaneCount"),
-            SscOrganizationName = ReadString(root, "SscOrganizationName"),
-            SscOrganizationId = ReadString(root, "SscOrganizationId")
+            LastEventFilePath = ReadString(root, "EventFilePath")
         };
 
         return new DesktopSettings
         {
             Version = 2,
             Global = global,
-            Session = session
+            Recent = recent
         };
     }
 
@@ -129,21 +122,7 @@ public sealed record GlobalDesktopSettings
     public string? DefaultDatabasePath { get; init; }
 }
 
-public sealed record DesktopSessionSettings
+public sealed record RecentDesktopSettings
 {
     public string? LastEventFilePath { get; init; }
-
-    public string? StevneIds { get; init; }
-
-    public string? OvelseFilter { get; init; }
-
-    public string? EventFilter { get; init; }
-
-    public string? SscStartlag { get; init; }
-
-    public string? SscLaneCount { get; init; }
-
-    public string? SscOrganizationName { get; init; }
-
-    public string? SscOrganizationId { get; init; }
 }

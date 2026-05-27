@@ -41,13 +41,7 @@ public sealed class DesktopSettingsTests
         Assert.Equal("utf8-bom", settings.Global.EncodingName);
         Assert.Equal(@"C:\SIUS\SiusRank", settings.Global.SiusRankFolder);
         Assert.Equal("/default/storage.db3", settings.Global.DefaultDatabasePath);
-        Assert.Equal("/event/event.json", settings.Session.LastEventFilePath);
-        Assert.Equal("413-417", settings.Session.StevneIds);
-        Assert.Equal("9", settings.Session.OvelseFilter);
-        Assert.Equal("2026-07-06T09:00:00", settings.Session.SscStartlag);
-        Assert.Equal("40", settings.Session.SscLaneCount);
-        Assert.Equal("Legacy", settings.Session.SscOrganizationName);
-        Assert.Equal("f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf", settings.Session.SscOrganizationId);
+        Assert.Equal("/event/event.json", settings.Recent.LastEventFilePath);
     }
 
     [Fact]
@@ -61,15 +55,9 @@ public sealed class DesktopSettingsTests
                 SiusRankFolder = @"C:\SIUS\SiusRank",
                 DefaultDatabasePath = "/default/storage.db3"
             },
-            Session = new DesktopSessionSettings
+            Recent = new RecentDesktopSettings
             {
-                LastEventFilePath = "/event/event.json",
-                StevneIds = "413-417",
-                OvelseFilter = "9",
-                SscStartlag = "2026-07-06T09:00:00",
-                SscLaneCount = "40",
-                SscOrganizationName = "Legacy",
-                SscOrganizationId = "f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf"
+                LastEventFilePath = "/event/event.json"
             }
         };
 
@@ -78,10 +66,14 @@ public sealed class DesktopSettingsTests
 
         Assert.Equal(2, root.GetProperty("Version").GetInt32());
         Assert.True(root.TryGetProperty("Global", out _));
-        Assert.True(root.TryGetProperty("Session", out _));
+        Assert.True(root.TryGetProperty("Recent", out _));
+        Assert.False(root.TryGetProperty("Session", out _));
 
         foreach (var oldProperty in new[]
         {
+            "StevneIds",
+            "OvelseFilter",
+            "EventFilter",
             "DatabasePath",
             "OutputDirectory",
             "ExportsDirectory",
@@ -114,7 +106,6 @@ public sealed class DesktopSettingsTests
         var settings = DesktopSettings.FromJson(json);
 
         Assert.Null(settings.Global.DefaultDatabasePath);
-        Assert.Null(settings.Session.LastEventFilePath);
-        Assert.Null(settings.Session.StevneIds);
+        Assert.Null(settings.Recent.LastEventFilePath);
     }
 }

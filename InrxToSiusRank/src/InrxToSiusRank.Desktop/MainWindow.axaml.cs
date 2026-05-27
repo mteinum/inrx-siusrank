@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -23,8 +24,10 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, ComboBox> _eventTypeInputs = new();
     private readonly Dictionary<int, string> _eventTypeSelections = new();
     private readonly Dictionary<string, TextBlock> _writebackStatusLabels = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<Button> _writebackValidateButtons = [];
-    private readonly List<Button> _writebackApplyButtons = [];
+    private readonly Dictionary<string, SiusRankClassWritebackStatus> _writebackStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DesktopWritebackDiscoveryRow> _writebackRows = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Button> _writebackValidateButtons = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Button> _writebackApplyButtons = new(StringComparer.OrdinalIgnoreCase);
     private string? _currentEventFilePath;
     private EventProjectConfig? _currentEventConfig;
     private CsvPreflightResult? _csvPreflight;
@@ -98,6 +101,8 @@ public partial class MainWindow : Window
 
     private ComboBox SscLaneCountInput => Get<ComboBox>("SscLaneCountBox");
 
+    private ComboBox SscStevneInput => Get<ComboBox>("SscStevneBox");
+
     private StackPanel WritebackClassRowsContainer => Get<StackPanel>("WritebackClassRowsPanel");
 
     private Button OpenLogButtonControl => Get<Button>("OpenLogButton");
@@ -113,6 +118,8 @@ public partial class MainWindow : Window
     private TextBlock CsvActionHelpLabel => Get<TextBlock>("CsvActionHelpText");
 
     private TextBlock WritebackActionHelpLabel => Get<TextBlock>("WritebackActionHelpText");
+
+    private TextBlock WritebackScanSummaryLabel => Get<TextBlock>("WritebackScanSummaryText");
 
     private TextBlock StevneResultCountLabel => Get<TextBlock>("StevneResultCountText");
 
@@ -132,9 +139,9 @@ public partial class MainWindow : Window
 
     private void InitializeDefaults()
     {
-        StevneIdsInput.Text = "413-417";
+        StevneIdsInput.Text = string.Empty;
         SiusRankFolderInput.Text = @"C:\SIUS\SiusRank";
-        OutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import");
+        OutputDirectoryInput.Text = "./siusrank-import";
         SscOrganizationNameInput.Text = "Legacy";
         SscOrganizationIdInput.Text = "f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf";
         SscOutputDirectoryInput.Text = "./ssc-setup";
@@ -163,34 +170,13 @@ public partial class MainWindow : Window
         SetTextIfPresent(DatabasePathInput, desktopSettings.Global.DefaultDatabasePath);
         SetTextIfPresent(SiusRankFolderInput, desktopSettings.Global.SiusRankFolder);
         SetEncoding(desktopSettings.Global.EncodingName);
-        SetTextIfPresent(EventFilePathInput, desktopSettings.Session.LastEventFilePath);
-        if (!string.IsNullOrWhiteSpace(desktopSettings.Session.LastEventFilePath))
+        SetTextIfPresent(EventFilePathInput, desktopSettings.Recent.LastEventFilePath);
+        if (!string.IsNullOrWhiteSpace(desktopSettings.Recent.LastEventFilePath))
         {
-            _currentEventFilePath = desktopSettings.Session.LastEventFilePath;
+            _currentEventFilePath = desktopSettings.Recent.LastEventFilePath;
         }
-        SetTextIfPresent(SscStartlagInput, desktopSettings.Session.SscStartlag);
-        SetTextIfPresent(SscOrganizationNameInput, desktopSettings.Session.SscOrganizationName);
-        SetTextIfPresent(SscOrganizationIdInput, desktopSettings.Session.SscOrganizationId);
-        SetSscLaneCount(desktopSettings.Session.SscLaneCount);
-        SetTextIfPresent(StevneIdsInput, desktopSettings.Session.StevneIds);
-        SetTextIfPresent(OvelseFilterInput, desktopSettings.Session.OvelseFilter);
-        SetTextIfPresent(EventFilterInput, desktopSettings.Session.EventFilter);
-        if (int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var persistedOvelseId))
-        {
-            var persistedChoice = new OvelseChoice(
-                persistedOvelseId,
-                $"OvelseDef.Id {persistedOvelseId}",
-                string.Empty,
-                HovedOvelseId: 0,
-                StarterCount: 0);
-            OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All, persistedChoice };
-            OvelseSelectInput.SelectedItem = persistedChoice;
-        }
-        else
-        {
-            OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All };
-            OvelseSelectInput.SelectedItem = OvelseChoice.All;
-        }
+        OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All };
+        OvelseSelectInput.SelectedItem = OvelseChoice.All;
     }
 
     private void WireEvents()
@@ -207,10 +193,11 @@ public partial class MainWindow : Window
             await BrowseFileAsync(DatabasePathInput, "Select storage.db3", "SQLite database", ["*.db3", "*.sqlite", "*.sqlite3"]);
         Get<Button>("BrowseShooterGroupsButton").Click += async (_, _) =>
             await BrowseFileAsync(ShooterGroupsTemplateInput, "Select ShooterGroupsTemplate.xml", "XML", ["*.xml"]);
-        Get<Button>("BrowseBibMapButton").Click += async (_, _) =>
-            await BrowseFileAsync(BibMapPathInput, "Select bib-map.csv", "CSV", ["*.csv"]);
         Get<Button>("BrowseOutputButton").Click += async (_, _) =>
+        {
             await BrowseFolderAsync(OutputDirectoryInput, "Select SIUS Rank import output directory");
+            NormalizeOutputDirectoryInput();
+        };
         Get<Button>("BrowseSiusRankFolderButton").Click += async (_, _) =>
             await BrowseFolderAsync(SiusRankFolderInput, "Select SIUS Rank directory", useEventRelativePath: false);
         Get<Button>("BrowseExportsButton").Click += async (_, _) =>
@@ -233,6 +220,11 @@ public partial class MainWindow : Window
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Lager CSV-filer", RunExportAsync);
         Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Tørrkjører writeback", () => RunWritebackAsync(apply: false));
         Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Skriver til inrX", () => RunWritebackAsync(apply: true));
+        Get<Button>("ScanWritebackResultsButton").Click += async (_, _) => await RunSafelyAsync("Finner resultater", ScanWritebackResultsAsync);
+        Get<Button>("OpenEventFromWritebackButton").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
+        Get<Button>("ValidateAllWritebackButton").Click += async (_, _) => await RunSafelyAsync("Validerer alle", ValidateAllWritebackAsync);
+        Get<Button>("DryRunReadyWritebackButton").Click += async (_, _) => await RunSafelyAsync("Tørrkjører klare", DryRunReadyWritebackAsync);
+        Get<Button>("ApplyValidatedWritebackButton").Click += async (_, _) => await RunSafelyAsync("Skriver validerte til inrX", ApplyValidatedWritebackAsync);
         Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC-brukere", RunSscUsersAsync);
         Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Validerer SSC", RunSscValidateAsync);
         Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC baner/reset", RunSscLanesAsync);
@@ -262,6 +254,7 @@ public partial class MainWindow : Window
         EncodingInput.SelectionChanged += (_, _) => UpdateActionStates();
         SilhouetteShootersPerStandInput.SelectionChanged += (_, _) => UpdateActionStates();
         SscLaneCountInput.SelectionChanged += (_, _) => UpdateActionStates();
+        SscStevneInput.SelectionChanged += (_, _) => UpdateActionStates();
         WireActionStateTextChanges();
     }
 
@@ -293,6 +286,11 @@ public partial class MainWindow : Window
                     ReferenceEquals(input, OvelseFilterInput))
                 {
                     QueueCsvPreflightRefresh();
+                }
+
+                if (ReferenceEquals(input, StevneIdsInput))
+                {
+                    RefreshSscStevneChoices();
                 }
 
                 UpdateActionStates();
@@ -400,15 +398,20 @@ public partial class MainWindow : Window
     {
         _currentEventFilePath = Path.GetFullPath(eventPath);
         _currentEventConfig = config;
+        _writebackRows.Clear();
+        _writebackStatuses.Clear();
+        WritebackScanSummaryLabel.Text = "Trykk Finn resultater i stevnemappen.";
         EventFilePathInput.Text = _currentEventFilePath;
+        EventFilterInput.Text = string.Empty;
         DatabasePathInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Inrx.Db));
         StevneIdsInput.Text = config.Inrx.Stevner;
         SiusRankFolderInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.SiusRankFolder));
-        OutputDirectoryInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Csv.Output));
+        OutputDirectoryInput.Text = ToProjectOutputDisplayPath(config.Csv.Output);
         if (config.Classes.Count > 0)
         {
             ExportsDirectoryInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Classes[0].Exports));
         }
+        RefreshSscStevneChoices();
 
         var bibMapPath = Path.Combine(ResolveEventPath(OutputDirectoryInput.Text), ChampionshipStartNumbers.BibMapFileName);
         BibMapPathInput.Text = ToEventDisplayPath(bibMapPath);
@@ -805,6 +808,7 @@ public partial class MainWindow : Window
             StevneListContainer.Children.Add(CreateStevneRow(row, checkBox));
         }
 
+        RefreshSscStevneChoices();
         UpdateActionStates();
     }
 
@@ -1103,6 +1107,28 @@ public partial class MainWindow : Window
         SaveDesktopSettings();
     }
 
+    private void RefreshSscStevneChoices()
+    {
+        var previousId = SelectedSscStevneId();
+        var ids = TryParseOptionalIds(StevneIdsInput.Text, out var parsedIds)
+            ? parsedIds
+            : [];
+        var options = ids
+            .Select(id =>
+            {
+                var label = _stevneChoices.TryGetValue(id, out var choice)
+                    ? $"{id} - {choice.Date} {choice.Name}"
+                    : id.ToString(CultureInfo.InvariantCulture);
+                return new SscStevneChoice(id, label);
+            })
+            .ToList();
+
+        SscStevneInput.ItemsSource = options;
+        SscStevneInput.SelectedItem =
+            options.FirstOrDefault(option => option.Id == previousId) ??
+            options.FirstOrDefault();
+    }
+
     private void LoadEventTypeSelections(IReadOnlyDictionary<string, string> eventTypes)
     {
         foreach (var item in eventTypes)
@@ -1120,7 +1146,7 @@ public partial class MainWindow : Window
         var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
         var ovelse = RequireSelectedOvelse();
         var siusRankFolder = RequireText(SiusRankFolderInput.Text, "SIUS Rank folder");
-        var outputDirectory = RequireText(OutputDirectoryInput.Text, "Output directory");
+        var outputDirectory = NormalizeOutputDirectoryInput(eventPath);
 
         List<EventClassConfig> classes;
         if (!refreshClasses && _currentEventConfig?.Classes.Count > 0)
@@ -1159,7 +1185,7 @@ public partial class MainWindow : Window
             SiusRankFolder = EventProjectFile.ToStoredPath(eventPath, siusRankFolder),
             Csv = new EventCsvConfig
             {
-                Output = EventProjectFile.ToStoredPath(eventPath, outputDirectory)
+                Output = EventProjectFile.ToStoredPath(eventPath, ResolveEventPath(outputDirectory))
             },
             Classes = classes
         };
@@ -1245,63 +1271,319 @@ public partial class MainWindow : Window
 
     private void RenderWritebackRows(EventProjectConfig config)
     {
+        var rows = _writebackRows.Count == 0
+            ? BuildUnscannedWritebackRows(config)
+            : config.Classes
+                .Select(classConfig => _writebackRows.TryGetValue(classConfig.Class, out var row)
+                    ? row
+                    : BuildUnscannedWritebackRow(config, classConfig))
+                .ToList();
+        RenderWritebackRows(rows);
+    }
+
+    private void RenderWritebackRows(IReadOnlyList<DesktopWritebackDiscoveryRow> rows)
+    {
         _writebackStatusLabels.Clear();
         _writebackValidateButtons.Clear();
         _writebackApplyButtons.Clear();
         WritebackClassRowsContainer.Children.Clear();
-        foreach (var classConfig in config.Classes)
+        if (_currentEventConfig is null)
         {
-            var row = new StackPanel
+            var empty = new Grid { ColumnDefinitions = new ColumnDefinitions("*") };
+            AddRowText(empty, 0, "Åpne event.json først.");
+            WritebackClassRowsContainer.Children.Add(CreateTableRow(empty));
+            return;
+        }
+
+        if (_currentEventConfig.Classes.Count == 0)
+        {
+            var empty = new Grid { ColumnDefinitions = new ColumnDefinitions("*") };
+            AddRowText(empty, 0, "Det finnes ingen klasseoppsett. Gå til Event-fanen og oppdater klasser.");
+            WritebackClassRowsContainer.Children.Add(CreateTableRow(empty));
+            return;
+        }
+
+        foreach (var discoveryRow in rows)
+        {
+            var row = new Grid
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 8
+                ColumnDefinitions = new ColumnDefinitions("70,150,1.6*,80,220"),
+                ColumnSpacing = 8
             };
-            row.Children.Add(new TextBlock
-            {
-                Text = classConfig.Class,
-                Width = 120,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = classConfig.Exports,
-                Width = 300,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center
-            });
+            AddRowText(row, 0, discoveryRow.Class);
             var status = new TextBlock
             {
-                Text = "Ikke validert",
-                Width = 150,
+                Text = WritebackDiscoveryStatusText(discoveryRow),
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            _writebackStatusLabels[classConfig.Class] = status;
+            Grid.SetColumn(status, 1);
+            _writebackStatusLabels[discoveryRow.Class] = status;
             row.Children.Add(status);
-            var validateButton = new Button { Content = "Valider" };
+            AddExportsCell(row, 2, discoveryRow);
+            AddRowText(row, 3, discoveryRow.ExportsFullPath is null ? string.Empty : $"{discoveryRow.FileCount} filer");
+
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 6
+            };
+            Grid.SetColumn(actions, 4);
+            if (!string.IsNullOrWhiteSpace(discoveryRow.ExportsFullPath))
+            {
+                var openButton = new Button { Content = "Åpne" };
+                openButton.Click += async (_, _) => await RunSafelyAsync(
+                    $"Åpner {discoveryRow.Class}",
+                    () => OpenFolderAsync(discoveryRow.ExportsFullPath));
+                actions.Children.Add(openButton);
+            }
+
+            var validateButton = new Button { Content = "Tørrkjør" };
             validateButton.Click += async (_, _) => await RunSafelyAsync(
-                $"Validerer {classConfig.Class}",
-                () => RunClassWritebackAsync(classConfig, apply: false));
-            _writebackValidateButtons.Add(validateButton);
-            row.Children.Add(validateButton);
-            var writeButton = new Button { Content = "Skriv til inrX" };
+                $"Tørrkjører {discoveryRow.Class}",
+                () => RunClassWritebackAsync(discoveryRow.Class, apply: false));
+            _writebackValidateButtons[discoveryRow.Class] = validateButton;
+            actions.Children.Add(validateButton);
+            var writeButton = new Button { Content = "Skriv til inR" };
             writeButton.Classes.Add("danger");
             writeButton.Click += async (_, _) => await RunSafelyAsync(
-                $"Skriver {classConfig.Class}",
-                () => RunClassWritebackAsync(classConfig, apply: true));
-            _writebackApplyButtons.Add(writeButton);
-            row.Children.Add(writeButton);
-            WritebackClassRowsContainer.Children.Add(row);
+                $"Skriver {discoveryRow.Class}",
+                () => RunClassWritebackAsync(discoveryRow.Class, apply: true));
+            _writebackApplyButtons[discoveryRow.Class] = writeButton;
+            actions.Children.Add(writeButton);
+            row.Children.Add(actions);
+            WritebackClassRowsContainer.Children.Add(CreateTableRow(row));
         }
 
         UpdateActionStates();
     }
 
-    private async Task RunClassWritebackAsync(EventClassConfig classConfig, bool apply)
+    private void AddExportsCell(Grid grid, int column, DesktopWritebackDiscoveryRow row)
     {
-        var options = BuildClassWritebackOptions(classConfig, apply: false);
+        if (row.Status == DesktopWritebackDiscoveryStatus.Ambiguous && row.Candidates.Count > 0)
+        {
+            var selector = new ComboBox
+            {
+                ItemsSource = row.Candidates,
+                MinWidth = 220,
+                SelectedIndex = -1
+            };
+            selector.SelectionChanged += (_, _) =>
+            {
+                if (selector.SelectedItem is DesktopDiscoveredExports selected)
+                {
+                    var updated = row with
+                    {
+                        ExportsDisplayPath = selected.DisplayPath,
+                        ExportsFullPath = selected.FullPath,
+                        FileCount = selected.FileCount,
+                        Status = selected.FileCount == 0 ? DesktopWritebackDiscoveryStatus.NoFiles : DesktopWritebackDiscoveryStatus.Assumed,
+                        Candidates = []
+                    };
+                    _writebackRows[row.Class] = updated;
+                    _writebackStatuses.Remove(row.Class);
+                    RenderWritebackRows(_currentEventConfig ?? throw new InvalidOperationException("event.json er ikke lastet."));
+                }
+            };
+            Grid.SetColumn(selector, column);
+            grid.Children.Add(selector);
+            return;
+        }
+
+        var block = new TextBlock
+        {
+            Text = row.ExportsDisplayPath ?? "Trykk Finn resultater",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        if (!string.IsNullOrWhiteSpace(row.ExportsFullPath))
+        {
+            ToolTip.SetTip(block, row.ExportsFullPath);
+        }
+        Grid.SetColumn(block, column);
+        grid.Children.Add(block);
+    }
+
+    private static IReadOnlyList<DesktopWritebackDiscoveryRow> BuildUnscannedWritebackRows(EventProjectConfig config) =>
+        config.Classes
+            .Select(classConfig => BuildUnscannedWritebackRow(config, classConfig))
+            .ToList();
+
+    private static DesktopWritebackDiscoveryRow BuildUnscannedWritebackRow(EventProjectConfig config, EventClassConfig classConfig) =>
+        new(
+            classConfig.Class,
+            BuildClassEventFilter(config, classConfig),
+            null,
+            null,
+            0,
+            DesktopWritebackDiscoveryStatus.NoMatch,
+            []);
+
+    private static string WritebackDiscoveryStatusText(DesktopWritebackDiscoveryRow row) =>
+        row.Status switch
+        {
+            DesktopWritebackDiscoveryStatus.Ready => "Klar",
+            DesktopWritebackDiscoveryStatus.Assumed => row.FileCount == 0 ? "Ingen ODF-filer" : "Antatt match",
+            DesktopWritebackDiscoveryStatus.NoFiles => "Ingen ODF-filer",
+            DesktopWritebackDiscoveryStatus.Ambiguous => "Flere mulige treff",
+            _ => "Finner ikke resultater"
+        };
+
+    private static int CountOdfFiles(string exportsFolder) =>
+        DesktopWritebackInstances.CountOdfFiles(exportsFolder);
+
+    private static string BuildInitialWritebackStatus(string instanceFolder, string exportsFolder, int odfCount)
+    {
+        if (!Directory.Exists(instanceFolder))
+        {
+            return "Mangler SIUS Rank-kopi";
+        }
+
+        if (!Directory.Exists(exportsFolder))
+        {
+            return "Mangler Exports-mappe";
+        }
+
+        return odfCount == 0 ? "Ingen ODF-filer" : "Ikke validert";
+    }
+
+    private Task PrepareSiusRankCopiesAsync()
+    {
+        var config = _currentEventConfig ?? throw new InvalidOperationException("event.json er ikke lastet.");
+        var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
+        foreach (var classConfig in config.Classes)
+        {
+            var folder = EventProjectFile.ResolvePath(eventPath, classConfig.Folder);
+            var exports = EventProjectFile.ResolvePath(eventPath, classConfig.Exports);
+            if (Directory.Exists(folder))
+            {
+                AppendLog($"{classConfig.Class}: SIUS Rank-kopi finnes allerede: {folder}");
+            }
+            else
+            {
+                Directory.CreateDirectory(folder);
+                AppendLog($"{classConfig.Class}: opprettet SIUS Rank-kopi-mappe: {folder}");
+            }
+
+            if (Directory.Exists(exports))
+            {
+                AppendLog($"{classConfig.Class}: Exports-mappe finnes allerede: {exports}");
+            }
+            else
+            {
+                Directory.CreateDirectory(exports);
+                AppendLog($"{classConfig.Class}: opprettet Exports-mappe: {exports}");
+            }
+        }
+
+        RenderWritebackRows(config);
+        return Task.CompletedTask;
+    }
+
+    private Task ScanWritebackResultsAsync()
+    {
+        var config = _currentEventConfig ?? throw new InvalidOperationException("Åpne event.json først.");
+        if (config.Classes.Count == 0)
+        {
+            WritebackScanSummaryLabel.Text = "Det finnes ingen klasseoppsett. Gå til Event-fanen og oppdater klasser.";
+            RenderWritebackRows(config);
+            return Task.CompletedTask;
+        }
+
+        var eventPath = _currentEventFilePath ?? throw new InvalidOperationException("Åpne event.json først.");
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, config);
+        _writebackRows.Clear();
+        _writebackStatuses.Clear();
+        foreach (var row in result.Rows)
+        {
+            _writebackRows[row.Class] = row;
+        }
+
+        RenderWritebackRows(result.Rows);
+        WritebackScanSummaryLabel.Text = result.Summary;
+        AppendLog($"SIUS Rank scan: found {result.FoundExports.Count} Exports folders, matched {result.ReadyCount} classes.");
+        if (result.FoundExports.Count == 0)
+        {
+            AppendLog("Ingen resultater funnet. Trykk Rank List Main i SIUS Rank og prøv igjen.");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task ValidateAllWritebackAsync()
+    {
+        foreach (var row in ReadyWritebackRows())
+        {
+            await RunClassWritebackAsync(row.Class, apply: false);
+        }
+    }
+
+    private async Task DryRunReadyWritebackAsync()
+    {
+        foreach (var row in ReadyWritebackRows())
+        {
+            await RunClassWritebackAsync(row.Class, apply: false);
+        }
+    }
+
+    private async Task ApplyValidatedWritebackAsync()
+    {
+        var ready = ReadyWritebackRows()
+            .Where(row => _writebackStatuses.TryGetValue(row.Class, out var status) && status.CanApply)
+            .ToList();
+        if (ready.Count == 0)
+        {
+            AppendLog("Ingen validerte SIUS Rank-resultater er klare for writeback.");
+            return;
+        }
+
+        if (!await ConfirmInrxWritebackAsync($"Skriv {ready.Count} validerte klasse(r) til inR?"))
+        {
+            AppendLog("Writeback cancelled.");
+            return;
+        }
+
+        foreach (var row in ready)
+        {
+            var options = BuildClassWritebackOptions(row.Class, apply: true);
+            var result = await Task.Run(() => SiusRankWritebackRunner.Run(options));
+            AppendLog(FormatWritebackResult(result));
+            var after = await Task.Run(() => SiusRankClassWritebackStatusResolver.Validate(options with { Apply = false }));
+            UpdateWritebackStatus(row.Class, after);
+            AppendLog(FormatClassWritebackStatus(row.Class, after));
+        }
+    }
+
+    private IReadOnlyList<EventClassConfig> CurrentEventClasses() =>
+        _currentEventConfig?.Classes ?? throw new InvalidOperationException("event.json er ikke lastet.");
+
+    private IReadOnlyList<DesktopWritebackDiscoveryRow> ReadyWritebackRows() =>
+        _writebackRows.Values
+            .Where(row => row.CanRun)
+            .OrderBy(row => row.Class, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static Task OpenFolderAsync(string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            throw new ArgumentException($"Mappe finnes ikke: {folder}");
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = folder,
+            UseShellExecute = true
+        });
+        return Task.CompletedTask;
+    }
+
+    private async Task RunClassWritebackAsync(string className, bool apply)
+    {
+        var options = BuildClassWritebackOptions(className, apply: false);
         var status = await Task.Run(() => SiusRankClassWritebackStatusResolver.Validate(options));
-        UpdateWritebackStatus(classConfig.Class, status);
-        AppendLog(FormatClassWritebackStatus(classConfig, status));
+        UpdateWritebackStatus(className, status);
+        AppendLog(FormatClassWritebackStatus(className, status));
 
         if (!apply)
         {
@@ -1310,61 +1592,94 @@ public partial class MainWindow : Window
 
         if (!status.CanApply)
         {
-            AppendLog($"Writeback not applied for {classConfig.Class}: {status.Text}");
+            AppendLog($"Writeback not applied for {className}: {status.Text}");
             return;
         }
 
-        if (!await ConfirmInrxWritebackAsync($"Skriv {classConfig.Class} til inrX?"))
+        if (!await ConfirmInrxWritebackAsync($"Skriv {className} til inR?"))
         {
-            AppendLog($"Writeback cancelled for {classConfig.Class}.");
+            AppendLog($"Writeback cancelled for {className}.");
             return;
         }
 
         var result = await Task.Run(() => SiusRankWritebackRunner.Run(options with { Apply = true }));
         AppendLog(FormatWritebackResult(result));
         var after = await Task.Run(() => SiusRankClassWritebackStatusResolver.Validate(options));
-        UpdateWritebackStatus(classConfig.Class, after);
-        AppendLog(FormatClassWritebackStatus(classConfig, after));
+        UpdateWritebackStatus(className, after);
+        AppendLog(FormatClassWritebackStatus(className, after));
     }
 
-    private SiusRankWritebackOptions BuildClassWritebackOptions(EventClassConfig classConfig, bool apply)
+    private SiusRankWritebackOptions BuildClassWritebackOptions(string className, bool apply)
     {
         var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
         var config = _currentEventConfig ?? BuildEventConfigFromUi(eventPath, refreshClasses: false);
-        var ovelse = new OvelseInfo(
-            config.Exercise.Id,
-            config.Exercise.Name,
-            config.Exercise.ShortName,
-            config.Exercise.HovedOvelseId);
-        var eventFilter = SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class));
+        var classConfig = config.Classes.FirstOrDefault(item => item.Class.Equals(className, StringComparison.OrdinalIgnoreCase)) ??
+            throw new InvalidOperationException($"Klasse finnes ikke i event.json: {className}");
+        var row = _writebackRows.TryGetValue(classConfig.Class, out var discovered)
+            ? discovered
+            : throw new InvalidOperationException("Trykk Finn resultater i stevnemappen først.");
+        if (!row.CanRun || string.IsNullOrWhiteSpace(row.ExportsFullPath))
+        {
+            throw new InvalidOperationException($"{classConfig.Class}: finner ikke resultater. Trykk Rank List Main i SIUS Rank og prøv igjen.");
+        }
+
+        var eventFilter = BuildClassEventFilter(config, classConfig);
         var csvOutput = EventProjectFile.ResolvePath(eventPath, config.Csv.Output);
         var bibMapPath = Path.Combine(csvOutput, ChampionshipStartNumbers.BibMapFileName);
         return new SiusRankWritebackOptions(
             EventProjectFile.ResolvePath(eventPath, config.Inrx.Db),
-            EventProjectFile.ResolvePath(eventPath, classConfig.Exports),
+            row.ExportsFullPath,
             ParseIdList(config.Inrx.Stevner, "Stevne ids"),
             File.Exists(bibMapPath) ? bibMapPath : null,
             new HashSet<string>([eventFilter], StringComparer.OrdinalIgnoreCase),
             apply);
     }
 
+    private static string BuildClassEventFilter(EventProjectConfig config, EventClassConfig classConfig)
+    {
+        var ovelse = new OvelseInfo(
+            config.Exercise.Id,
+            config.Exercise.Name,
+            config.Exercise.ShortName,
+            config.Exercise.HovedOvelseId);
+        return SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class));
+    }
+
     private void UpdateWritebackStatus(string className, SiusRankClassWritebackStatus status)
     {
+        _writebackStatuses[className] = status;
         Dispatcher.UIThread.Post(() =>
         {
             if (_writebackStatusLabels.TryGetValue(className, out var label))
             {
-                label.Text = status.Text;
+                label.Text = FormatWritebackStatusLabel(status);
             }
+            UpdateActionStates();
         });
     }
 
+    private static string FormatWritebackStatusLabel(SiusRankClassWritebackStatus status) =>
+        status.Kind switch
+        {
+            SiusRankClassWritebackStatusKind.MissingExport => "Finner ikke resultater",
+            SiusRankClassWritebackStatusKind.NoCompleteResults => "Ingen ODF-filer",
+            SiusRankClassWritebackStatusKind.ReadyForWriteback => "Tørrkjørt OK",
+            SiusRankClassWritebackStatusKind.WrittenBack => "Skrevet til inR",
+            SiusRankClassWritebackStatusKind.Error => "Validering feilet",
+            _ => status.Text
+        };
+
     private static string FormatClassWritebackStatus(
-        EventClassConfig classConfig,
+        string className,
         SiusRankClassWritebackStatus status)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"{classConfig.Class}: {status.Text}");
+        builder.AppendLine($"{className}: {status.Text}");
+        if (status.Kind == SiusRankClassWritebackStatusKind.MissingExport)
+        {
+            builder.AppendLine($"{className}: finner ikke resultater.");
+            builder.AppendLine("Trykk Rank List Main i SIUS Rank og prøv igjen.");
+        }
         if (status.Result is not null)
         {
             builder.AppendLine($"Updates={status.Result.UpdateCount}, unchanged={status.Result.UnchangedCount}, skipped={status.Result.SkippedCount}");
@@ -1600,6 +1915,8 @@ public partial class MainWindow : Window
         var idsAreValid = TryParseOptionalIds(StevneIdsInput.Text, out var ids);
         var hasIds = idsAreValid && ids.Count > 0;
         var csvPreflightCanExport = _csvPreflight?.CanExport == true;
+        var hasReadyWritebackRows = _writebackRows.Values.Any(row => row.CanRun);
+        var hasValidatedReadyClass = _writebackStatuses.Values.Any(status => status.CanApply);
 
         SetControlEnabled("CreateEventMenuItem", createEvent.CanRun && !_isRunning);
         SetControlEnabled("CreateEventButton", createEvent.CanRun && !_isRunning);
@@ -1618,27 +1935,63 @@ public partial class MainWindow : Window
         SetControlEnabled("RunExportButton", csvExport.CanRun && csvPreflightCanExport && !_isRunning);
         SetControlEnabled("RunWritebackPreviewButton", writeback.CanRun && !_isRunning);
         SetControlEnabled("RunWritebackApplyButton", writeback.CanRun && !_isRunning);
+        SetControlEnabled("ScanWritebackResultsButton", _currentEventConfig is not null && !_isRunning);
+        SetControlEnabled("OpenEventFromWritebackButton", _currentEventConfig is null && !_isRunning);
+        SetControlEnabled("ValidateAllWritebackButton", classWriteback.CanRun && hasReadyWritebackRows && !_isRunning);
+        SetControlEnabled("DryRunReadyWritebackButton", classWriteback.CanRun && hasReadyWritebackRows && !_isRunning);
+        SetControlEnabled("ApplyValidatedWritebackButton", classWriteback.CanRun && hasValidatedReadyClass && !_isRunning);
         SetControlEnabled("RunSscUsersButton", sscRows.First(row => row.Action == "Eksporter SSC-brukere").CanRun && !_isRunning);
         SetControlEnabled("RunSscValidateButton", sscRows.First(row => row.Action == "Valider SSC").CanRun && !_isRunning);
         SetControlEnabled("RunSscLanesButton", sscRows.First(row => row.Action == "Eksporter SSC baner/reset").CanRun && !_isRunning);
         SetControlEnabled("ShowStevnerButton", databaseExists && !_isRunning);
         SetControlEnabled("ShowSelectedOvelserButton", databaseExists && hasIds && !_isRunning);
 
-        foreach (var button in _writebackValidateButtons)
+        foreach (var item in _writebackValidateButtons)
         {
-            button.IsEnabled = classWriteback.CanRun && !_isRunning;
+            item.Value.IsEnabled = classWriteback.CanRun &&
+                _writebackRows.TryGetValue(item.Key, out var row) &&
+                row.CanRun &&
+                !_isRunning;
         }
 
-        foreach (var button in _writebackApplyButtons)
+        foreach (var item in _writebackApplyButtons)
         {
-            button.IsEnabled = classWriteback.CanRun && !_isRunning;
+            item.Value.IsEnabled = classWriteback.CanRun &&
+                _writebackRows.TryGetValue(item.Key, out _) &&
+                _writebackStatuses.TryGetValue(item.Key, out var status) &&
+                status.CanApply &&
+                !_isRunning;
         }
 
         EventActionHelpLabel.Text = FormatMissing(createEvent);
         CsvActionHelpLabel.Text = FormatCsvMissing(csvBase, csvExport, _csvPreflight);
-        WritebackActionHelpLabel.Text = FormatMissing(writeback);
+        WritebackActionHelpLabel.Text = FormatWritebackSummary(classWriteback);
         RenderSscStatusRows(sscRows);
         UpdatePathTooltips();
+    }
+
+    private string FormatWritebackSummary(ActionState state)
+    {
+        if (!state.CanRun)
+        {
+            return FormatMissing(state);
+        }
+
+        var classes = _currentEventConfig?.Classes ?? [];
+        if (classes.Count == 0)
+        {
+            return "Ingen klasseinstanser i event.json.";
+        }
+
+        if (_writebackRows.Count == 0)
+        {
+            return "Trykk Finn resultater i stevnemappen.";
+        }
+
+        var ready = _writebackRows.Values.Count(row => row.CanRun);
+        return ready == classes.Count
+            ? $"Alle {classes.Count} klasser er klare."
+            : $"{ready} av {classes.Count} klasser er klare.";
     }
 
     private void UpdatePathTooltips()
@@ -1742,6 +2095,10 @@ public partial class MainWindow : Window
             missing.Add("event.json er ikke lastet");
             return new ActionState(missing);
         }
+        if (_currentEventConfig.Classes.Count == 0)
+        {
+            missing.Add("ingen klasseinstanser i event.json");
+        }
 
         var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
         if (!HasExistingFile(EventProjectFile.ResolvePath(eventPath, _currentEventConfig.Inrx.Db)))
@@ -1761,6 +2118,7 @@ public partial class MainWindow : Window
             StevneIdsValid: idsValid,
             StevneIds: ids,
             SelectedStevneIdsText: StevneIdsInput.Text?.Trim() ?? string.Empty,
+            LaneStevneId: SelectedSscStevneId(),
             OutputDirectoryPresent: !string.IsNullOrWhiteSpace(SscOutputDirectoryInput.Text),
             UsersCsvExists: HasExistingFile(usersCsvPath),
             BibMapExists: HasExistingFile(SscBibMapPathInput.Text),
@@ -1849,6 +2207,16 @@ public partial class MainWindow : Window
     private string ToEventDisplayPath(string? path) =>
         DesktopEventPaths.ToEventDisplayPath(_currentEventFilePath, path);
 
+    private string ToProjectOutputDisplayPath(string? path, string? eventPath = null) =>
+        DesktopEventPaths.ToEventLocalDisplayPath(eventPath ?? _currentEventFilePath, path, "./siusrank-import");
+
+    private string NormalizeOutputDirectoryInput(string? eventPath = null)
+    {
+        var outputDirectory = ToProjectOutputDisplayPath(OutputDirectoryInput.Text, eventPath);
+        OutputDirectoryInput.Text = outputDirectory;
+        return outputDirectory;
+    }
+
     private string ResolveEventPath(string? path) =>
         DesktopEventPaths.ResolveEventPath(_currentEventFilePath, path);
 
@@ -1908,7 +2276,7 @@ public partial class MainWindow : Window
     private AppOptions BuildExportOptions(bool includeTemplate = true)
     {
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
-        var outputDirectory = ResolveEventPath(RequireText(OutputDirectoryInput.Text, "Output directory"));
+        var outputDirectory = ResolveEventPath(NormalizeOutputDirectoryInput());
         var templatePath = !includeTemplate || string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text)
             ? null
             : RequireExistingFile(ShooterGroupsTemplateInput.Text, "Shooter groups XML");
@@ -1988,20 +2356,25 @@ public partial class MainWindow : Window
 
     private ExportSscLanesOptions BuildSscLanesOptions()
     {
-        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
-        if (ids.Count != 1)
+        var selectedId = SelectedSscStevneId();
+        if (selectedId is null)
         {
-            throw new ArgumentException("SSC lanes export requires exactly one Stevne.Id in the top Stevne ids field.");
+            throw new ArgumentException("Velg stevne for SSC baner/reset.");
         }
 
         return new ExportSscLanesOptions(
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
-            ids[0],
+            selectedId.Value,
             RequireText(SscStartlagInput.Text, "SSC startlag"),
             CleanSetting(SscBibMapPathInput.Text) is { } bibMapPath ? ResolveEventPath(bibMapPath) : null,
             ResolveEventPath(RequireText(SscOutputDirectoryInput.Text, "SSC output directory")),
             SelectedSscLaneCount());
     }
+
+    private int? SelectedSscStevneId() =>
+        SscStevneInput.SelectedItem is SscStevneChoice choice
+            ? choice.Id
+            : null;
 
     private string SelectedEncoding()
     {
@@ -2066,16 +2439,9 @@ public partial class MainWindow : Window
     {
         Version = 2,
         Global = _desktopSettings.Global,
-        Session = new DesktopSessionSettings
+        Recent = new RecentDesktopSettings
         {
-            LastEventFilePath = CleanSetting(EventFilePathInput.Text),
-            StevneIds = CleanSetting(StevneIdsInput.Text),
-            OvelseFilter = CleanSetting(OvelseFilterInput.Text),
-            EventFilter = CleanSetting(EventFilterInput.Text),
-            SscStartlag = CleanSetting(SscStartlagInput.Text),
-            SscLaneCount = SelectedSscLaneCount().ToString(CultureInfo.InvariantCulture),
-            SscOrganizationName = CleanSetting(SscOrganizationNameInput.Text),
-            SscOrganizationId = CleanSetting(SscOrganizationIdInput.Text)
+            LastEventFilePath = CleanSetting(EventFilePathInput.Text)
         }
     };
 
@@ -2548,6 +2914,11 @@ public partial class MainWindow : Window
         string OvelseName,
         string ShortName,
         int StarterCount);
+
+    private sealed record SscStevneChoice(int Id, string Label)
+    {
+        public override string ToString() => Label;
+    }
 
     private void AppendLog(string message)
     {
