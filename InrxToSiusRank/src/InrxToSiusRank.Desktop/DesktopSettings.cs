@@ -4,52 +4,23 @@ using System.Text.Json;
 
 namespace InrxToSiusRank.Desktop;
 
-internal sealed record DesktopSettings(
-    string? EventFilePath,
-    string? DatabasePath,
-    string? SiusRankFolder,
-    string? OutputDirectory,
-    string? ShooterGroupsTemplatePath,
-    string? ExportsDirectory,
-    string? BibMapPath,
-    string? SscBibMapPath,
-    string? SscOutputDirectory,
-    string? SscUsersCsvPath,
-    string? SscStartlag,
-    string? SscLaneCount,
-    string? SscOrganizationName,
-    string? SscOrganizationId,
-    string? StevneIds,
-    string? EncodingName,
-    string? OvelseFilter,
-    string? EventFilter)
+public sealed record DesktopSettings
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.General)
     {
-        WriteIndented = true
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true
     };
+
+    public int Version { get; init; } = 2;
+
+    public GlobalDesktopSettings Global { get; init; } = new();
+
+    public DesktopSessionSettings Session { get; init; } = new();
 
     public static string SettingsPath => Path.Combine(GetSettingsDirectory(), "desktop-settings.json");
 
-    public static DesktopSettings Empty { get; } = new(
-        EventFilePath: null,
-        DatabasePath: null,
-        SiusRankFolder: null,
-        OutputDirectory: null,
-        ShooterGroupsTemplatePath: null,
-        ExportsDirectory: null,
-        BibMapPath: null,
-        SscBibMapPath: null,
-        SscOutputDirectory: null,
-        SscUsersCsvPath: null,
-        SscStartlag: null,
-        SscLaneCount: null,
-        SscOrganizationName: null,
-        SscOrganizationId: null,
-        StevneIds: null,
-        EncodingName: null,
-        OvelseFilter: null,
-        EventFilter: null);
+    public static DesktopSettings Empty { get; } = new();
 
     public static DesktopSettings Load()
     {
@@ -60,8 +31,7 @@ internal sealed record DesktopSettings(
                 return Empty;
             }
 
-            var json = File.ReadAllText(SettingsPath);
-            return JsonSerializer.Deserialize<DesktopSettings>(json, SerializerOptions) ?? Empty;
+            return FromJson(File.ReadAllText(SettingsPath));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -69,10 +39,68 @@ internal sealed record DesktopSettings(
         }
     }
 
+    public static DesktopSettings FromJson(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (root.TryGetProperty(nameof(Version), out var version) &&
+            version.ValueKind == JsonValueKind.Number &&
+            version.GetInt32() >= 2 &&
+            root.TryGetProperty(nameof(Global), out _) &&
+            root.TryGetProperty(nameof(Session), out _))
+        {
+            return JsonSerializer.Deserialize<DesktopSettings>(json, SerializerOptions) ?? Empty;
+        }
+
+        return MigrateFlatSettings(root);
+    }
+
+    public string ToJson() =>
+        JsonSerializer.Serialize(this, SerializerOptions);
+
     public void Save()
     {
         Directory.CreateDirectory(GetSettingsDirectory());
-        File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, SerializerOptions));
+        File.WriteAllText(SettingsPath, ToJson());
+    }
+
+    private static DesktopSettings MigrateFlatSettings(JsonElement root)
+    {
+        var global = new GlobalDesktopSettings
+        {
+            EncodingName = ReadString(root, "GlobalEncodingName") ?? ReadString(root, "EncodingName"),
+            SiusRankFolder = ReadString(root, "GlobalSiusRankFolder") ?? ReadString(root, "SiusRankFolder"),
+            DefaultDatabasePath = ReadString(root, "DefaultDatabasePath")
+        };
+        var session = new DesktopSessionSettings
+        {
+            LastEventFilePath = ReadString(root, "EventFilePath"),
+            StevneIds = ReadString(root, "StevneIds"),
+            OvelseFilter = ReadString(root, "OvelseFilter"),
+            EventFilter = ReadString(root, "EventFilter"),
+            SscStartlag = ReadString(root, "SscStartlag"),
+            SscLaneCount = ReadString(root, "SscLaneCount"),
+            SscOrganizationName = ReadString(root, "SscOrganizationName"),
+            SscOrganizationId = ReadString(root, "SscOrganizationId")
+        };
+
+        return new DesktopSettings
+        {
+            Version = 2,
+            Global = global,
+            Session = session
+        };
+    }
+
+    private static string? ReadString(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return property.GetString();
     }
 
     private static string GetSettingsDirectory()
@@ -90,4 +118,32 @@ internal sealed record DesktopSettings(
 
         return Path.Combine(baseDirectory, "InrxToSiusRank");
     }
+}
+
+public sealed record GlobalDesktopSettings
+{
+    public string? EncodingName { get; init; }
+
+    public string? SiusRankFolder { get; init; }
+
+    public string? DefaultDatabasePath { get; init; }
+}
+
+public sealed record DesktopSessionSettings
+{
+    public string? LastEventFilePath { get; init; }
+
+    public string? StevneIds { get; init; }
+
+    public string? OvelseFilter { get; init; }
+
+    public string? EventFilter { get; init; }
+
+    public string? SscStartlag { get; init; }
+
+    public string? SscLaneCount { get; init; }
+
+    public string? SscOrganizationName { get; init; }
+
+    public string? SscOrganizationId { get; init; }
 }

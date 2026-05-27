@@ -107,39 +107,112 @@ public static class EventProjectFile
             return configuredPath;
         }
 
-        var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(eventJsonPath)) ?? Directory.GetCurrentDirectory();
-        return Path.GetFullPath(Path.Combine(baseDirectory, configuredPath));
+        var baseDirectory = GetEventDirectory(eventJsonPath);
+        return IsWindowsRootedPath(baseDirectory)
+            ? CombineWindowsPath(baseDirectory, configuredPath)
+            : Path.GetFullPath(Path.Combine(baseDirectory, configuredPath));
     }
 
     public static string ToStoredPath(string eventJsonPath, string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || IsWindowsRootedPath(path))
+        if (string.IsNullOrWhiteSpace(path))
         {
             return path;
         }
 
-        if (!Path.IsPathRooted(path))
+        if (!Path.IsPathRooted(path) && !IsWindowsRootedPath(path))
         {
             return path;
         }
 
-        var fullPath = Path.GetFullPath(path);
-        var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(eventJsonPath));
+        var baseDirectory = GetEventDirectory(eventJsonPath);
         if (string.IsNullOrWhiteSpace(baseDirectory))
         {
-            return fullPath;
+            return IsWindowsRootedPath(path) ? path : Path.GetFullPath(path);
         }
 
-        var relative = Path.GetRelativePath(baseDirectory, fullPath)
+        if (!IsInsideDirectory(baseDirectory, path))
+        {
+            return IsWindowsRootedPath(path) ? path : Path.GetFullPath(path);
+        }
+
+        var relative = GetRelativePath(baseDirectory, path);
+        return relative.StartsWith(".", StringComparison.Ordinal) ? relative : "./" + relative;
+    }
+
+    public static string GetEventDirectory(string eventJsonPath)
+    {
+        if (IsWindowsRootedPath(eventJsonPath))
+        {
+            var normalized = NormalizeWindowsPath(eventJsonPath);
+            var index = normalized.LastIndexOf('/');
+            return index <= 2 ? normalized : normalized[..index];
+        }
+
+        return Path.GetDirectoryName(Path.GetFullPath(eventJsonPath)) ?? Directory.GetCurrentDirectory();
+    }
+
+    public static bool IsInsideDirectory(string baseDirectory, string path)
+    {
+        if (string.IsNullOrWhiteSpace(baseDirectory) || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (IsWindowsRootedPath(baseDirectory) || IsWindowsRootedPath(path))
+        {
+            if (!IsWindowsRootedPath(baseDirectory) || !IsWindowsRootedPath(path))
+            {
+                return false;
+            }
+
+            var basePath = TrimTrailingSeparators(NormalizeWindowsPath(baseDirectory));
+            var fullPath = TrimTrailingSeparators(NormalizeWindowsPath(path));
+            return fullPath.Equals(basePath, StringComparison.OrdinalIgnoreCase) ||
+                   fullPath.StartsWith(basePath + "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var fullBase = TrimTrailingSeparators(Path.GetFullPath(baseDirectory).Replace('\\', '/'));
+        var fullPathUnix = TrimTrailingSeparators(Path.GetFullPath(path).Replace('\\', '/'));
+        return fullPathUnix.Equals(fullBase, StringComparison.Ordinal) ||
+               fullPathUnix.StartsWith(fullBase + "/", StringComparison.Ordinal);
+    }
+
+    private static string GetRelativePath(string baseDirectory, string path)
+    {
+        if (IsWindowsRootedPath(baseDirectory) || IsWindowsRootedPath(path))
+        {
+            var basePath = TrimTrailingSeparators(NormalizeWindowsPath(baseDirectory));
+            var fullPath = TrimTrailingSeparators(NormalizeWindowsPath(path));
+            var relative = fullPath.Length == basePath.Length
+                ? "."
+                : fullPath[(basePath.Length + 1)..];
+            return relative.Replace('\\', '/');
+        }
+
+        return Path.GetRelativePath(baseDirectory, Path.GetFullPath(path))
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/');
-        if (relative.Equals("..", StringComparison.Ordinal) ||
-            relative.StartsWith("../", StringComparison.Ordinal))
+    }
+
+    private static string NormalizeWindowsPath(string path) =>
+        TrimTrailingSeparators(path.Replace('\\', '/'));
+
+    private static string CombineWindowsPath(string baseDirectory, string relativePath)
+    {
+        var combined = NormalizeWindowsPath(baseDirectory) + "/" + relativePath.Replace('\\', '/');
+        return combined.Replace('/', '\\');
+    }
+
+    private static string TrimTrailingSeparators(string path)
+    {
+        var minimumLength = IsWindowsRootedPath(path) ? 3 : 1;
+        while (path.Length > minimumLength && (path[^1] == '/' || path[^1] == '\\'))
         {
-            return fullPath;
+            path = path[..^1];
         }
 
-        return relative.StartsWith(".", StringComparison.Ordinal) ? relative : "./" + relative;
+        return path;
     }
 
     public static bool IsWindowsRootedPath(string path) =>

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -20,13 +21,22 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, CheckBox> _stevneChecks = new();
     private readonly Dictionary<int, StevneChoice> _stevneChoices = new();
     private readonly Dictionary<int, ComboBox> _eventTypeInputs = new();
+    private readonly Dictionary<int, string> _eventTypeSelections = new();
     private readonly Dictionary<string, TextBlock> _writebackStatusLabels = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Button> _writebackValidateButtons = [];
     private readonly List<Button> _writebackApplyButtons = [];
     private string? _currentEventFilePath;
     private EventProjectConfig? _currentEventConfig;
+    private CsvPreflightResult? _csvPreflight;
+    private int _csvPreflightRefreshVersion;
     private bool _isRunning;
     private bool _updatingStevneChecks;
+    private bool _updatingOvelseSelection;
+    private readonly StringBuilder _logText = new();
+    private LogWindow? _logWindow;
+    private int _logErrorCount;
+    private string _latestLogMessage = "Ingen loggmeldinger.";
+    private DesktopSettings _desktopSettings = DesktopSettings.Empty;
 
     private static readonly IBrush ReadyStatusBrush = new SolidColorBrush(Color.Parse("#dafbe1"));
     private static readonly IBrush RunningStatusBrush = new SolidColorBrush(Color.Parse("#fff8c5"));
@@ -39,6 +49,8 @@ public partial class MainWindow : Window
         WireEvents();
         UpdateActionStates();
         SetStatus(RunStatus.Ready);
+        UpdateLogIndicators();
+        QueueCsvPreflightRefresh();
         Closing += (_, _) => SaveDesktopSettings(logWarning: false);
     }
 
@@ -51,8 +63,6 @@ public partial class MainWindow : Window
     private StackPanel StevneListContainer => Get<StackPanel>("StevneListPanel");
 
     private TextBox StevneIdsInput => Get<TextBox>("StevneIdsBox");
-
-    private StackPanel EventTypesContainer => Get<StackPanel>("EventTypesPanel");
 
     private ComboBox EncodingInput => Get<ComboBox>("EncodingBox");
 
@@ -90,7 +100,9 @@ public partial class MainWindow : Window
 
     private StackPanel WritebackClassRowsContainer => Get<StackPanel>("WritebackClassRowsPanel");
 
-    private TextBox LogInput => Get<TextBox>("LogBox");
+    private Button OpenLogButtonControl => Get<Button>("OpenLogButton");
+
+    private TextBlock LatestLogLabelControl => Get<TextBlock>("LatestLogText");
 
     private TextBlock StatusLabel => Get<TextBlock>("StatusText");
 
@@ -102,9 +114,17 @@ public partial class MainWindow : Window
 
     private TextBlock WritebackActionHelpLabel => Get<TextBlock>("WritebackActionHelpText");
 
-    private TextBlock SscActionHelpLabel => Get<TextBlock>("SscActionHelpText");
-
     private TextBlock StevneResultCountLabel => Get<TextBlock>("StevneResultCountText");
+
+    private StackPanel CsvPreflightRowsContainer => Get<StackPanel>("CsvPreflightRowsPanel");
+
+    private TextBlock CsvPreflightSummaryLabel => Get<TextBlock>("CsvPreflightSummaryText");
+
+    private StackPanel SscStatusRowsContainer => Get<StackPanel>("SscStatusRowsPanel");
+
+    private StackPanel RecentStevnerRowsContainer => Get<StackPanel>("RecentStevnerRowsPanel");
+
+    private StackPanel SelectedOvelserRowsContainer => Get<StackPanel>("SelectedOvelserRowsPanel");
 
     private T Get<T>(string name)
         where T : Control =>
@@ -117,8 +137,8 @@ public partial class MainWindow : Window
         OutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import");
         SscOrganizationNameInput.Text = "Legacy";
         SscOrganizationIdInput.Text = "f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf";
-        SscOutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "ssc-setup");
-        SscBibMapPathInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import", ChampionshipStartNumbers.BibMapFileName);
+        SscOutputDirectoryInput.Text = "./ssc-setup";
+        SscBibMapPathInput.Text = "./siusrank-import/" + ChampionshipStartNumbers.BibMapFileName;
         SscUsersCsvPathInput.Text = Path.Combine(SscOutputDirectoryInput.Text, "ssc-users.csv");
         SscStartlagInput.Text = "2026-07-06T09:00:00";
         EncodingInput.SelectedIndex = 0;
@@ -139,28 +159,38 @@ public partial class MainWindow : Window
         }
 
         var desktopSettings = DesktopSettings.Load();
-        SetTextIfPresent(EventFilePathInput, desktopSettings.EventFilePath);
-        if (!string.IsNullOrWhiteSpace(desktopSettings.EventFilePath))
+        _desktopSettings = desktopSettings;
+        SetTextIfPresent(DatabasePathInput, desktopSettings.Global.DefaultDatabasePath);
+        SetTextIfPresent(SiusRankFolderInput, desktopSettings.Global.SiusRankFolder);
+        SetEncoding(desktopSettings.Global.EncodingName);
+        SetTextIfPresent(EventFilePathInput, desktopSettings.Session.LastEventFilePath);
+        if (!string.IsNullOrWhiteSpace(desktopSettings.Session.LastEventFilePath))
         {
-            _currentEventFilePath = desktopSettings.EventFilePath;
+            _currentEventFilePath = desktopSettings.Session.LastEventFilePath;
         }
-        SetTextIfPresent(DatabasePathInput, desktopSettings.DatabasePath);
-        SetTextIfPresent(SiusRankFolderInput, desktopSettings.SiusRankFolder);
-        SetTextIfPresent(OutputDirectoryInput, desktopSettings.OutputDirectory);
-        SetTextIfPresent(ShooterGroupsTemplateInput, desktopSettings.ShooterGroupsTemplatePath);
-        SetTextIfPresent(ExportsDirectoryInput, desktopSettings.ExportsDirectory);
-        SetTextIfPresent(BibMapPathInput, desktopSettings.BibMapPath);
-        SetTextIfPresent(SscBibMapPathInput, desktopSettings.SscBibMapPath);
-        SetTextIfPresent(SscOutputDirectoryInput, desktopSettings.SscOutputDirectory);
-        SetTextIfPresent(SscUsersCsvPathInput, desktopSettings.SscUsersCsvPath);
-        SetTextIfPresent(SscStartlagInput, desktopSettings.SscStartlag);
-        SetTextIfPresent(SscOrganizationNameInput, desktopSettings.SscOrganizationName);
-        SetTextIfPresent(SscOrganizationIdInput, desktopSettings.SscOrganizationId);
-        SetSscLaneCount(desktopSettings.SscLaneCount);
-        SetTextIfPresent(StevneIdsInput, desktopSettings.StevneIds);
-        SetTextIfPresent(OvelseFilterInput, desktopSettings.OvelseFilter);
-        SetTextIfPresent(EventFilterInput, desktopSettings.EventFilter);
-        SetEncoding(desktopSettings.EncodingName);
+        SetTextIfPresent(SscStartlagInput, desktopSettings.Session.SscStartlag);
+        SetTextIfPresent(SscOrganizationNameInput, desktopSettings.Session.SscOrganizationName);
+        SetTextIfPresent(SscOrganizationIdInput, desktopSettings.Session.SscOrganizationId);
+        SetSscLaneCount(desktopSettings.Session.SscLaneCount);
+        SetTextIfPresent(StevneIdsInput, desktopSettings.Session.StevneIds);
+        SetTextIfPresent(OvelseFilterInput, desktopSettings.Session.OvelseFilter);
+        SetTextIfPresent(EventFilterInput, desktopSettings.Session.EventFilter);
+        if (int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var persistedOvelseId))
+        {
+            var persistedChoice = new OvelseChoice(
+                persistedOvelseId,
+                $"OvelseDef.Id {persistedOvelseId}",
+                string.Empty,
+                HovedOvelseId: 0,
+                StarterCount: 0);
+            OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All, persistedChoice };
+            OvelseSelectInput.SelectedItem = persistedChoice;
+        }
+        else
+        {
+            OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All };
+            OvelseSelectInput.SelectedItem = OvelseChoice.All;
+        }
     }
 
     private void WireEvents()
@@ -168,6 +198,7 @@ public partial class MainWindow : Window
         Get<MenuItem>("CreateEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
         Get<MenuItem>("OpenEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
         Get<MenuItem>("SaveEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
+        Get<MenuItem>("SettingsMenuItem").Click += async (_, _) => await RunSafelyAsync("Åpner innstillinger", ShowSettingsWindowAsync);
         Get<Button>("CreateEventButton").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
         Get<Button>("OpenEventButton").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
         Get<Button>("SaveEventButton").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
@@ -181,7 +212,7 @@ public partial class MainWindow : Window
         Get<Button>("BrowseOutputButton").Click += async (_, _) =>
             await BrowseFolderAsync(OutputDirectoryInput, "Select SIUS Rank import output directory");
         Get<Button>("BrowseSiusRankFolderButton").Click += async (_, _) =>
-            await BrowseFolderAsync(SiusRankFolderInput, "Select SIUS Rank directory");
+            await BrowseFolderAsync(SiusRankFolderInput, "Select SIUS Rank directory", useEventRelativePath: false);
         Get<Button>("BrowseExportsButton").Click += async (_, _) =>
             await BrowseFolderAsync(ExportsDirectoryInput, "Select SIUS Rank Exports directory");
         Get<Button>("BrowseSscBibMapButton").Click += async (_, _) =>
@@ -207,16 +238,24 @@ public partial class MainWindow : Window
         Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC baner/reset", RunSscLanesAsync);
         Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Laster stevner", ShowRecentStevnerAsync);
         Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Laster øvelser", ShowSelectedOvelserAsync);
-        Get<Button>("CopyLogButton").Click += async (_, _) => await RunSafelyAsync("Kopierer logg", CopyLogAsync);
-        Get<Button>("SaveLogButton").Click += async (_, _) => await RunSafelyAsync("Lagrer logg", SaveLogAsync);
-        Get<Button>("ClearLogButton").Click += (_, _) => LogInput.Text = string.Empty;
+        OpenLogButtonControl.Click += (_, _) => ShowLogWindow();
         OvelseSelectInput.SelectionChanged += (_, _) =>
         {
-            if (OvelseSelectInput.SelectedItem is OvelseChoice choice)
+            if (_updatingOvelseSelection)
+            {
+                return;
+            }
+
+            if (OvelseSelectInput.SelectedItem is OvelseChoice { IsAll: false } choice)
             {
                 OvelseFilterInput.Text = choice.Id.ToString(CultureInfo.InvariantCulture);
             }
+            else if (OvelseSelectInput.SelectedItem is OvelseChoice { IsAll: true })
+            {
+                OvelseFilterInput.Text = string.Empty;
+            }
 
+            QueueCsvPreflightRefresh();
             UpdateActionStates();
         };
 
@@ -247,7 +286,17 @@ public partial class MainWindow : Window
             SscOrganizationIdInput
         })
         {
-            input.TextChanged += (_, _) => UpdateActionStates();
+            input.TextChanged += (_, _) =>
+            {
+                if (ReferenceEquals(input, DatabasePathInput) ||
+                    ReferenceEquals(input, StevneIdsInput) ||
+                    ReferenceEquals(input, OvelseFilterInput))
+                {
+                    QueueCsvPreflightRefresh();
+                }
+
+                UpdateActionStates();
+            };
         }
     }
 
@@ -285,8 +334,8 @@ public partial class MainWindow : Window
 
         config = config with
         {
-            Inrx = config.Inrx with { Db = databasePath },
-            Csv = new EventCsvConfig { Output = "./inrX_export" }
+            Inrx = config.Inrx with { Db = EventProjectFile.ToStoredPath(eventPath, databasePath) },
+            Csv = new EventCsvConfig { Output = "./siusrank-import" }
         };
 
         CreateEventDirectories(eventPath, config);
@@ -352,21 +401,27 @@ public partial class MainWindow : Window
         _currentEventFilePath = Path.GetFullPath(eventPath);
         _currentEventConfig = config;
         EventFilePathInput.Text = _currentEventFilePath;
-        DatabasePathInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Inrx.Db);
+        DatabasePathInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Inrx.Db));
         StevneIdsInput.Text = config.Inrx.Stevner;
-        SiusRankFolderInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.SiusRankFolder);
-        OutputDirectoryInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Csv.Output);
+        SiusRankFolderInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.SiusRankFolder));
+        OutputDirectoryInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Csv.Output));
         if (config.Classes.Count > 0)
         {
-            ExportsDirectoryInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Classes[0].Exports);
+            ExportsDirectoryInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Classes[0].Exports));
         }
 
-        var bibMapPath = Path.Combine(OutputDirectoryInput.Text, ChampionshipStartNumbers.BibMapFileName);
-        BibMapPathInput.Text = bibMapPath;
-        SscBibMapPathInput.Text = bibMapPath;
+        var bibMapPath = Path.Combine(ResolveEventPath(OutputDirectoryInput.Text), ChampionshipStartNumbers.BibMapFileName);
+        BibMapPathInput.Text = ToEventDisplayPath(bibMapPath);
+        SscBibMapPathInput.Text = ToEventDisplayPath(bibMapPath);
+        SscOutputDirectoryInput.Text = "./ssc-setup";
+        SscUsersCsvPathInput.Text = "./ssc-setup/ssc-users.csv";
+        if (!string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text))
+        {
+            ShooterGroupsTemplateInput.Text = ToEventDisplayPath(ShooterGroupsTemplateInput.Text);
+        }
         SetSilhouetteShootersPerStand(config.Silhouette.ShootersPerStand);
+        LoadEventTypeSelections(config.EventTypes);
         await RefreshOvelseChoicesAsync(config.Exercise.Id);
-        RenderEventTypeRows(ParseIdList(config.Inrx.Stevner, "Stevne ids"), config.EventTypes);
         RenderWritebackRows(config);
         SaveDesktopSettings();
         UpdateActionStates();
@@ -406,9 +461,10 @@ public partial class MainWindow : Window
         {
             Dispatcher.UIThread.Post(() =>
             {
-                OvelseSelectInput.ItemsSource = Array.Empty<OvelseChoice>();
+                OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All };
                 OvelseSelectInput.SelectedItem = null;
                 OvelseFilterInput.Text = string.Empty;
+                ClearCsvPreflight("Velg minst ett Stevne.Id for CSV preflight.");
                 UpdateActionStates();
             });
             return Task.CompletedTask;
@@ -435,19 +491,41 @@ public partial class MainWindow : Window
 
             Dispatcher.UIThread.Post(() =>
             {
-                OvelseSelectInput.ItemsSource = choices;
-                var selected = selectedOvelseId is not null
-                    ? choices.FirstOrDefault(choice => choice.Id == selectedOvelseId.Value)
-                    : choices.FirstOrDefault();
-                OvelseSelectInput.SelectedItem = selected;
-                if (selected is not null)
+                var allChoices = new[] { OvelseChoice.All }.Concat(choices).ToList();
+                OvelseSelectInput.ItemsSource = allChoices;
+                var selected = ResolveSelectedOvelseChoice(allChoices, selectedOvelseId);
+                _updatingOvelseSelection = true;
+                try
                 {
-                    OvelseFilterInput.Text = selected.Id.ToString(CultureInfo.InvariantCulture);
+                    OvelseSelectInput.SelectedItem = selected;
+                    OvelseFilterInput.Text = selected is { IsAll: false }
+                        ? selected.Id.ToString(CultureInfo.InvariantCulture)
+                        : string.Empty;
+                }
+                finally
+                {
+                    _updatingOvelseSelection = false;
                 }
 
+                QueueCsvPreflightRefresh();
                 UpdateActionStates();
             });
         });
+    }
+
+    private OvelseChoice ResolveSelectedOvelseChoice(IReadOnlyList<OvelseChoice> choices, int? selectedOvelseId)
+    {
+        if (selectedOvelseId is not null)
+        {
+            return choices.FirstOrDefault(choice => !choice.IsAll && choice.Id == selectedOvelseId.Value) ?? OvelseChoice.All;
+        }
+
+        if (int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var persistedId))
+        {
+            return choices.FirstOrDefault(choice => !choice.IsAll && choice.Id == persistedId) ?? OvelseChoice.All;
+        }
+
+        return OvelseChoice.All;
     }
 
     private Task RefreshEventClassesAsync()
@@ -460,7 +538,12 @@ public partial class MainWindow : Window
         return Task.CompletedTask;
     }
 
-    private async Task BrowseFileAsync(TextBox target, string title, string typeName, IReadOnlyList<string> patterns)
+    private async Task BrowseFileAsync(
+        TextBox target,
+        string title,
+        string typeName,
+        IReadOnlyList<string> patterns,
+        bool useEventRelativePath = true)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
@@ -475,13 +558,14 @@ public partial class MainWindow : Window
 
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
         {
-            target.Text = path;
+            target.Text = useEventRelativePath ? ToEventDisplayPath(path) : path;
+            AppendOutsideEventPathWarning(path);
             SaveDesktopSettings();
             UpdateActionStates();
         }
     }
 
-    private async Task BrowseFolderAsync(TextBox target, string title)
+    private async Task BrowseFolderAsync(TextBox target, string title, bool useEventRelativePath = true)
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
@@ -491,9 +575,58 @@ public partial class MainWindow : Window
 
         if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path)
         {
-            target.Text = path;
+            target.Text = useEventRelativePath ? ToEventDisplayPath(path) : path;
+            if (useEventRelativePath)
+            {
+                AppendOutsideEventPathWarning(path);
+            }
+
             SaveDesktopSettings();
             UpdateActionStates();
+        }
+    }
+
+    private async Task ShowSettingsWindowAsync()
+    {
+        var values = new GlobalSettingsValues(
+            _desktopSettings.Global.EncodingName ?? SelectedEncoding(),
+            _desktopSettings.Global.SiusRankFolder ?? SiusRankFolderInput.Text?.Trim() ?? string.Empty,
+            _desktopSettings.Global.DefaultDatabasePath ?? (string.IsNullOrWhiteSpace(_currentEventFilePath) ? DatabasePathInput.Text?.Trim() : null) ?? string.Empty);
+        var dialog = new SettingsWindow(values);
+        var result = await dialog.ShowDialog<GlobalSettingsValues?>(this);
+        if (result is null)
+        {
+            return;
+        }
+
+        _desktopSettings = BuildDesktopSettings() with
+        {
+            Global = new GlobalDesktopSettings
+            {
+                EncodingName = result.EncodingName,
+                SiusRankFolder = CleanSetting(result.SiusRankFolder),
+                DefaultDatabasePath = CleanSetting(result.DefaultDatabasePath)
+            }
+        };
+        _desktopSettings.Save();
+
+        SetEncoding(result.EncodingName);
+        SiusRankFolderInput.Text = result.SiusRankFolder;
+        if (string.IsNullOrWhiteSpace(_currentEventFilePath))
+        {
+            DatabasePathInput.Text = result.DefaultDatabasePath;
+        }
+
+        AppendLog("Innstillinger lagret.");
+        UpdateActionStates();
+    }
+
+    private void AppendOutsideEventPathWarning(string path)
+    {
+        if (!string.IsNullOrWhiteSpace(_currentEventFilePath) &&
+            !DesktopEventPaths.IsInsideEventDirectory(_currentEventFilePath, path))
+        {
+            AppendLog("Filen ligger utenfor stevnemappen og lagres som absolutt sti.");
         }
     }
 
@@ -510,7 +643,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or System.Xml.XmlException)
         {
-            AppendLog($"ERROR: {ex.Message}");
+            AppendLog($"ERROR: {FormatUiExceptionMessage(ex)}");
             SetStatus(RunStatus.Error, ex.Message);
         }
         catch (Exception ex)
@@ -522,6 +655,41 @@ public partial class MainWindow : Window
         {
             _isRunning = false;
             UpdateActionStates();
+        }
+    }
+
+    private string FormatUiExceptionMessage(Exception ex)
+    {
+        var message = ex.Message;
+        var match = Regex.Match(message, @"No starters found for Stevne\.Id=(\d+) and OvelseDef\.Id=(\d+)\.");
+        if (!match.Success)
+        {
+            return message;
+        }
+
+        var stevneId = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+        var ovelseId = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+        var ovelseName = TryLookupOvelseName(ovelseId) ?? $"OvelseDef.Id {ovelseId}";
+        return $"Ingen startere funnet for Stevne.Id {stevneId} / {ovelseName}. " +
+               "Velg 'Alle øvelser i valgte stevner' eller fjern stevner uten denne øvelsen. " +
+               $"Detalj: {message}";
+    }
+
+    private string? TryLookupOvelseName(int ovelseId)
+    {
+        if (!HasExistingFile(DatabasePathInput.Text))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var repository = new InrxRepository(RequireExistingFile(DatabasePathInput.Text, "storage.db3"));
+            return repository.GetOvelseById(ovelseId).Name;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            return null;
         }
     }
 
@@ -544,7 +712,30 @@ public partial class MainWindow : Window
         });
     }
 
-    private Task ShowRecentStevnerAsync() => InspectDatabaseAsync();
+    private Task ShowRecentStevnerAsync()
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        return Task.Run(() =>
+        {
+            using var repository = new InrxRepository(databasePath);
+            var rows = repository.SearchStevner(null, limit: 25)
+                .Select(stevne =>
+                {
+                    var ovelser = repository.GetOvelserForStevne(stevne.Id);
+                    return new DiagnosticStevneRow(
+                        FormatDate(stevne.Date),
+                        stevne.Id,
+                        stevne.Name,
+                        repository.GetStevneEventType(stevne.Id),
+                        ovelser.Count,
+                        ovelser.Sum(ovelse => ovelse.StarterCount));
+                })
+                .ToList();
+
+            Dispatcher.UIThread.Post(() => RenderDiagnosticStevner(rows));
+            AppendLog($"Diagnostikk: lastet {rows.Count} stevner.");
+        });
+    }
 
     private Task ShowSelectedOvelserAsync()
     {
@@ -553,20 +744,25 @@ public partial class MainWindow : Window
         return Task.Run(() =>
         {
             using var repository = new InrxRepository(databasePath);
-            var builder = new StringBuilder();
-            builder.AppendLine("Selected øvelser:");
+            var rows = new List<DiagnosticOvelseRow>();
             foreach (var id in ids)
             {
                 var stevne = repository.GetStevneById(id);
-                builder.AppendLine();
-                builder.AppendLine($"{stevne.Id} {FormatDate(stevne.Date)} {stevne.Name}");
                 foreach (var ovelse in repository.GetOvelserForStevne(id))
                 {
-                    builder.AppendLine($"  {ovelse.Id,3}  {ovelse.Name,-18} starters={ovelse.StarterCount}");
+                    rows.Add(new DiagnosticOvelseRow(
+                        FormatDate(stevne.Date),
+                        stevne.Id,
+                        stevne.Name,
+                        ovelse.Id,
+                        ovelse.Name,
+                        ovelse.ShortName,
+                        ovelse.StarterCount));
                 }
             }
 
-            AppendLog(builder.ToString());
+            Dispatcher.UIThread.Post(() => RenderDiagnosticOvelser(rows));
+            AppendLog($"Diagnostikk: lastet {rows.Count} øvelsesrader.");
         });
     }
 
@@ -575,6 +771,7 @@ public partial class MainWindow : Window
         var selectedIds = ParseOptionalIdList(StevneIdsInput.Text).ToHashSet();
         _stevneChecks.Clear();
         _stevneChoices.Clear();
+        _eventTypeInputs.Clear();
         StevneListContainer.Children.Clear();
         StevneResultCountLabel.Text = rows.Count == 1
             ? "1 treff."
@@ -597,7 +794,6 @@ public partial class MainWindow : Window
 
                 UpdateSelectedStevneIdsFromChecks();
                 var ids = ParseOptionalIdList(StevneIdsInput.Text);
-                RenderEventTypeRows(ids, BuildEventTypeMapFromChoices());
                 if (ids.Count > 0)
                 {
                     _ = RefreshOvelseChoicesAsync();
@@ -609,22 +805,23 @@ public partial class MainWindow : Window
             StevneListContainer.Children.Add(CreateStevneRow(row, checkBox));
         }
 
-        RenderEventTypeRows(ParseOptionalIdList(StevneIdsInput.Text), BuildEventTypeMapFromChoices());
         UpdateActionStates();
     }
 
-    private static Border CreateStevneRow(StevneChoice row, CheckBox checkBox)
+    private Border CreateStevneRow(StevneChoice row, CheckBox checkBox)
     {
+        var typeInput = CreateEventTypeComboBox(row.Id, row.EventType);
         var grid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("32,110,70,2*,110,2*"),
+            ColumnDefinitions = new ColumnDefinitions("32,92,60,2*,130,2*"),
             ColumnSpacing = 8
         };
         grid.Children.Add(checkBox);
         AddRowText(grid, 1, FormatDate(row.Date));
         AddRowText(grid, 2, row.Id.ToString(CultureInfo.InvariantCulture));
         AddRowText(grid, 3, row.Name);
-        AddRowText(grid, 4, row.EventType);
+        Grid.SetColumn(typeInput, 4);
+        grid.Children.Add(typeInput);
         AddRowText(grid, 5, row.Ovelser);
 
         return new Border
@@ -636,12 +833,44 @@ public partial class MainWindow : Window
         };
     }
 
-    private static void AddRowText(Grid grid, int column, string text)
+    private ComboBox CreateEventTypeComboBox(int stevneId, string repositoryEventType)
+    {
+        var selectedType = ResolveEventTypeSelection(stevneId, repositoryEventType);
+        _eventTypeSelections[stevneId] = selectedType;
+
+        var comboBox = new ComboBox
+        {
+            Width = 124,
+            MinHeight = 28,
+            ItemsSource = new[] { EventProjectPlanner.ApprovedEventType, EventProjectPlanner.ChampionshipEventType },
+            SelectedItem = selectedType
+        };
+        comboBox.SelectionChanged += (_, _) =>
+        {
+            _eventTypeSelections[stevneId] = DesktopEventTypeSelections.Normalize(comboBox.SelectedItem?.ToString());
+            UpdateActionStates();
+            SaveDesktopSettings();
+        };
+        _eventTypeInputs[stevneId] = comboBox;
+        return comboBox;
+    }
+
+    private static Border CreateTableRow(Grid grid) =>
+        new()
+        {
+            BorderBrush = new SolidColorBrush(Color.Parse("#d8dee4")),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(8, 5),
+            Child = grid
+        };
+
+    private static void AddRowText(Grid grid, int column, string text, bool wrap = false)
     {
         var block = new TextBlock
         {
             Text = text,
-            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis,
+            TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
             VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(block, column);
@@ -665,7 +894,6 @@ public partial class MainWindow : Window
 
         UpdateSelectedStevneIdsFromChecks();
         var ids = ParseOptionalIdList(StevneIdsInput.Text);
-        RenderEventTypeRows(ids, BuildEventTypeMapFromChoices());
         if (ids.Count > 0)
         {
             _ = RefreshOvelseChoicesAsync();
@@ -674,9 +902,194 @@ public partial class MainWindow : Window
         {
             OvelseSelectInput.SelectedItem = null;
             OvelseFilterInput.Text = string.Empty;
+            ClearCsvPreflight("Velg minst ett Stevne.Id for CSV preflight.");
+        }
+
+        QueueCsvPreflightRefresh();
+        UpdateActionStates();
+    }
+
+    private void QueueCsvPreflightRefresh()
+    {
+        var version = ++_csvPreflightRefreshVersion;
+        _ = RefreshCsvPreflightLaterAsync(version);
+    }
+
+    private async Task RefreshCsvPreflightLaterAsync(int version)
+    {
+        await Task.Delay(250);
+        if (version != _csvPreflightRefreshVersion)
+        {
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            if (version == _csvPreflightRefreshVersion)
+            {
+                await RefreshCsvPreflightAsync();
+            }
+        });
+    }
+
+    private async Task RefreshCsvPreflightAsync()
+    {
+        if (!HasExistingFile(DatabasePathInput.Text))
+        {
+            ClearCsvPreflight("Velg storage.db3 for CSV preflight.");
+            return;
+        }
+
+        if (!TryParseOptionalIds(StevneIdsInput.Text, out var ids) || ids.Count == 0)
+        {
+            ClearCsvPreflight("Velg Stevne.Id for CSV preflight.");
+            return;
+        }
+
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+
+        var selection = SelectedCsvExerciseSelection();
+        try
+        {
+            var events = await Task.Run(() =>
+            {
+                using var repository = new InrxRepository(databasePath);
+                return ids
+                    .Select(id =>
+                    {
+                        var stevne = repository.GetStevneById(id);
+                        var exercises = repository.GetOvelserForStevne(id)
+                            .Select(ovelse => new CsvPreflightExerciseInput(
+                                ovelse.Id,
+                                ovelse.Name,
+                                ovelse.ShortName,
+                                ovelse.HovedOvelseId,
+                                ovelse.StarterCount))
+                            .ToList();
+                        return new CsvPreflightEventInput(
+                            stevne.Id,
+                            stevne.Name,
+                            FormatDate(stevne.Date),
+                            repository.GetStevneEventType(stevne.Id),
+                            exercises);
+                    })
+                    .ToList();
+            });
+
+            _csvPreflight = DesktopCsvPreflight.Build(events, selection);
+            RenderCsvPreflight(_csvPreflight);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            ClearCsvPreflight($"CSV preflight feilet: {ex.Message}");
         }
 
         UpdateActionStates();
+    }
+
+    private void ClearCsvPreflight(string message)
+    {
+        _csvPreflight = null;
+        CsvPreflightRowsContainer.Children.Clear();
+        CsvPreflightSummaryLabel.Text = message;
+    }
+
+    private void RenderCsvPreflight(CsvPreflightResult result)
+    {
+        CsvPreflightRowsContainer.Children.Clear();
+        foreach (var row in result.Rows)
+        {
+            var grid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("70,92,72,1.5*,100,1.2*,90,70,1.6*"),
+                ColumnSpacing = 8
+            };
+            grid.Children.Add(new CheckBox
+            {
+                IsChecked = row.Include,
+                IsEnabled = false,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            AddRowText(grid, 1, row.Date);
+            AddRowText(grid, 2, row.StevneId.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 3, row.StevneName);
+            AddRowText(grid, 4, row.EventType);
+            AddRowText(grid, 5, row.OvelseName);
+            AddRowText(grid, 6, row.OvelseId?.ToString(CultureInfo.InvariantCulture) ?? "-");
+            AddRowText(grid, 7, row.StarterCount.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 8, row.Status);
+            CsvPreflightRowsContainer.Children.Add(CreateTableRow(grid));
+        }
+
+        CsvPreflightSummaryLabel.Text = result.CanExport
+            ? $"{result.Rows.Count(row => row.Include)} rader klare, {result.ExcludedStevneIds.Count} Stevne.Id hoppes over."
+            : result.EmptyMessage;
+    }
+
+    private void AppendCsvSkippedMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(_csvPreflight?.SkippedMessage))
+        {
+            AppendLog(_csvPreflight.SkippedMessage);
+        }
+    }
+
+    private void RenderSscStatusRows(IReadOnlyList<SscActionStatusRow> rows)
+    {
+        SscStatusRowsContainer.Children.Clear();
+        foreach (var row in rows)
+        {
+            var grid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("220,180,*"),
+                ColumnSpacing = 8
+            };
+            AddRowText(grid, 0, row.Action);
+            AddRowText(grid, 1, row.Status);
+            AddRowText(grid, 2, row.NextStep, wrap: true);
+            SscStatusRowsContainer.Children.Add(CreateTableRow(grid));
+        }
+    }
+
+    private void RenderDiagnosticStevner(IReadOnlyList<DiagnosticStevneRow> rows)
+    {
+        RecentStevnerRowsContainer.Children.Clear();
+        foreach (var row in rows)
+        {
+            var grid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("92,72,2*,100,100,100"),
+                ColumnSpacing = 8
+            };
+            AddRowText(grid, 0, row.Date);
+            AddRowText(grid, 1, row.StevneId.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 2, row.Name);
+            AddRowText(grid, 3, row.EventType);
+            AddRowText(grid, 4, row.ExerciseCount.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 5, row.StarterCount.ToString(CultureInfo.InvariantCulture));
+            RecentStevnerRowsContainer.Children.Add(CreateTableRow(grid));
+        }
+    }
+
+    private void RenderDiagnosticOvelser(IReadOnlyList<DiagnosticOvelseRow> rows)
+    {
+        SelectedOvelserRowsContainer.Children.Clear();
+        foreach (var row in rows)
+        {
+            var grid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("92,72,1.8*,90,1.4*,90,80"),
+                ColumnSpacing = 8
+            };
+            AddRowText(grid, 0, row.Date);
+            AddRowText(grid, 1, row.StevneId.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 2, row.StevneName);
+            AddRowText(grid, 3, row.OvelseId.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 4, row.OvelseName);
+            AddRowText(grid, 5, row.ShortName);
+            AddRowText(grid, 6, row.StarterCount.ToString(CultureInfo.InvariantCulture));
+            SelectedOvelserRowsContainer.Children.Add(CreateTableRow(grid));
+        }
     }
 
     private void UpdateSelectedStevneIdsFromChecks()
@@ -690,46 +1103,15 @@ public partial class MainWindow : Window
         SaveDesktopSettings();
     }
 
-    private Dictionary<string, string> BuildEventTypeMapFromChoices() =>
-        _stevneChoices.ToDictionary(
-            item => item.Key.ToString(CultureInfo.InvariantCulture),
-            item => item.Value.EventType,
-            StringComparer.Ordinal);
-
-    private void RenderEventTypeRows(IReadOnlyList<int> ids, IReadOnlyDictionary<string, string> configuredTypes)
+    private void LoadEventTypeSelections(IReadOnlyDictionary<string, string> eventTypes)
     {
-        _eventTypeInputs.Clear();
-        EventTypesContainer.Children.Clear();
-        foreach (var id in ids)
+        foreach (var item in eventTypes)
         {
-            var idText = id.ToString(CultureInfo.InvariantCulture);
-            configuredTypes.TryGetValue(idText, out var configuredType);
-            var row = new StackPanel
+            if (int.TryParse(item.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 8
-            };
-            row.Children.Add(new TextBlock
-            {
-                Text = $"Stevne {id}",
-                Width = 92,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            var comboBox = new ComboBox
-            {
-                Width = 150,
-                ItemsSource = new[] { EventProjectPlanner.ChampionshipEventType, EventProjectPlanner.ApprovedEventType },
-                SelectedItem = configuredType == EventProjectPlanner.ChampionshipEventType
-                    ? EventProjectPlanner.ChampionshipEventType
-                    : EventProjectPlanner.ApprovedEventType
-            };
-            comboBox.SelectionChanged += (_, _) => UpdateActionStates();
-            _eventTypeInputs[id] = comboBox;
-            row.Children.Add(comboBox);
-            EventTypesContainer.Children.Add(row);
+                _eventTypeSelections[id] = DesktopEventTypeSelections.Normalize(item.Value);
+            }
         }
-
-        UpdateActionStates();
     }
 
     private EventProjectConfig BuildEventConfigFromUi(string eventPath, bool refreshClasses)
@@ -743,7 +1125,9 @@ public partial class MainWindow : Window
         List<EventClassConfig> classes;
         if (!refreshClasses && _currentEventConfig?.Classes.Count > 0)
         {
-            classes = _currentEventConfig.Classes;
+            classes = _currentEventConfig.Classes
+                .Select(classConfig => NormalizeClassPaths(eventPath, classConfig))
+                .ToList();
         }
         else
         {
@@ -781,27 +1165,51 @@ public partial class MainWindow : Window
         };
     }
 
-    private Dictionary<string, string> BuildEventTypeMap(IReadOnlyList<int> ids)
-    {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var id in ids)
+    private static EventClassConfig NormalizeClassPaths(string eventPath, EventClassConfig classConfig) =>
+        classConfig with
         {
-            var selected = _eventTypeInputs.TryGetValue(id, out var input)
-                ? input.SelectedItem?.ToString()
-                : null;
-            result[id.ToString(CultureInfo.InvariantCulture)] =
-                selected == EventProjectPlanner.ChampionshipEventType
-                    ? EventProjectPlanner.ChampionshipEventType
-                    : EventProjectPlanner.ApprovedEventType;
+            Folder = EventProjectFile.ToStoredPath(eventPath, EventProjectFile.ResolvePath(eventPath, classConfig.Folder)),
+            Exports = EventProjectFile.ToStoredPath(eventPath, EventProjectFile.ResolvePath(eventPath, classConfig.Exports))
+        };
+
+    private Dictionary<string, string> BuildEventTypeMap(IReadOnlyList<int> ids)
+        => new(DesktopEventTypeSelections.Build(
+            ids,
+            _eventTypeSelections,
+            _stevneChoices.ToDictionary(item => item.Key, item => item.Value.EventType),
+            _currentEventConfig?.EventTypes), StringComparer.Ordinal);
+
+    private string ResolveEventTypeSelection(int id, string? fallback)
+    {
+        if (_eventTypeSelections.TryGetValue(id, out var remembered))
+        {
+            return DesktopEventTypeSelections.Normalize(remembered);
         }
 
-        return result;
+        if (_eventTypeInputs.TryGetValue(id, out var input))
+        {
+            return DesktopEventTypeSelections.Normalize(input.SelectedItem?.ToString());
+        }
+
+        var idText = id.ToString(CultureInfo.InvariantCulture);
+        if (_currentEventConfig?.EventTypes.TryGetValue(idText, out var configured) == true)
+        {
+            return DesktopEventTypeSelections.Normalize(configured);
+        }
+
+        return DesktopEventTypeSelections.Normalize(fallback);
     }
 
     private OvelseInfo RequireSelectedOvelse()
     {
-        if (OvelseSelectInput.SelectedItem is OvelseChoice choice)
+        if (OvelseSelectInput.SelectedItem is OvelseChoice { IsAll: false } choice)
         {
+            if (choice.HovedOvelseId == 0 && string.IsNullOrWhiteSpace(choice.ShortName))
+            {
+                using var repository = new InrxRepository(RequireExistingFile(DatabasePathInput.Text, "storage.db3"));
+                return repository.GetOvelseById(choice.Id);
+            }
+
             return new OvelseInfo(choice.Id, choice.Name, choice.ShortName, choice.HovedOvelseId);
         }
 
@@ -975,13 +1383,15 @@ public partial class MainWindow : Window
         return builder.ToString();
     }
 
-    private Task RunExportAsync()
+    private async Task RunExportAsync()
     {
+        await RefreshCsvPreflightAsync();
+        AppendCsvSkippedMessage();
         var options = BuildExportOptions();
         var command = BuildExportCommand(options);
         AppendLog(command);
 
-        return Task.Run(() =>
+        await Task.Run(() =>
         {
             var result = BulkExportRunner.Run(options);
             AppendLog(FormatBulkExportResult(result));
@@ -1009,12 +1419,14 @@ public partial class MainWindow : Window
 
     private async Task RunCreateBibMapAsync()
     {
+        await RefreshCsvPreflightAsync();
+        AppendCsvSkippedMessage();
         var options = BuildExportOptions(includeTemplate: false);
         var command = BuildBibMapCommand(options);
         AppendLog(command);
 
         var result = await Task.Run(() => BulkExportRunner.CreateBibMap(options));
-        BibMapPathInput.Text = result.BibMapPath;
+        BibMapPathInput.Text = ToEventDisplayPath(result.BibMapPath);
         SaveDesktopSettings();
         AppendLog(FormatBibMapResult(result));
     }
@@ -1055,7 +1467,7 @@ public partial class MainWindow : Window
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    SscUsersCsvPathInput.Text = result.OutputPath;
+                    SscUsersCsvPathInput.Text = ToEventDisplayPath(result.OutputPath);
                     SaveDesktopSettings();
                 });
             }
@@ -1088,6 +1500,42 @@ public partial class MainWindow : Window
         });
     }
 
+    private void ShowLogWindow()
+    {
+        if (_logWindow is null)
+        {
+            _logWindow = new LogWindow(
+                () => RunSafelyAsync("Kopierer logg", CopyLogAsync),
+                () => RunSafelyAsync("Lagrer logg", SaveLogAsync),
+                ClearLog);
+            _logWindow.Closed += (_, _) => _logWindow = null;
+            _logWindow.Show(this);
+        }
+        else
+        {
+            _logWindow.Activate();
+        }
+
+        _logWindow.SetLogText(_logText.ToString());
+        _logErrorCount = 0;
+        UpdateLogIndicators();
+    }
+
+    private void ClearLog()
+    {
+        _logText.Clear();
+        _logErrorCount = 0;
+        _latestLogMessage = "Loggen er tømt.";
+        _logWindow?.SetLogText(string.Empty);
+        UpdateLogIndicators();
+    }
+
+    private void UpdateLogIndicators()
+    {
+        OpenLogButtonControl.Content = _logErrorCount > 0 ? $"Logg ({_logErrorCount})" : "Logg";
+        LatestLogLabelControl.Text = _latestLogMessage;
+    }
+
     private async Task CopyLogAsync()
     {
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -1096,7 +1544,7 @@ public partial class MainWindow : Window
             throw new InvalidOperationException("Clipboard is not available.");
         }
 
-        await clipboard.SetTextAsync(LogInput.Text ?? string.Empty);
+        await clipboard.SetTextAsync(_logText.ToString());
         AppendLog("Logg kopiert.");
     }
 
@@ -1119,7 +1567,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var text = LogInput.Text ?? string.Empty;
+        var text = _logText.ToString();
         if (file.TryGetLocalPath() is { } path)
         {
             await File.WriteAllTextAsync(path, text, Encoding.UTF8);
@@ -1146,13 +1594,12 @@ public partial class MainWindow : Window
         var csvBase = BuildCsvActionState(includeTemplate: false);
         var csvExport = BuildCsvActionState(includeTemplate: true);
         var writeback = BuildWritebackActionState();
-        var sscUsers = BuildSscUsersActionState();
-        var sscValidate = BuildSscValidateActionState();
-        var sscLanes = BuildSscLanesActionState();
+        var sscRows = BuildSscStatusRows();
         var classWriteback = BuildEventClassWritebackActionState();
         var databaseExists = HasExistingFile(DatabasePathInput.Text);
         var idsAreValid = TryParseOptionalIds(StevneIdsInput.Text, out var ids);
         var hasIds = idsAreValid && ids.Count > 0;
+        var csvPreflightCanExport = _csvPreflight?.CanExport == true;
 
         SetControlEnabled("CreateEventMenuItem", createEvent.CanRun && !_isRunning);
         SetControlEnabled("CreateEventButton", createEvent.CanRun && !_isRunning);
@@ -1167,13 +1614,13 @@ public partial class MainWindow : Window
         SetControlEnabled("SelectAllStevnerButton", _stevneChecks.Count > 0 && !_isRunning);
         SetControlEnabled("ClearStevnerButton", _stevneChecks.Count > 0 && !_isRunning);
         SetControlEnabled("CopyTemplatesButton", !_isRunning);
-        SetControlEnabled("CreateBibMapButton", csvBase.CanRun && !_isRunning);
-        SetControlEnabled("RunExportButton", csvExport.CanRun && !_isRunning);
+        SetControlEnabled("CreateBibMapButton", csvBase.CanRun && csvPreflightCanExport && !_isRunning);
+        SetControlEnabled("RunExportButton", csvExport.CanRun && csvPreflightCanExport && !_isRunning);
         SetControlEnabled("RunWritebackPreviewButton", writeback.CanRun && !_isRunning);
         SetControlEnabled("RunWritebackApplyButton", writeback.CanRun && !_isRunning);
-        SetControlEnabled("RunSscUsersButton", sscUsers.CanRun && !_isRunning);
-        SetControlEnabled("RunSscValidateButton", sscValidate.CanRun && !_isRunning);
-        SetControlEnabled("RunSscLanesButton", sscLanes.CanRun && !_isRunning);
+        SetControlEnabled("RunSscUsersButton", sscRows.First(row => row.Action == "Eksporter SSC-brukere").CanRun && !_isRunning);
+        SetControlEnabled("RunSscValidateButton", sscRows.First(row => row.Action == "Valider SSC").CanRun && !_isRunning);
+        SetControlEnabled("RunSscLanesButton", sscRows.First(row => row.Action == "Eksporter SSC baner/reset").CanRun && !_isRunning);
         SetControlEnabled("ShowStevnerButton", databaseExists && !_isRunning);
         SetControlEnabled("ShowSelectedOvelserButton", databaseExists && hasIds && !_isRunning);
 
@@ -1188,9 +1635,28 @@ public partial class MainWindow : Window
         }
 
         EventActionHelpLabel.Text = FormatMissing(createEvent);
-        CsvActionHelpLabel.Text = FormatCsvMissing(csvBase, csvExport);
+        CsvActionHelpLabel.Text = FormatCsvMissing(csvBase, csvExport, _csvPreflight);
         WritebackActionHelpLabel.Text = FormatMissing(writeback);
-        SscActionHelpLabel.Text = FormatSscMissing(sscUsers, sscValidate, sscLanes);
+        RenderSscStatusRows(sscRows);
+        UpdatePathTooltips();
+    }
+
+    private void UpdatePathTooltips()
+    {
+        SetPathTooltip(DatabasePathInput);
+        SetPathTooltip(OutputDirectoryInput);
+        SetPathTooltip(ShooterGroupsTemplateInput);
+        SetPathTooltip(ExportsDirectoryInput);
+        SetPathTooltip(BibMapPathInput);
+        SetPathTooltip(SscBibMapPathInput);
+        SetPathTooltip(SscOutputDirectoryInput);
+        SetPathTooltip(SscUsersCsvPathInput);
+    }
+
+    private void SetPathTooltip(TextBox input)
+    {
+        var text = input.Text;
+        ToolTip.SetTip(input, string.IsNullOrWhiteSpace(text) ? null : ResolveEventPath(text));
     }
 
     private void SetStatus(RunStatus status, string? detail = null)
@@ -1198,19 +1664,19 @@ public partial class MainWindow : Window
         switch (status)
         {
             case RunStatus.Ready:
-                StatusLabel.Text = "Ready";
+                StatusLabel.Text = "Klar";
                 StatusBadgeControl.Background = ReadyStatusBrush;
-                ToolTip.SetTip(StatusBadgeControl, "Ready");
+                ToolTip.SetTip(StatusBadgeControl, "Klar");
                 break;
             case RunStatus.Running:
-                StatusLabel.Text = "Running";
+                StatusLabel.Text = "Kjører";
                 StatusBadgeControl.Background = RunningStatusBrush;
-                ToolTip.SetTip(StatusBadgeControl, detail ?? "Running");
+                ToolTip.SetTip(StatusBadgeControl, detail ?? "Kjører");
                 break;
             case RunStatus.Error:
-                StatusLabel.Text = "Error";
+                StatusLabel.Text = "Feil";
                 StatusBadgeControl.Background = ErrorStatusBrush;
-                ToolTip.SetTip(StatusBadgeControl, detail ?? "Error");
+                ToolTip.SetTip(StatusBadgeControl, detail ?? "Feil");
                 break;
         }
     }
@@ -1246,7 +1712,6 @@ public partial class MainWindow : Window
         AddDatabaseRequirement(missing);
         AddStevneIdsRequirement(missing);
         AddTextRequirement(missing, OutputDirectoryInput.Text, "Output-mappe");
-        AddOvelseRequirement(missing);
         if (includeTemplate && !string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text) &&
             !HasExistingFile(ShooterGroupsTemplateInput.Text))
         {
@@ -1287,64 +1752,22 @@ public partial class MainWindow : Window
         return new ActionState(missing);
     }
 
-    private ActionState BuildSscUsersActionState()
+    private IReadOnlyList<SscActionStatusRow> BuildSscStatusRows()
     {
-        var missing = new List<string>();
-        AddDatabaseRequirement(missing);
-        AddStevneIdsRequirement(missing);
-        AddTextRequirement(missing, SscOutputDirectoryInput.Text, "Output-mappe");
-        AddTextRequirement(missing, SscOrganizationNameInput.Text, "organisasjonsnavn");
-        AddTextRequirement(missing, SscOrganizationIdInput.Text, "organisasjons-id");
-        return new ActionState(missing);
-    }
-
-    private ActionState BuildSscValidateActionState()
-    {
-        var missing = new List<string>();
-        AddDatabaseRequirement(missing);
-        AddStevneIdsRequirement(missing);
+        var idsValid = TryParseOptionalIds(StevneIdsInput.Text, out var ids);
         var usersCsvPath = ResolveSscUsersCsvPathForValidation();
-        if (string.IsNullOrWhiteSpace(usersCsvPath))
-        {
-            missing.Add("Users CSV mangler");
-        }
-        else if (!HasExistingFile(usersCsvPath))
-        {
-            missing.Add("Users CSV finnes ikke");
-        }
-
-        if (!string.IsNullOrWhiteSpace(SscBibMapPathInput.Text) && !HasExistingFile(SscBibMapPathInput.Text))
-        {
-            missing.Add("bib-map.csv finnes ikke");
-        }
-
-        return new ActionState(missing);
-    }
-
-    private ActionState BuildSscLanesActionState()
-    {
-        var missing = new List<string>();
-        AddDatabaseRequirement(missing);
-        if (!TryParseOptionalIds(StevneIdsInput.Text, out var ids))
-        {
-            missing.Add("Stevne.Id er ugyldig");
-        }
-        else if (ids.Count != 1)
-        {
-            missing.Add("nøyaktig én Stevne.Id");
-        }
-
-        if (string.IsNullOrWhiteSpace(SscStartlagInput.Text))
-        {
-            missing.Add("startlag mangler");
-        }
-        else if (!DateTime.TryParse(SscStartlagInput.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
-        {
-            missing.Add("startlag er ugyldig");
-        }
-
-        AddTextRequirement(missing, SscOutputDirectoryInput.Text, "Output-mappe");
-        return new ActionState(missing);
+        return SscActionStatusBuilder.Build(new SscActionStatusInput(
+            DatabaseExists: HasExistingFile(DatabasePathInput.Text),
+            StevneIdsValid: idsValid,
+            StevneIds: ids,
+            SelectedStevneIdsText: StevneIdsInput.Text?.Trim() ?? string.Empty,
+            OutputDirectoryPresent: !string.IsNullOrWhiteSpace(SscOutputDirectoryInput.Text),
+            UsersCsvExists: HasExistingFile(usersCsvPath),
+            BibMapExists: HasExistingFile(SscBibMapPathInput.Text),
+            OrganizationNamePresent: !string.IsNullOrWhiteSpace(SscOrganizationNameInput.Text),
+            OrganizationIdPresent: !string.IsNullOrWhiteSpace(SscOrganizationIdInput.Text),
+            StartlagPresent: !string.IsNullOrWhiteSpace(SscStartlagInput.Text),
+            StartlagValid: DateTime.TryParse(SscStartlagInput.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _)));
     }
 
     private void AddDatabaseRequirement(List<string> missing)
@@ -1384,45 +1807,67 @@ public partial class MainWindow : Window
     }
 
     private bool HasSelectedOvelse() =>
-        OvelseSelectInput.SelectedItem is OvelseChoice ||
+        OvelseSelectInput.SelectedItem is OvelseChoice { IsAll: false } ||
         int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+
+    private CsvExerciseSelection SelectedCsvExerciseSelection()
+    {
+        if (OvelseSelectInput.SelectedItem is OvelseChoice { IsAll: false } choice)
+        {
+            var name = choice.HovedOvelseId == 0 && string.IsNullOrWhiteSpace(choice.ShortName)
+                ? TryLookupOvelseName(choice.Id) ?? choice.Name
+                : choice.Name;
+            return new CsvExerciseSelection(IsAll: false, choice.Id, name);
+        }
+
+        if (int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var ovelseId))
+        {
+            var name = OvelseSelectInput.ItemsSource is IEnumerable<OvelseChoice> choices
+                ? choices.FirstOrDefault(choice => !choice.IsAll && choice.Id == ovelseId)?.Name
+                : null;
+            return new CsvExerciseSelection(IsAll: false, ovelseId, name ?? $"OvelseDef.Id {ovelseId}");
+        }
+
+        return CsvExerciseSelection.All;
+    }
 
     private string? ResolveSscUsersCsvPathForValidation()
     {
         if (!string.IsNullOrWhiteSpace(SscUsersCsvPathInput.Text))
         {
-            return SscUsersCsvPathInput.Text.Trim();
+            return ResolveEventPath(SscUsersCsvPathInput.Text);
         }
 
         return string.IsNullOrWhiteSpace(SscOutputDirectoryInput.Text)
             ? null
-            : Path.Combine(SscOutputDirectoryInput.Text.Trim(), "ssc-users.csv");
+            : Path.Combine(ResolveEventPath(SscOutputDirectoryInput.Text), "ssc-users.csv");
     }
 
-    private static bool HasExistingFile(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && File.Exists(value.Trim());
+    private string CurrentEventPath =>
+        _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
 
-    private static bool HasExistingDirectory(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && Directory.Exists(value.Trim());
+    private string ToEventDisplayPath(string? path) =>
+        DesktopEventPaths.ToEventDisplayPath(_currentEventFilePath, path);
+
+    private string ResolveEventPath(string? path) =>
+        DesktopEventPaths.ResolveEventPath(_currentEventFilePath, path);
+
+    private bool HasExistingFile(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && File.Exists(ResolveEventPath(value));
+
+    private bool HasExistingDirectory(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && Directory.Exists(ResolveEventPath(value));
 
     private static bool TryParseOptionalIds(string? value, out IReadOnlyList<int> ids)
-    {
-        try
-        {
-            ids = ParseOptionalIdList(value);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            ids = [];
-            return false;
-        }
-    }
+        => DesktopUiParsing.TryParseOptionalIds(value, out ids);
 
     private static string FormatMissing(ActionState state) =>
         state.CanRun ? string.Empty : "Mangler: " + string.Join(", ", state.Missing) + ".";
 
-    private static string FormatCsvMissing(ActionState bibMapState, ActionState exportState)
+    private static string FormatCsvMissing(
+        ActionState bibMapState,
+        ActionState exportState,
+        CsvPreflightResult? preflight)
     {
         var lines = new List<string>();
         if (!bibMapState.CanRun)
@@ -1435,28 +1880,14 @@ public partial class MainWindow : Window
             lines.Add("CSV-filer: " + string.Join(", ", exportState.Missing) + ".");
         }
 
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string FormatSscMissing(
-        ActionState usersState,
-        ActionState validateState,
-        ActionState lanesState)
-    {
-        var lines = new List<string>();
-        if (!usersState.CanRun)
+        if (preflight is not null && !preflight.CanExport)
         {
-            lines.Add("SSC-brukere: " + string.Join(", ", usersState.Missing) + ".");
+            lines.Add(preflight.EmptyMessage);
         }
 
-        if (!validateState.CanRun)
+        if (preflight is null)
         {
-            lines.Add("Valider SSC: " + string.Join(", ", validateState.Missing) + ".");
-        }
-
-        if (!lanesState.CanRun)
-        {
-            lines.Add("SSC baner/reset: " + string.Join(", ", lanesState.Missing) + ".");
+            lines.Add("CSV preflight er ikke kjørt ennå.");
         }
 
         return string.Join(Environment.NewLine, lines);
@@ -1477,44 +1908,29 @@ public partial class MainWindow : Window
     private AppOptions BuildExportOptions(bool includeTemplate = true)
     {
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
-        var outputDirectory = RequireText(OutputDirectoryInput.Text, "Output directory");
+        var outputDirectory = ResolveEventPath(RequireText(OutputDirectoryInput.Text, "Output directory"));
         var templatePath = !includeTemplate || string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text)
             ? null
             : RequireExistingFile(ShooterGroupsTemplateInput.Text, "Shooter groups XML");
-        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
-        var ovelseFilter = OvelseFilterInput.Text?.Trim();
-        int? ovelseId = null;
-        string? ovelseName = null;
-        if (!string.IsNullOrWhiteSpace(ovelseFilter))
-        {
-            if (int.TryParse(ovelseFilter, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
-            {
-                ovelseId = parsed;
-            }
-            else
-            {
-                ovelseName = ovelseFilter;
-            }
-        }
+        var ids = _csvPreflight?.IncludedStevneIds.Count > 0
+            ? _csvPreflight.IncludedStevneIds
+            : ParseIdList(StevneIdsInput.Text, "Stevne ids");
 
-        return new AppOptions(
+        return DesktopExportOptionsBuilder.Build(new DesktopExportOptionsInput(
             databasePath,
-            StevneId: null,
-            StevneIds: ids,
-            EventDate: null,
-            EventName: null,
-            OvelseId: ovelseId,
-            OvelseName: ovelseName,
-            ShooterGroupsTemplatePath: templatePath,
-            OutputDirectory: outputDirectory,
-            EncodingName: SelectedEncoding(),
-            Wizard: false);
+            ids,
+            outputDirectory,
+            SelectedEncoding(),
+            templatePath,
+            SelectedCsvExerciseSelection()));
     }
 
     private SiusRankWritebackOptions BuildWritebackOptions(bool apply)
     {
         var exportsDirectory = RequireExistingDirectory(ExportsDirectoryInput.Text, "Exports directory");
-        var requestedBibMapPath = CleanSetting(BibMapPathInput.Text);
+        var requestedBibMapPath = CleanSetting(BibMapPathInput.Text) is { } bibMapPath
+            ? ResolveEventPath(bibMapPath)
+            : null;
         var resolvedBibMapPath = SiusRankWritebackCommand.ResolveBibMapPath(
             requestedBibMapPath,
             exportsDirectory,
@@ -1530,7 +1946,7 @@ public partial class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(resolvedBibMapPath))
         {
-            BibMapPathInput.Text = resolvedBibMapPath;
+            BibMapPathInput.Text = ToEventDisplayPath(resolvedBibMapPath);
         }
 
         var eventFilters = ParseEventFilters(EventFilterInput.Text);
@@ -1545,12 +1961,12 @@ public partial class MainWindow : Window
 
     private ExportSscUsersOptions BuildSscUsersOptions()
     {
-        var outputDirectory = RequireText(SscOutputDirectoryInput.Text, "SSC output directory");
+        var outputDirectory = ResolveEventPath(RequireText(SscOutputDirectoryInput.Text, "SSC output directory"));
         var outputPath = Path.Combine(outputDirectory, "ssc-users.csv");
         return new ExportSscUsersOptions(
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
             ParseIdList(StevneIdsInput.Text, "Stevne ids"),
-            CleanSetting(SscBibMapPathInput.Text),
+            CleanSetting(SscBibMapPathInput.Text) is { } bibMapPath ? ResolveEventPath(bibMapPath) : null,
             outputPath,
             RequireText(SscOrganizationNameInput.Text, "SSC organization name"),
             RequireText(SscOrganizationIdInput.Text, "SSC organization id"),
@@ -1560,13 +1976,13 @@ public partial class MainWindow : Window
     private ValidateSscOptions BuildSscValidateOptions()
     {
         var usersCsvPath = string.IsNullOrWhiteSpace(SscUsersCsvPathInput.Text)
-            ? Path.Combine(RequireText(SscOutputDirectoryInput.Text, "SSC output directory"), "ssc-users.csv")
-            : SscUsersCsvPathInput.Text;
+            ? Path.Combine(ResolveEventPath(RequireText(SscOutputDirectoryInput.Text, "SSC output directory")), "ssc-users.csv")
+            : ResolveEventPath(SscUsersCsvPathInput.Text);
 
         return new ValidateSscOptions(
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
             ParseIdList(StevneIdsInput.Text, "Stevne ids"),
-            CleanSetting(SscBibMapPathInput.Text),
+            CleanSetting(SscBibMapPathInput.Text) is { } bibMapPath ? ResolveEventPath(bibMapPath) : null,
             RequireExistingFile(usersCsvPath, "SSC users CSV"));
     }
 
@@ -1582,8 +1998,8 @@ public partial class MainWindow : Window
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
             ids[0],
             RequireText(SscStartlagInput.Text, "SSC startlag"),
-            CleanSetting(SscBibMapPathInput.Text),
-            RequireText(SscOutputDirectoryInput.Text, "SSC output directory"),
+            CleanSetting(SscBibMapPathInput.Text) is { } bibMapPath ? ResolveEventPath(bibMapPath) : null,
+            ResolveEventPath(RequireText(SscOutputDirectoryInput.Text, "SSC output directory")),
             SelectedSscLaneCount());
     }
 
@@ -1634,7 +2050,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            BuildDesktopSettings().Save();
+            _desktopSettings = BuildDesktopSettings();
+            _desktopSettings.Save();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1645,25 +2062,22 @@ public partial class MainWindow : Window
         }
     }
 
-    private DesktopSettings BuildDesktopSettings() => new(
-        EventFilePath: CleanSetting(EventFilePathInput.Text),
-        DatabasePath: CleanSetting(DatabasePathInput.Text),
-        SiusRankFolder: CleanSetting(SiusRankFolderInput.Text),
-        OutputDirectory: CleanSetting(OutputDirectoryInput.Text),
-        ShooterGroupsTemplatePath: CleanSetting(ShooterGroupsTemplateInput.Text),
-        ExportsDirectory: CleanSetting(ExportsDirectoryInput.Text),
-        BibMapPath: CleanSetting(BibMapPathInput.Text),
-        SscBibMapPath: CleanSetting(SscBibMapPathInput.Text),
-        SscOutputDirectory: CleanSetting(SscOutputDirectoryInput.Text),
-        SscUsersCsvPath: CleanSetting(SscUsersCsvPathInput.Text),
-        SscStartlag: CleanSetting(SscStartlagInput.Text),
-        SscLaneCount: SelectedSscLaneCount().ToString(CultureInfo.InvariantCulture),
-        SscOrganizationName: CleanSetting(SscOrganizationNameInput.Text),
-        SscOrganizationId: CleanSetting(SscOrganizationIdInput.Text),
-        StevneIds: CleanSetting(StevneIdsInput.Text),
-        EncodingName: SelectedEncoding(),
-        OvelseFilter: CleanSetting(OvelseFilterInput.Text),
-        EventFilter: CleanSetting(EventFilterInput.Text));
+    private DesktopSettings BuildDesktopSettings() => new()
+    {
+        Version = 2,
+        Global = _desktopSettings.Global,
+        Session = new DesktopSessionSettings
+        {
+            LastEventFilePath = CleanSetting(EventFilePathInput.Text),
+            StevneIds = CleanSetting(StevneIdsInput.Text),
+            OvelseFilter = CleanSetting(OvelseFilterInput.Text),
+            EventFilter = CleanSetting(EventFilterInput.Text),
+            SscStartlag = CleanSetting(SscStartlagInput.Text),
+            SscLaneCount = SelectedSscLaneCount().ToString(CultureInfo.InvariantCulture),
+            SscOrganizationName = CleanSetting(SscOrganizationNameInput.Text),
+            SscOrganizationId = CleanSetting(SscOrganizationIdInput.Text)
+        }
+    };
 
     private static void SetTextIfPresent(TextBox input, string? value)
     {
@@ -1690,66 +2104,32 @@ public partial class MainWindow : Window
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static IReadOnlyList<int> ParseIdList(string? value, string name)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ArgumentException($"{name} is required.");
-        }
-
-        var ids = new List<int>();
-        foreach (var item in value.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            var range = item.Split('-', 2, StringSplitOptions.TrimEntries);
-            if (range.Length == 2)
-            {
-                if (!int.TryParse(range[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var from) ||
-                    !int.TryParse(range[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var to) ||
-                    from > to)
-                {
-                    throw new ArgumentException($"{name} has invalid range '{item}'.");
-                }
-
-                ids.AddRange(Enumerable.Range(from, to - from + 1));
-                continue;
-            }
-
-            if (!int.TryParse(item, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
-            {
-                throw new ArgumentException($"{name} must contain comma-separated ids or ranges.");
-            }
-
-            ids.Add(id);
-        }
-
-        return ids.Distinct().ToList();
-    }
+    private static IReadOnlyList<int> ParseIdList(string? value, string name) =>
+        DesktopUiParsing.ParseIdList(value, name);
 
     private static IReadOnlyList<int> ParseOptionalIdList(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? []
-            : ParseIdList(value, "Stevne ids");
+        DesktopUiParsing.ParseOptionalIdList(value);
 
-    private static string RequireExistingFile(string? value, string label)
+    private string RequireExistingFile(string? value, string label)
     {
-        var path = RequireText(value, label);
+        var path = ResolveEventPath(RequireText(value, label));
         if (!File.Exists(path))
         {
             throw new ArgumentException($"{label} does not exist: {path}");
         }
 
-        return Path.GetFullPath(path);
+        return EventProjectFile.IsWindowsRootedPath(path) ? path : Path.GetFullPath(path);
     }
 
-    private static string RequireExistingDirectory(string? value, string label)
+    private string RequireExistingDirectory(string? value, string label)
     {
-        var path = RequireText(value, label);
+        var path = ResolveEventPath(RequireText(value, label));
         if (!Directory.Exists(path))
         {
             throw new ArgumentException($"{label} does not exist: {path}");
         }
 
-        return Path.GetFullPath(path);
+        return EventProjectFile.IsWindowsRootedPath(path) ? path : Path.GetFullPath(path);
     }
 
     private static string RequireText(string? value, string label)
@@ -2135,25 +2515,73 @@ public partial class MainWindow : Window
         string Name,
         string ShortName,
         int HovedOvelseId,
-        int StarterCount)
+        int StarterCount,
+        bool IsAll = false)
     {
+        public static OvelseChoice All { get; } = new(
+            Id: 0,
+            Name: "Alle øvelser i valgte stevner",
+            ShortName: string.Empty,
+            HovedOvelseId: 0,
+            StarterCount: 0,
+            IsAll: true);
+
         public override string ToString() =>
-            $"{Name} (Id {Id}, starters={StarterCount})";
+            IsAll
+                ? Name
+                : $"{Name} (Id {Id}, startere={StarterCount})";
     }
+
+    private sealed record DiagnosticStevneRow(
+        string Date,
+        int StevneId,
+        string Name,
+        string EventType,
+        int ExerciseCount,
+        int StarterCount);
+
+    private sealed record DiagnosticOvelseRow(
+        string Date,
+        int StevneId,
+        string StevneName,
+        int OvelseId,
+        string OvelseName,
+        string ShortName,
+        int StarterCount);
 
     private void AppendLog(string message)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var text = LogInput.Text ?? string.Empty;
-            if (text.Length > 0 && !text.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            var trimmed = message.TrimEnd();
+            _logText.Append('[')
+                .Append(DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture))
+                .Append("] ")
+                .Append(trimmed)
+                .AppendLine();
+
+            _latestLogMessage = BuildLatestLogMessage(trimmed);
+            if (trimmed.Contains("ERROR:", StringComparison.OrdinalIgnoreCase))
             {
-                text += Environment.NewLine;
+                _logErrorCount++;
             }
 
-            LogInput.Text = text + $"[{DateTime.Now:HH:mm:ss}] " + message.TrimEnd() + Environment.NewLine;
-            LogInput.CaretIndex = LogInput.Text.Length;
-            LogInput.ScrollToLine(Math.Max(0, LogInput.GetLineCount() - 1));
+            _logWindow?.SetLogText(_logText.ToString());
+            UpdateLogIndicators();
         });
+    }
+
+    private static string BuildLatestLogMessage(string message)
+    {
+        var firstLine = message
+            .Split(["\r\n", "\n"], StringSplitOptions.None)
+            .FirstOrDefault() ?? string.Empty;
+
+        if (firstLine.StartsWith("ERROR:", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Siste feil: " + firstLine["ERROR:".Length..].Trim();
+        }
+
+        return "Siste: " + firstLine;
     }
 }

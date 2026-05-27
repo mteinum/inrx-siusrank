@@ -49,6 +49,46 @@ public sealed class EventProjectConfigTests
     }
 
     [Fact]
+    public void ToStoredPath_converts_unix_project_local_paths_to_relative()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+
+        Assert.Equal("./storage.db3", EventProjectFile.ToStoredPath(eventPath, Path.Combine(directory.Path, "storage.db3")));
+        Assert.Equal("./ssc-setup/ssc-users.csv", EventProjectFile.ToStoredPath(eventPath, Path.Combine(directory.Path, "ssc-setup", "ssc-users.csv")));
+    }
+
+    [Fact]
+    public void ToStoredPath_converts_windows_project_local_paths_to_relative()
+    {
+        const string eventPath = @"C:\Stevner\Pinse2026\event.json";
+
+        Assert.Equal("./storage.db3", EventProjectFile.ToStoredPath(eventPath, @"C:\Stevner\Pinse2026\storage.db3"));
+        Assert.Equal("./ssc-setup/ssc-users.csv", EventProjectFile.ToStoredPath(eventPath, @"C:\Stevner\Pinse2026\ssc-setup\ssc-users.csv"));
+    }
+
+    [Fact]
+    public void ToStoredPath_keeps_outside_absolute_and_existing_relative_paths()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        var outsidePath = Path.Combine(Path.GetTempPath(), "outside", "storage.db3");
+
+        Assert.Equal(Path.GetFullPath(outsidePath), EventProjectFile.ToStoredPath(eventPath, outsidePath));
+        Assert.Equal("./storage.db3", EventProjectFile.ToStoredPath(eventPath, "./storage.db3"));
+        Assert.Equal("../shared/storage.db3", EventProjectFile.ToStoredPath(eventPath, "../shared/storage.db3"));
+    }
+
+    [Fact]
+    public void IsInsideDirectory_uses_path_boundaries()
+    {
+        Assert.True(EventProjectFile.IsInsideDirectory("/tmp/event", "/tmp/event/storage.db3"));
+        Assert.False(EventProjectFile.IsInsideDirectory("/tmp/event", "/tmp/event-other/storage.db3"));
+        Assert.True(EventProjectFile.IsInsideDirectory(@"C:\Stevner\Pinse2026", @"C:\Stevner\Pinse2026\storage.db3"));
+        Assert.False(EventProjectFile.IsInsideDirectory(@"C:\Stevner\Pinse2026", @"C:\Stevner\Pinse2026-other\storage.db3"));
+    }
+
+    [Fact]
     public void Class_folder_plan_uses_one_folder_per_effective_class()
     {
         var classes = EventProjectPlanner.BuildClassConfigs(

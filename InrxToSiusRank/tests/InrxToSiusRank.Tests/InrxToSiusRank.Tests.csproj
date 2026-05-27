@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\InrxToSiusRank.Desktop\InrxToSiusRank.Desktop.csproj" />
     <ProjectReference Include="..\..\src\InrxToSiusRank\InrxToSiusRank.csproj" />
   </ItemGroup>
 
