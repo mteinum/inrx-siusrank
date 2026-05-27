@@ -17,6 +17,7 @@
         <MenuItem x:Name="CreateEventMenuItem" Header="_Opprett event.json" />
         <MenuItem x:Name="OpenEventMenuItem" Header="_Åpne event.json" />
         <MenuItem x:Name="SaveEventMenuItem" Header="_Lagre event.json" />
+        <MenuItem x:Name="CloseEventMenuItem" Header="_Lukk stevne" />
         <Separator />
         <MenuItem x:Name="SettingsMenuItem" Header="_Innstillinger..." />
       </MenuItem>
@@ -61,7 +62,10 @@
                            PlaceholderText="Ingen event-fil lastet" />
                   <Button x:Name="CreateEventButton" Grid.Column="4" Classes="primary" Content="Opprett" />
                   <Button x:Name="OpenEventButton" Grid.Column="5" Content="Åpne" />
-                  <Button x:Name="SaveEventButton" Grid.Column="6" Content="Lagre" HorizontalAlignment="Left" />
+                  <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                    <Button x:Name="SaveEventButton" Content="Lagre" />
+                    <Button x:Name="CloseEventButton" Content="Lukk" />
+                  </StackPanel>
 
                   <TextBlock Grid.Row="1" Text="storage.db3" Classes="form-label" />
                   <TextBox x:Name="DatabasePathBox"

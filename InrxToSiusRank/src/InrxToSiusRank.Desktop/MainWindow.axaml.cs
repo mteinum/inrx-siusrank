@@ -204,10 +204,12 @@ public partial class MainWindow : Window
         Get<MenuItem>("CreateEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
         Get<MenuItem>("OpenEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
         Get<MenuItem>("SaveEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
+        Get<MenuItem>("CloseEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Lukker stevne", CloseEventAsync);
         Get<MenuItem>("SettingsMenuItem").Click += async (_, _) => await RunSafelyAsync("Åpner innstillinger", ShowSettingsWindowAsync);
         Get<Button>("CreateEventButton").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
         Get<Button>("OpenEventButton").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
         Get<Button>("SaveEventButton").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
+        Get<Button>("CloseEventButton").Click += async (_, _) => await RunSafelyAsync("Lukker stevne", CloseEventAsync);
 
         Get<Button>("BrowseDatabaseButton").Click += async (_, _) =>
             await BrowseFileAsync(DatabasePathInput, "Select storage.db3", "SQLite database", ["*.db3", "*.sqlite", "*.sqlite3"]);
@@ -470,6 +472,60 @@ public partial class MainWindow : Window
         AppendLog($"event.json saved: {path}");
     }
 
+    private Task CloseEventAsync()
+    {
+        var closedPath = CleanSetting(EventFilePathInput.Text);
+        _currentEventFilePath = null;
+        _currentEventConfig = null;
+        _eventTypeSelections.Clear();
+        _eventTypeInputs.Clear();
+        _stevneChecks.Clear();
+        _stevneChoices.Clear();
+        _writebackRows.Clear();
+        _writebackStatuses.Clear();
+        _writebackStatusLabels.Clear();
+        _writebackValidateButtons.Clear();
+        _writebackApplyButtons.Clear();
+        _csvPreflightRefreshVersion++;
+        _sscValidationPassed = false;
+        _sscLanesWritten = false;
+
+        EventFilePathInput.Text = string.Empty;
+        DatabasePathInput.Text = _desktopSettings.Global.DefaultDatabasePath ?? string.Empty;
+        StevneIdsInput.Text = string.Empty;
+        StevneSearchInput.Text = string.Empty;
+        SiusRankFolderInput.Text = _desktopSettings.Global.SiusRankFolder ?? @"C:\SIUS\SiusRank";
+        OutputDirectoryInput.Text = "./siusrank-import";
+        ShooterGroupsTemplateInput.Text = string.Empty;
+        ExportsDirectoryInput.Text = string.Empty;
+        EventFilterInput.Text = string.Empty;
+        BibMapPathInput.Text = "./siusrank-import/" + ChampionshipStartNumbers.BibMapFileName;
+        SscBibMapPathInput.Text = BibMapPathInput.Text;
+        SscOutputDirectoryInput.Text = "./ssc-setup";
+        SscUsersCsvPathInput.Text = "./ssc-setup/ssc-users.csv";
+        SscStartlagInput.Text = string.Empty;
+        SscUsersResultLabel.Text = string.Empty;
+        SscValidationResultLabel.Text = string.Empty;
+        SscLanesResultLabel.Text = string.Empty;
+        WritebackScanSummaryLabel.Text = "Åpne event.json først.";
+
+        OvelseSelectInput.ItemsSource = new[] { OvelseChoice.All };
+        OvelseSelectInput.SelectedItem = OvelseChoice.All;
+        OvelseFilterInput.Text = string.Empty;
+        StevneListContainer.Children.Clear();
+        StevneResultCountLabel.Text = "Ingen søk kjørt.";
+        ClearCsvPreflight("Åpne eller opprett event.json før CSV preflight.");
+        RenderWritebackRows(Array.Empty<DesktopWritebackDiscoveryRow>());
+        RenderDiagnosticStevner(Array.Empty<DiagnosticStevneRow>());
+        RenderDiagnosticOvelser(Array.Empty<DiagnosticOvelseRow>());
+        RefreshSscStevneChoices();
+        SaveDesktopSettings();
+        UpdateActionStates();
+
+        AppendLog(closedPath is null ? "Stevne lukket." : $"Stevne lukket: {closedPath}");
+        return Task.CompletedTask;
+    }
+
     private async Task ApplyEventConfigAsync(string eventPath, EventProjectConfig config)
     {
         _currentEventFilePath = Path.GetFullPath(eventPath);
@@ -639,6 +695,12 @@ public partial class MainWindow : Window
         if (int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var persistedId))
         {
             return choices.FirstOrDefault(choice => !choice.IsAll && choice.Id == persistedId) ?? OvelseChoice.All;
+        }
+
+        var concreteChoices = choices.Where(choice => !choice.IsAll).ToList();
+        if (concreteChoices.Count == 1)
+        {
+            return concreteChoices[0];
         }
 
         return OvelseChoice.All;
@@ -2210,6 +2272,8 @@ public partial class MainWindow : Window
         SetControlEnabled("OpenEventButton", !_isRunning);
         SetControlEnabled("SaveEventMenuItem", saveEvent.CanRun && !_isRunning);
         SetControlEnabled("SaveEventButton", saveEvent.CanRun && !_isRunning);
+        SetControlEnabled("CloseEventMenuItem", HasOpenEventState() && !_isRunning);
+        SetControlEnabled("CloseEventButton", HasOpenEventState() && !_isRunning);
         SetControlEnabled("LoadDatabaseButton", databaseExists && !_isRunning);
         SetControlEnabled("SearchStevnerButton", databaseExists && !_isRunning);
         SetControlEnabled("RefreshOvelserButton", databaseExists && hasIds && !_isRunning);
@@ -2259,6 +2323,11 @@ public partial class MainWindow : Window
         UpdateSscSummary(sscRows);
         UpdatePathTooltips();
     }
+
+    private bool HasOpenEventState() =>
+        _currentEventConfig is not null ||
+        !string.IsNullOrWhiteSpace(_currentEventFilePath) ||
+        !string.IsNullOrWhiteSpace(EventFilePathInput.Text);
 
     private string FormatWritebackSummary(ActionState state)
     {
