@@ -428,7 +428,7 @@ public static class SiusDataStartListReader
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         return Directory
-            .EnumerateFiles(directory, "*.csv", SearchOption.AllDirectories)
+            .EnumerateFiles(directory, "*_stl.csv", SearchOption.TopDirectoryOnly)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .SelectMany(ReadFile)
             .ToList();

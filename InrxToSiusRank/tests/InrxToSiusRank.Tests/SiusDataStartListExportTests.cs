@@ -5,20 +5,21 @@ namespace InrxToSiusRank.Tests;
 public sealed class SiusDataStartListExportTests
 {
     [Fact]
-    public void Reader_finds_sius_data_start_list_rows_recursively()
+    public void Reader_finds_sius_data_start_list_rows_in_selected_directory()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         using var directory = TempDirectory.Create();
-        var relay = Path.Combine(directory.Path, "SIUS Data", "Relay 1");
-        Directory.CreateDirectory(relay);
-        var path = Path.Combine(relay, "start_stl.csv");
+        var siusData = Path.Combine(directory.Path, "SIUS Data");
+        Directory.CreateDirectory(siusData);
+        var path = Path.Combine(siusData, "20260527_stl.csv");
         File.WriteAllText(
             path,
             ";26001;MØRENSKOG-BAUMANN;Roy;MØRENSKOG-BAUMANN Roy;NOR;2;123;FSSL;15;15;1;18:00;15;1;0;0\r\n",
             Encoding.GetEncoding(1252));
-        File.WriteAllText(Path.Combine(relay, "shots.csv"), "26001;10;0;15;10.4\r\n", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(siusData, "20260527_mod.csv"), ";26002;Ignored;Person;I. Person;C;0;1;Club;;16;1;18:00;16;1;0;0\r\n", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(siusData, "20260527.csv"), "26001;10;0;15;10.4\r\n", Encoding.UTF8);
 
-        var rows = SiusDataStartListReader.ReadDirectory(directory.Path);
+        var rows = SiusDataStartListReader.ReadDirectory(siusData);
 
         var row = Assert.Single(rows);
         Assert.Equal("26001", row.StartNumber);
@@ -27,6 +28,29 @@ public sealed class SiusDataStartListExportTests
         Assert.Equal("FSSL", row.Club);
         Assert.Equal(15, row.TargetNumber);
         Assert.Equal(1, row.Relay);
+    }
+
+    [Fact]
+    public void Reader_does_not_read_old_start_lists_from_subdirectories()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        using var directory = TempDirectory.Create();
+        var siusData = Path.Combine(directory.Path, "SIUS Data", "Data");
+        var oldEvent = Path.Combine(siusData, "2026-05-23 Hurtig Fin");
+        Directory.CreateDirectory(oldEvent);
+        File.WriteAllText(
+            Path.Combine(siusData, "20260527_stl.csv"),
+            ";7415;Landsverk;Arne;A. Landsverk;B;0;1;Greipstad Pistolklub;;16;1;18:00;16;1;0;0\r\n",
+            Encoding.GetEncoding(1252));
+        File.WriteAllText(
+            Path.Combine(oldEvent, "20260523_hurtig_stl.csv"),
+            ";1289294;Landsverk;Arne;A. Landsverk;B;0;1;Greipstad Pistolklub;;16;1;18:00;16;1;0;0\r\n",
+            Encoding.GetEncoding(1252));
+
+        var row = Assert.Single(SiusDataStartListReader.ReadDirectory(siusData));
+
+        Assert.Equal("7415", row.StartNumber);
+        Assert.Equal("20260527_stl.csv", Path.GetFileName(row.SourcePath));
     }
 
     [Fact]
@@ -42,7 +66,7 @@ public sealed class SiusDataStartListExportTests
             ";7415;Landsverk;Arne;A. Landsverk;B;0;1;Greipstad Pistolklub;;16;1;18:00;16;1;0;0\r\n",
             Encoding.GetEncoding(1252));
 
-        var row = Assert.Single(SiusDataStartListReader.ReadDirectory(directory.Path));
+        var row = Assert.Single(SiusDataStartListReader.ReadDirectory(relay));
 
         Assert.Equal("7415", row.StartNumber);
         Assert.Equal("Landsverk", row.LastName);
