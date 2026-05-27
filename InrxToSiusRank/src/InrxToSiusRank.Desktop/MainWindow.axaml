@@ -12,6 +12,14 @@
         Width="1180"
         Height="820">
   <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem x:Name="CreateEventMenuItem" Header="_Create event.json" />
+        <MenuItem x:Name="OpenEventMenuItem" Header="_Open event.json" />
+        <MenuItem x:Name="SaveEventMenuItem" Header="_Save event.json" />
+      </MenuItem>
+    </Menu>
+
     <Border DockPanel.Dock="Top"
             Background="#f6f8fa"
             BorderBrush="#d0d7de"
@@ -34,47 +42,81 @@
       </Grid>
     </Border>
 
-    <Grid RowDefinitions="Auto,Auto,*" Margin="16" RowSpacing="12">
-      <Border BorderBrush="#d0d7de" BorderThickness="0,0,0,1" Padding="0,0,0,12">
-        <Grid ColumnDefinitions="130,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
-          <TextBlock Text="storage.db3" VerticalAlignment="Center" />
-          <TextBox x:Name="DatabasePathBox" Grid.Column="1" PlaceholderText="Path to storage.db3" />
-          <Button x:Name="BrowseDatabaseButton" Grid.Column="2" Content="Velg fil" />
-          <Button x:Name="LoadDatabaseButton" Grid.Column="3" Content="Kontroller" />
+    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="12">
+      <TabControl Grid.Row="0">
+        <TabItem Header="Event">
+          <Border Margin="0,12,0,0" BorderBrush="#d0d7de" BorderThickness="0,0,0,1" Padding="0,0,0,12">
+            <Grid ColumnDefinitions="130,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+              <TextBlock Text="event.json" VerticalAlignment="Center" />
+              <TextBox x:Name="EventFilePathBox" Grid.Column="1" Grid.ColumnSpan="3" IsReadOnly="True" PlaceholderText="No event file loaded" />
 
-          <TextBlock Grid.Row="1" Text="Stevne ids" VerticalAlignment="Center" />
-          <TextBox x:Name="StevneIdsBox" Grid.Row="1" Grid.Column="1" PlaceholderText="413-417 or 413,414" />
-          <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" Foreground="#57606a" Text="Eksport/writeback" />
+              <TextBlock Grid.Row="1" Text="storage.db3" VerticalAlignment="Center" />
+              <TextBox x:Name="DatabasePathBox" Grid.Row="1" Grid.Column="1" PlaceholderText="Path to storage.db3" />
+              <Button x:Name="BrowseDatabaseButton" Grid.Row="1" Grid.Column="2" Content="Velg fil" />
+              <Button x:Name="LoadDatabaseButton" Grid.Row="1" Grid.Column="3" Content="Kontroller" />
 
-          <TextBlock Grid.Row="2" Text="Encoding" VerticalAlignment="Center" />
-          <ComboBox x:Name="EncodingBox" Grid.Row="2" Grid.Column="1" Width="180" HorizontalAlignment="Left" SelectedIndex="0">
-            <ComboBoxItem Content="utf8-bom" />
-            <ComboBoxItem Content="windows-1252" />
-          </ComboBox>
-        </Grid>
-      </Border>
+              <TextBlock Grid.Row="2" Text="Stevnesøk" VerticalAlignment="Center" />
+              <TextBox x:Name="StevneSearchBox" Grid.Row="2" Grid.Column="1" PlaceholderText="Navn eller dato, tom = siste 100" />
+              <Button x:Name="SearchStevnerButton" Grid.Row="2" Grid.Column="2" Content="Søk" />
+              <Button x:Name="RefreshEventClassesButton" Grid.Row="2" Grid.Column="3" Content="Oppdater klasser" />
 
-      <TabControl Grid.Row="1">
+              <TextBlock Grid.Row="3" Text="Stevner" VerticalAlignment="Top" Margin="0,4,0,0" />
+              <ScrollViewer Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="StevneListPanel" Spacing="4" />
+              </ScrollViewer>
+
+              <TextBlock Grid.Row="4" Text="Valgte ids" VerticalAlignment="Center" />
+              <TextBox x:Name="StevneIdsBox" Grid.Row="4" Grid.Column="1" PlaceholderText="413-417 or 413,414" />
+              <TextBlock Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="2" VerticalAlignment="Center" Foreground="#57606a" Text="Eksport/writeback" />
+
+              <TextBlock Grid.Row="5" Text="Stevnetype" VerticalAlignment="Top" Margin="0,4,0,0" />
+              <ScrollViewer Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" MaxHeight="140" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="EventTypesPanel" Spacing="4" />
+              </ScrollViewer>
+
+              <TextBlock Grid.Row="6" Text="Encoding" VerticalAlignment="Center" />
+              <ComboBox x:Name="EncodingBox" Grid.Row="6" Grid.Column="1" Width="180" HorizontalAlignment="Left" SelectedIndex="0">
+                <ComboBoxItem Content="utf8-bom" />
+                <ComboBoxItem Content="windows-1252" />
+              </ComboBox>
+            </Grid>
+          </Border>
+        </TabItem>
+
         <TabItem Header="CSV export">
-          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
-            <TextBlock Text="Output directory" VerticalAlignment="Center" />
-            <TextBox x:Name="OutputDirectoryBox" Grid.Column="1" PlaceholderText="siusrank-import directory" />
-            <Button x:Name="BrowseOutputButton" Grid.Column="2" Content="Velg mappe" />
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
+            <TextBlock Text="SIUS Rank folder" VerticalAlignment="Center" />
+            <TextBox x:Name="SiusRankFolderBox" Grid.Column="1" PlaceholderText="C:\SIUS\SiusRank" />
+            <Button x:Name="BrowseSiusRankFolderButton" Grid.Column="2" Content="Velg mappe" />
 
-            <TextBlock Grid.Row="1" Text="Shooter groups XML" VerticalAlignment="Center" />
-            <TextBox x:Name="ShooterGroupsTemplateBox" Grid.Row="1" Grid.Column="1" PlaceholderText="Optional ShooterGroupsTemplate.xml" />
-            <Button x:Name="BrowseShooterGroupsButton" Grid.Row="1" Grid.Column="2" Content="Velg fil" />
+            <TextBlock Grid.Row="1" Text="Output directory" VerticalAlignment="Center" />
+            <TextBox x:Name="OutputDirectoryBox" Grid.Row="1" Grid.Column="1" PlaceholderText="siusrank-import directory" />
+            <Button x:Name="BrowseOutputButton" Grid.Row="1" Grid.Column="2" Content="Velg mappe" />
 
-            <TextBlock Grid.Row="2" Text="SIUS templates" VerticalAlignment="Center" />
-            <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+            <TextBlock Grid.Row="2" Text="Shooter groups XML" VerticalAlignment="Center" />
+            <TextBox x:Name="ShooterGroupsTemplateBox" Grid.Row="2" Grid.Column="1" PlaceholderText="Optional ShooterGroupsTemplate.xml" />
+            <Button x:Name="BrowseShooterGroupsButton" Grid.Row="2" Grid.Column="2" Content="Velg fil" />
+
+            <TextBlock Grid.Row="3" Text="SIUS templates" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
               <Button x:Name="CopyTemplatesButton" Content="Kopier templates til SIUS Rank" />
               <TextBlock VerticalAlignment="Center" Foreground="#57606a" Text="C:\SIUS\SiusRank\Resources\Templates" />
             </StackPanel>
 
-            <TextBlock Grid.Row="3" Text="Øvelse filter" VerticalAlignment="Center" />
-            <TextBox x:Name="OvelseFilterBox" Grid.Row="3" Grid.Column="1" PlaceholderText="Optional OvelseDef.Id or name" />
+            <TextBlock Grid.Row="4" Text="Øvelse" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+              <ComboBox x:Name="OvelseSelectBox" Width="320" />
+              <Button x:Name="RefreshOvelserButton" Content="Oppdater øvelser" />
+              <TextBox x:Name="OvelseFilterBox" IsVisible="False" />
+            </StackPanel>
 
-            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <TextBlock Grid.Row="5" Text="Silhuett" VerticalAlignment="Center" />
+            <ComboBox x:Name="SilhouetteShootersPerStandBox" Grid.Row="5" Grid.Column="1" Width="180" HorizontalAlignment="Left" SelectedIndex="1">
+              <ComboBoxItem Content="1 skytter per stativ" />
+              <ComboBoxItem Content="2 skyttere per stativ" />
+            </ComboBox>
+
+            <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="8">
               <Button x:Name="CreateBibMapButton" Content="Opprett/oppdater bib-map.csv" />
               <Button x:Name="RunExportButton" Content="Lag CSV-filer" />
             </StackPanel>
@@ -82,7 +124,7 @@
         </TabItem>
 
         <TabItem Header="SIUS Rank writeback">
-          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
+          <Grid Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="150,*,Auto" RowSpacing="10" ColumnSpacing="8">
             <TextBlock Text="Exports directory" VerticalAlignment="Center" />
             <TextBox x:Name="ExportsDirectoryBox" Grid.Column="1" PlaceholderText="SIUS Rank Exports directory" />
             <Button x:Name="BrowseExportsButton" Grid.Column="2" Content="Velg mappe" />
@@ -98,6 +140,11 @@
               <Button x:Name="RunWritebackPreviewButton" Content="Tørrkjør writeback" />
               <Button x:Name="RunWritebackApplyButton" Content="Skriv til inrX" />
             </StackPanel>
+
+            <TextBlock Grid.Row="4" Text="Øvelse/klasse" VerticalAlignment="Top" Margin="0,4,0,0" />
+            <ScrollViewer Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+              <StackPanel x:Name="WritebackClassRowsPanel" Spacing="6" />
+            </ScrollViewer>
           </Grid>
         </TabItem>
 
@@ -148,7 +195,7 @@
         </TabItem>
       </TabControl>
 
-      <Grid Grid.Row="2" RowDefinitions="Auto,*">
+      <Grid Grid.Row="1" RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
           <TextBlock Text="Log" FontWeight="SemiBold" />
           <Button x:Name="ClearLogButton" Grid.Column="1" Content="Tøm" />

@@ -7,6 +7,7 @@ namespace InrxToSiusRank;
 public sealed class SeedStartLagRepository : IDisposable
 {
     private static readonly int[] SilhouetteTargets = [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34];
+    private static readonly int[] SingleShooterSilhouetteTargets = [3, 8, 13, 18, 23, 28, 33];
     private static readonly HashSet<int> TwentyFiveMeterOvelseIds = [6, 7, 8, 9, 10];
     private static readonly int[] TwentyFiveMeterCompetitionTargets = Enumerable.Range(1, 35).ToArray();
     private readonly SqliteConnection _connection;
@@ -23,16 +24,26 @@ public sealed class SeedStartLagRepository : IDisposable
         _connection.Open();
     }
 
-    public IReadOnlyList<SeedStartLagEventInput> GetEventInputs(IReadOnlyList<int> stevneIds)
+    public IReadOnlyList<SeedStartLagEventInput> GetEventInputs(
+        IReadOnlyList<int> stevneIds,
+        int silhouetteShootersPerStand = 2)
     {
         var inputs = new List<SeedStartLagEventInput>();
         foreach (var stevneId in stevneIds)
         {
-            inputs.Add(GetEventInput(stevneId));
+            inputs.Add(GetEventInput(stevneId, silhouetteShootersPerStand));
         }
 
         return inputs;
     }
+
+    public static IReadOnlyList<int> ResolveSilhouetteTargets(int shootersPerStand) =>
+        shootersPerStand switch
+        {
+            1 => SingleShooterSilhouetteTargets,
+            2 => SilhouetteTargets,
+            _ => throw new ArgumentException("Silhouette shooters per stand must be 1 or 2.", nameof(shootersPerStand))
+        };
 
     public static string CreateBackup(string databasePath)
     {
@@ -69,7 +80,7 @@ public sealed class SeedStartLagRepository : IDisposable
 
     public void Dispose() => _connection.Dispose();
 
-    private SeedStartLagEventInput GetEventInput(int stevneId)
+    private SeedStartLagEventInput GetEventInput(int stevneId, int silhouetteShootersPerStand)
     {
         var eventRows = GetEventRows(stevneId);
         if (eventRows.Count == 0)
@@ -96,7 +107,7 @@ public sealed class SeedStartLagRepository : IDisposable
             eventRow.HovedOvelseId);
         var startLags = GetStartLags(eventRow.ArrangementId, eventRow.HovedOvelseId);
         var shooters = GetShooters(stevneId, eventRow.OvelseDefId);
-        var targets = ResolveTargets(ovelse, eventRow.BaneStandpl, shooters);
+        var targets = ResolveTargets(ovelse, eventRow.BaneStandpl, shooters, silhouetteShootersPerStand);
         var relayInterval = ResolveRelayInterval(startLags);
 
         return new SeedStartLagEventInput(
@@ -229,11 +240,12 @@ public sealed class SeedStartLagRepository : IDisposable
     private static IReadOnlyList<int> ResolveTargets(
         OvelseInfo ovelse,
         int baneStandpl,
-        IReadOnlyList<SeedStartLagShooter> shooters)
+        IReadOnlyList<SeedStartLagShooter> shooters,
+        int silhouetteShootersPerStand)
     {
         if (ovelse.Id == 11 || ovelse.Name.Equals("Silhuett", StringComparison.OrdinalIgnoreCase))
         {
-            return SilhouetteTargets;
+            return ResolveSilhouetteTargets(silhouetteShootersPerStand);
         }
 
         if (TwentyFiveMeterOvelseIds.Contains(ovelse.Id))

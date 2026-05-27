@@ -5,7 +5,9 @@ using System.Text.Json;
 namespace InrxToSiusRank.Desktop;
 
 internal sealed record DesktopSettings(
+    string? EventFilePath,
     string? DatabasePath,
+    string? SiusRankFolder,
     string? OutputDirectory,
     string? ShooterGroupsTemplatePath,
     string? ExportsDirectory,
@@ -30,7 +32,9 @@ internal sealed record DesktopSettings(
     public static string SettingsPath => Path.Combine(GetSettingsDirectory(), "desktop-settings.json");
 
     public static DesktopSettings Empty { get; } = new(
+        EventFilePath: null,
         DatabasePath: null,
+        SiusRankFolder: null,
         OutputDirectory: null,
         ShooterGroupsTemplatePath: null,
         ExportsDirectory: null,

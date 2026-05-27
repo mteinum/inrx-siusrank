@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 
@@ -13,6 +14,13 @@ namespace InrxToSiusRank.Desktop;
 
 public partial class MainWindow : Window
 {
+    private readonly Dictionary<int, CheckBox> _stevneChecks = new();
+    private readonly Dictionary<int, StevneChoice> _stevneChoices = new();
+    private readonly Dictionary<int, ComboBox> _eventTypeInputs = new();
+    private readonly Dictionary<string, TextBlock> _writebackStatusLabels = new(StringComparer.OrdinalIgnoreCase);
+    private string? _currentEventFilePath;
+    private EventProjectConfig? _currentEventConfig;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -21,17 +29,31 @@ public partial class MainWindow : Window
         Closing += (_, _) => SaveDesktopSettings(logWarning: false);
     }
 
+    private TextBox EventFilePathInput => Get<TextBox>("EventFilePathBox");
+
     private TextBox DatabasePathInput => Get<TextBox>("DatabasePathBox");
+
+    private TextBox StevneSearchInput => Get<TextBox>("StevneSearchBox");
+
+    private StackPanel StevneListContainer => Get<StackPanel>("StevneListPanel");
 
     private TextBox StevneIdsInput => Get<TextBox>("StevneIdsBox");
 
+    private StackPanel EventTypesContainer => Get<StackPanel>("EventTypesPanel");
+
     private ComboBox EncodingInput => Get<ComboBox>("EncodingBox");
+
+    private TextBox SiusRankFolderInput => Get<TextBox>("SiusRankFolderBox");
 
     private TextBox OutputDirectoryInput => Get<TextBox>("OutputDirectoryBox");
 
     private TextBox ShooterGroupsTemplateInput => Get<TextBox>("ShooterGroupsTemplateBox");
 
+    private ComboBox OvelseSelectInput => Get<ComboBox>("OvelseSelectBox");
+
     private TextBox OvelseFilterInput => Get<TextBox>("OvelseFilterBox");
+
+    private ComboBox SilhouetteShootersPerStandInput => Get<ComboBox>("SilhouetteShootersPerStandBox");
 
     private TextBox ExportsDirectoryInput => Get<TextBox>("ExportsDirectoryBox");
 
@@ -53,6 +75,8 @@ public partial class MainWindow : Window
 
     private ComboBox SscLaneCountInput => Get<ComboBox>("SscLaneCountBox");
 
+    private StackPanel WritebackClassRowsContainer => Get<StackPanel>("WritebackClassRowsPanel");
+
     private TextBox LogInput => Get<TextBox>("LogBox");
 
     private TextBlock StatusLabel => Get<TextBlock>("StatusText");
@@ -64,6 +88,7 @@ public partial class MainWindow : Window
     private void InitializeDefaults()
     {
         StevneIdsInput.Text = "413-417";
+        SiusRankFolderInput.Text = @"C:\SIUS\SiusRank";
         OutputDirectoryInput.Text = Path.Combine(Environment.CurrentDirectory, "siusrank-import");
         SscOrganizationNameInput.Text = "Legacy";
         SscOrganizationIdInput.Text = "f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf";
@@ -89,7 +114,13 @@ public partial class MainWindow : Window
         }
 
         var desktopSettings = DesktopSettings.Load();
+        SetTextIfPresent(EventFilePathInput, desktopSettings.EventFilePath);
+        if (!string.IsNullOrWhiteSpace(desktopSettings.EventFilePath))
+        {
+            _currentEventFilePath = desktopSettings.EventFilePath;
+        }
         SetTextIfPresent(DatabasePathInput, desktopSettings.DatabasePath);
+        SetTextIfPresent(SiusRankFolderInput, desktopSettings.SiusRankFolder);
         SetTextIfPresent(OutputDirectoryInput, desktopSettings.OutputDirectory);
         SetTextIfPresent(ShooterGroupsTemplateInput, desktopSettings.ShooterGroupsTemplatePath);
         SetTextIfPresent(ExportsDirectoryInput, desktopSettings.ExportsDirectory);
@@ -109,6 +140,10 @@ public partial class MainWindow : Window
 
     private void WireEvents()
     {
+        Get<MenuItem>("CreateEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Creating event.json", CreateEventFileAsync);
+        Get<MenuItem>("OpenEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Opening event.json", OpenEventFileAsync);
+        Get<MenuItem>("SaveEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Saving event.json", SaveEventFileAsync);
+
         Get<Button>("BrowseDatabaseButton").Click += async (_, _) =>
             await BrowseFileAsync(DatabasePathInput, "Select storage.db3", "SQLite database", ["*.db3", "*.sqlite", "*.sqlite3"]);
         Get<Button>("BrowseShooterGroupsButton").Click += async (_, _) =>
@@ -117,6 +152,8 @@ public partial class MainWindow : Window
             await BrowseFileAsync(BibMapPathInput, "Select bib-map.csv", "CSV", ["*.csv"]);
         Get<Button>("BrowseOutputButton").Click += async (_, _) =>
             await BrowseFolderAsync(OutputDirectoryInput, "Select SIUS Rank import output directory");
+        Get<Button>("BrowseSiusRankFolderButton").Click += async (_, _) =>
+            await BrowseFolderAsync(SiusRankFolderInput, "Select SIUS Rank directory");
         Get<Button>("BrowseExportsButton").Click += async (_, _) =>
             await BrowseFolderAsync(ExportsDirectoryInput, "Select SIUS Rank Exports directory");
         Get<Button>("BrowseSscBibMapButton").Click += async (_, _) =>
@@ -127,6 +164,9 @@ public partial class MainWindow : Window
             await BrowseFileAsync(SscUsersCsvPathInput, "Select SSC users CSV", "CSV", ["*.csv"]);
 
         Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Inspecting database", InspectDatabaseAsync);
+        Get<Button>("SearchStevnerButton").Click += async (_, _) => await RunSafelyAsync("Searching stevner", SearchStevnerAsync);
+        Get<Button>("RefreshOvelserButton").Click += async (_, _) => await RunSafelyAsync("Loading øvelser", RefreshOvelseChoicesAsync);
+        Get<Button>("RefreshEventClassesButton").Click += async (_, _) => await RunSafelyAsync("Updating classes", RefreshEventClassesAsync);
         Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Copying templates", CopyTemplatesToSiusRankAsync);
         Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Creating bib-map.csv", RunCreateBibMapAsync);
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Creating CSV files", RunExportAsync);
@@ -138,6 +178,218 @@ public partial class MainWindow : Window
         Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Loading stevner", ShowRecentStevnerAsync);
         Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Loading øvelser", ShowSelectedOvelserAsync);
         Get<Button>("ClearLogButton").Click += (_, _) => LogInput.Text = string.Empty;
+        OvelseSelectInput.SelectionChanged += (_, _) =>
+        {
+            if (OvelseSelectInput.SelectedItem is OvelseChoice choice)
+            {
+                OvelseFilterInput.Text = choice.Id.ToString(CultureInfo.InvariantCulture);
+            }
+        };
+    }
+
+    private async Task CreateEventFileAsync()
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        var ovelse = RequireSelectedOvelse();
+        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
+        var parentFolders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select parent directory for the exercise folder",
+            AllowMultiple = false
+        });
+        if (parentFolders.Count == 0 || parentFolders[0].TryGetLocalPath() is not { } parentDirectory)
+        {
+            AppendLog("Create event.json cancelled.");
+            return;
+        }
+
+        var eventDirectory = Path.Combine(parentDirectory, EventProjectPlanner.SanitizePathPart(ovelse.Name));
+        Directory.CreateDirectory(eventDirectory);
+        var eventPath = Path.Combine(eventDirectory, EventProjectFile.FileName);
+
+        EventProjectConfig config;
+        using (var repository = new InrxRepository(databasePath))
+        {
+            config = EventProjectPlanner.Build(
+                repository,
+                databasePath,
+                ids,
+                ovelse,
+                SelectedSilhouetteShootersPerStand(),
+                RequireText(SiusRankFolderInput.Text, "SIUS Rank folder"));
+        }
+
+        config = config with
+        {
+            Inrx = config.Inrx with { Db = databasePath },
+            Csv = new EventCsvConfig { Output = "./inrX_export" }
+        };
+
+        CreateEventDirectories(eventPath, config);
+        EventProjectFile.Save(eventPath, config);
+        await ApplyEventConfigAsync(eventPath, config);
+        AppendLog($"event.json created: {eventPath}");
+    }
+
+    private async Task OpenEventFileAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open event.json",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("event.json") { Patterns = ["event.json", "*.json"] },
+                FilePickerFileTypes.All
+            ]
+        });
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
+        {
+            AppendLog("Open event.json cancelled.");
+            return;
+        }
+
+        var config = EventProjectFile.Load(path);
+        await ApplyEventConfigAsync(path, config);
+        AppendLog($"event.json opened: {path}");
+    }
+
+    private async Task SaveEventFileAsync()
+    {
+        var path = _currentEventFilePath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save event.json",
+                SuggestedFileName = EventProjectFile.FileName,
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("JSON") { Patterns = ["*.json"] }
+                ]
+            });
+            path = file?.TryGetLocalPath();
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            AppendLog("Save event.json cancelled.");
+            return;
+        }
+
+        var config = BuildEventConfigFromUi(path, refreshClasses: _currentEventConfig is null || _currentEventConfig.Classes.Count == 0);
+        EventProjectFile.Save(path, config);
+        await ApplyEventConfigAsync(path, config);
+        AppendLog($"event.json saved: {path}");
+    }
+
+    private async Task ApplyEventConfigAsync(string eventPath, EventProjectConfig config)
+    {
+        _currentEventFilePath = Path.GetFullPath(eventPath);
+        _currentEventConfig = config;
+        EventFilePathInput.Text = _currentEventFilePath;
+        DatabasePathInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Inrx.Db);
+        StevneIdsInput.Text = config.Inrx.Stevner;
+        SiusRankFolderInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.SiusRankFolder);
+        OutputDirectoryInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Csv.Output);
+        if (config.Classes.Count > 0)
+        {
+            ExportsDirectoryInput.Text = EventProjectFile.ResolvePath(_currentEventFilePath, config.Classes[0].Exports);
+        }
+
+        var bibMapPath = Path.Combine(OutputDirectoryInput.Text, ChampionshipStartNumbers.BibMapFileName);
+        BibMapPathInput.Text = bibMapPath;
+        SscBibMapPathInput.Text = bibMapPath;
+        SetSilhouetteShootersPerStand(config.Silhouette.ShootersPerStand);
+        await RefreshOvelseChoicesAsync(config.Exercise.Id);
+        RenderEventTypeRows(ParseIdList(config.Inrx.Stevner, "Stevne ids"), config.EventTypes);
+        RenderWritebackRows(config);
+        SaveDesktopSettings();
+    }
+
+    private Task SearchStevnerAsync()
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        var filter = CleanSetting(StevneSearchInput.Text);
+        return Task.Run(() =>
+        {
+            using var repository = new InrxRepository(databasePath);
+            var rows = repository.SearchStevner(filter, limit: 100)
+                .Select(stevne =>
+                {
+                    var ovelser = repository.GetOvelserForStevne(stevne.Id);
+                    return new StevneChoice(
+                        stevne.Id,
+                        stevne.Name,
+                        stevne.Date,
+                        repository.GetStevneEventType(stevne.Id),
+                        string.Join(", ", ovelser.Select(ovelse => ovelse.Name)));
+                })
+                .ToList();
+
+            Dispatcher.UIThread.Post(() => RenderStevneChoices(rows));
+        });
+    }
+
+    private Task RefreshOvelseChoicesAsync() => RefreshOvelseChoicesAsync(selectedOvelseId: null);
+
+    private Task RefreshOvelseChoicesAsync(int? selectedOvelseId)
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        var ids = ParseOptionalIdList(StevneIdsInput.Text);
+        if (ids.Count == 0)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                OvelseSelectInput.ItemsSource = Array.Empty<OvelseChoice>();
+                OvelseSelectInput.SelectedItem = null;
+                OvelseFilterInput.Text = string.Empty;
+            });
+            return Task.CompletedTask;
+        }
+
+        return Task.Run(() =>
+        {
+            using var repository = new InrxRepository(databasePath);
+            var choices = ids
+                .SelectMany(repository.GetOvelserForStevne)
+                .GroupBy(ovelse => ovelse.Id)
+                .Select(group =>
+                {
+                    var first = group.First();
+                    return new OvelseChoice(
+                        first.Id,
+                        first.Name,
+                        first.ShortName,
+                        first.HovedOvelseId,
+                        group.Sum(ovelse => ovelse.StarterCount));
+                })
+                .OrderBy(choice => choice.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                OvelseSelectInput.ItemsSource = choices;
+                var selected = selectedOvelseId is not null
+                    ? choices.FirstOrDefault(choice => choice.Id == selectedOvelseId.Value)
+                    : choices.FirstOrDefault();
+                OvelseSelectInput.SelectedItem = selected;
+                if (selected is not null)
+                {
+                    OvelseFilterInput.Text = selected.Id.ToString(CultureInfo.InvariantCulture);
+                }
+            });
+        });
+    }
+
+    private Task RefreshEventClassesAsync()
+    {
+        var path = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
+        var config = BuildEventConfigFromUi(path, refreshClasses: true);
+        _currentEventConfig = config;
+        RenderWritebackRows(config);
+        AppendLog($"Event classes updated: {config.Classes.Count}");
+        return Task.CompletedTask;
     }
 
     private async Task BrowseFileAsync(TextBox target, string title, string typeName, IReadOnlyList<string> patterns)
@@ -239,6 +491,317 @@ public partial class MainWindow : Window
 
             AppendLog(builder.ToString());
         });
+    }
+
+    private void RenderStevneChoices(IReadOnlyList<StevneChoice> rows)
+    {
+        var selectedIds = ParseOptionalIdList(StevneIdsInput.Text).ToHashSet();
+        _stevneChecks.Clear();
+        _stevneChoices.Clear();
+        StevneListContainer.Children.Clear();
+
+        foreach (var row in rows)
+        {
+            _stevneChoices[row.Id] = row;
+            var checkBox = new CheckBox
+            {
+                Content = $"{FormatDate(row.Date),10}  {row.Id,4}  {row.Name}  [{row.EventType}]  {row.Ovelser}",
+                IsChecked = selectedIds.Contains(row.Id)
+            };
+            checkBox.IsCheckedChanged += (_, _) =>
+            {
+                UpdateSelectedStevneIdsFromChecks();
+                var ids = ParseOptionalIdList(StevneIdsInput.Text);
+                RenderEventTypeRows(ids, BuildEventTypeMapFromChoices());
+                if (ids.Count > 0)
+                {
+                    _ = RefreshOvelseChoicesAsync();
+                }
+            };
+            _stevneChecks[row.Id] = checkBox;
+            StevneListContainer.Children.Add(checkBox);
+        }
+
+        RenderEventTypeRows(ParseOptionalIdList(StevneIdsInput.Text), BuildEventTypeMapFromChoices());
+    }
+
+    private void UpdateSelectedStevneIdsFromChecks()
+    {
+        var ids = _stevneChecks
+            .Where(item => item.Value.IsChecked == true)
+            .Select(item => item.Key)
+            .OrderBy(id => id)
+            .ToList();
+        StevneIdsInput.Text = ids.Count == 0 ? string.Empty : EventProjectPlanner.FormatIds(ids);
+        SaveDesktopSettings();
+    }
+
+    private Dictionary<string, string> BuildEventTypeMapFromChoices() =>
+        _stevneChoices.ToDictionary(
+            item => item.Key.ToString(CultureInfo.InvariantCulture),
+            item => item.Value.EventType,
+            StringComparer.Ordinal);
+
+    private void RenderEventTypeRows(IReadOnlyList<int> ids, IReadOnlyDictionary<string, string> configuredTypes)
+    {
+        _eventTypeInputs.Clear();
+        EventTypesContainer.Children.Clear();
+        foreach (var id in ids)
+        {
+            var idText = id.ToString(CultureInfo.InvariantCulture);
+            configuredTypes.TryGetValue(idText, out var configuredType);
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8
+            };
+            row.Children.Add(new TextBlock
+            {
+                Text = $"Stevne {id}",
+                Width = 92,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            var comboBox = new ComboBox
+            {
+                Width = 150,
+                ItemsSource = new[] { EventProjectPlanner.ChampionshipEventType, EventProjectPlanner.ApprovedEventType },
+                SelectedItem = configuredType == EventProjectPlanner.ChampionshipEventType
+                    ? EventProjectPlanner.ChampionshipEventType
+                    : EventProjectPlanner.ApprovedEventType
+            };
+            _eventTypeInputs[id] = comboBox;
+            row.Children.Add(comboBox);
+            EventTypesContainer.Children.Add(row);
+        }
+    }
+
+    private EventProjectConfig BuildEventConfigFromUi(string eventPath, bool refreshClasses)
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
+        var ovelse = RequireSelectedOvelse();
+        var siusRankFolder = RequireText(SiusRankFolderInput.Text, "SIUS Rank folder");
+        var outputDirectory = RequireText(OutputDirectoryInput.Text, "Output directory");
+
+        List<EventClassConfig> classes;
+        if (!refreshClasses && _currentEventConfig?.Classes.Count > 0)
+        {
+            classes = _currentEventConfig.Classes;
+        }
+        else
+        {
+            using var repository = new InrxRepository(databasePath);
+            classes = EventProjectPlanner.Build(repository, databasePath, ids, ovelse, SelectedSilhouetteShootersPerStand(), siusRankFolder)
+                .Classes;
+        }
+
+        return new EventProjectConfig
+        {
+            Version = 1,
+            Exercise = new EventExerciseConfig
+            {
+                Id = ovelse.Id,
+                Name = ovelse.Name,
+                ShortName = ovelse.ShortName,
+                HovedOvelseId = ovelse.HovedOvelseId
+            },
+            Inrx = new EventInrxConfig
+            {
+                Db = EventProjectFile.ToStoredPath(eventPath, databasePath),
+                Stevner = EventProjectPlanner.FormatIds(ids)
+            },
+            EventTypes = BuildEventTypeMap(ids),
+            Silhouette = new EventSilhouetteConfig
+            {
+                ShootersPerStand = SelectedSilhouetteShootersPerStand()
+            },
+            SiusRankFolder = EventProjectFile.ToStoredPath(eventPath, siusRankFolder),
+            Csv = new EventCsvConfig
+            {
+                Output = EventProjectFile.ToStoredPath(eventPath, outputDirectory)
+            },
+            Classes = classes
+        };
+    }
+
+    private Dictionary<string, string> BuildEventTypeMap(IReadOnlyList<int> ids)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var id in ids)
+        {
+            var selected = _eventTypeInputs.TryGetValue(id, out var input)
+                ? input.SelectedItem?.ToString()
+                : null;
+            result[id.ToString(CultureInfo.InvariantCulture)] =
+                selected == EventProjectPlanner.ChampionshipEventType
+                    ? EventProjectPlanner.ChampionshipEventType
+                    : EventProjectPlanner.ApprovedEventType;
+        }
+
+        return result;
+    }
+
+    private OvelseInfo RequireSelectedOvelse()
+    {
+        if (OvelseSelectInput.SelectedItem is OvelseChoice choice)
+        {
+            return new OvelseInfo(choice.Id, choice.Name, choice.ShortName, choice.HovedOvelseId);
+        }
+
+        var ovelseFilter = OvelseFilterInput.Text?.Trim();
+        if (int.TryParse(ovelseFilter, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ovelseId))
+        {
+            using var repository = new InrxRepository(RequireExistingFile(DatabasePathInput.Text, "storage.db3"));
+            return repository.GetOvelseById(ovelseId);
+        }
+
+        throw new ArgumentException("Choose an exercise before creating event.json.");
+    }
+
+    private int SelectedSilhouetteShootersPerStand() =>
+        SilhouetteShootersPerStandInput.SelectedIndex == 0 ? 1 : 2;
+
+    private void SetSilhouetteShootersPerStand(int shootersPerStand)
+    {
+        SilhouetteShootersPerStandInput.SelectedIndex = shootersPerStand == 1 ? 0 : 1;
+    }
+
+    private void CreateEventDirectories(string eventPath, EventProjectConfig config)
+    {
+        Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, config.Csv.Output));
+        var eventDirectory = Path.GetDirectoryName(Path.GetFullPath(eventPath)) ?? Directory.GetCurrentDirectory();
+        Directory.CreateDirectory(Path.Combine(eventDirectory, "SiusData_files"));
+        foreach (var classConfig in config.Classes)
+        {
+            Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, classConfig.Folder));
+            Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, classConfig.Exports));
+        }
+    }
+
+    private void RenderWritebackRows(EventProjectConfig config)
+    {
+        _writebackStatusLabels.Clear();
+        WritebackClassRowsContainer.Children.Clear();
+        foreach (var classConfig in config.Classes)
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8
+            };
+            row.Children.Add(new TextBlock
+            {
+                Text = classConfig.Class,
+                Width = 120,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = classConfig.Exports,
+                Width = 300,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            var status = new TextBlock
+            {
+                Text = "Ikke validert",
+                Width = 150,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _writebackStatusLabels[classConfig.Class] = status;
+            row.Children.Add(status);
+            var validateButton = new Button { Content = "Valider" };
+            validateButton.Click += async (_, _) => await RunSafelyAsync(
+                $"Validating {classConfig.Class}",
+                () => RunClassWritebackAsync(classConfig, apply: false));
+            row.Children.Add(validateButton);
+            var writeButton = new Button { Content = "Skriv til inrX" };
+            writeButton.Click += async (_, _) => await RunSafelyAsync(
+                $"Writing {classConfig.Class}",
+                () => RunClassWritebackAsync(classConfig, apply: true));
+            row.Children.Add(writeButton);
+            WritebackClassRowsContainer.Children.Add(row);
+        }
+    }
+
+    private async Task RunClassWritebackAsync(EventClassConfig classConfig, bool apply)
+    {
+        var options = BuildClassWritebackOptions(classConfig, apply: false);
+        var status = await Task.Run(() => SiusRankClassWritebackStatusResolver.Validate(options));
+        UpdateWritebackStatus(classConfig.Class, status);
+        AppendLog(FormatClassWritebackStatus(classConfig, status));
+
+        if (!apply)
+        {
+            return;
+        }
+
+        if (!status.CanApply)
+        {
+            AppendLog($"Writeback not applied for {classConfig.Class}: {status.Text}");
+            return;
+        }
+
+        var result = await Task.Run(() => SiusRankWritebackRunner.Run(options with { Apply = true }));
+        AppendLog(FormatWritebackResult(result));
+        var after = await Task.Run(() => SiusRankClassWritebackStatusResolver.Validate(options));
+        UpdateWritebackStatus(classConfig.Class, after);
+        AppendLog(FormatClassWritebackStatus(classConfig, after));
+    }
+
+    private SiusRankWritebackOptions BuildClassWritebackOptions(EventClassConfig classConfig, bool apply)
+    {
+        var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
+        var config = _currentEventConfig ?? BuildEventConfigFromUi(eventPath, refreshClasses: false);
+        var ovelse = new OvelseInfo(
+            config.Exercise.Id,
+            config.Exercise.Name,
+            config.Exercise.ShortName,
+            config.Exercise.HovedOvelseId);
+        var eventFilter = SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class));
+        var csvOutput = EventProjectFile.ResolvePath(eventPath, config.Csv.Output);
+        var bibMapPath = Path.Combine(csvOutput, ChampionshipStartNumbers.BibMapFileName);
+        return new SiusRankWritebackOptions(
+            EventProjectFile.ResolvePath(eventPath, config.Inrx.Db),
+            EventProjectFile.ResolvePath(eventPath, classConfig.Exports),
+            ParseIdList(config.Inrx.Stevner, "Stevne ids"),
+            File.Exists(bibMapPath) ? bibMapPath : null,
+            new HashSet<string>([eventFilter], StringComparer.OrdinalIgnoreCase),
+            apply);
+    }
+
+    private void UpdateWritebackStatus(string className, SiusRankClassWritebackStatus status)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_writebackStatusLabels.TryGetValue(className, out var label))
+            {
+                label.Text = status.Text;
+            }
+        });
+    }
+
+    private static string FormatClassWritebackStatus(
+        EventClassConfig classConfig,
+        SiusRankClassWritebackStatus status)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"{classConfig.Class}: {status.Text}");
+        if (status.Result is not null)
+        {
+            builder.AppendLine($"Updates={status.Result.UpdateCount}, unchanged={status.Result.UnchangedCount}, skipped={status.Result.SkippedCount}");
+        }
+
+        foreach (var message in status.Messages.Take(20))
+        {
+            builder.AppendLine($"  {message}");
+        }
+
+        if (status.Messages.Count > 20)
+        {
+            builder.AppendLine($"  ... {status.Messages.Count - 20} more message(s)");
+        }
+
+        return builder.ToString();
     }
 
     private Task RunExportAsync()
@@ -515,7 +1078,9 @@ public partial class MainWindow : Window
     }
 
     private DesktopSettings BuildDesktopSettings() => new(
+        EventFilePath: CleanSetting(EventFilePathInput.Text),
         DatabasePath: CleanSetting(DatabasePathInput.Text),
+        SiusRankFolder: CleanSetting(SiusRankFolderInput.Text),
         OutputDirectory: CleanSetting(OutputDirectoryInput.Text),
         ShooterGroupsTemplatePath: CleanSetting(ShooterGroupsTemplateInput.Text),
         ExportsDirectory: CleanSetting(ExportsDirectoryInput.Text),
@@ -591,6 +1156,11 @@ public partial class MainWindow : Window
 
         return ids.Distinct().ToList();
     }
+
+    private static IReadOnlyList<int> ParseOptionalIdList(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? []
+            : ParseIdList(value, "Stevne ids");
 
     private static string RequireExistingFile(string? value, string label)
     {
@@ -984,6 +1554,24 @@ public partial class MainWindow : Window
 
     private static string Quote(string value) =>
         value.Contains(' ', StringComparison.Ordinal) ? $"\"{value}\"" : value;
+
+    private sealed record StevneChoice(
+        int Id,
+        string Name,
+        string Date,
+        string EventType,
+        string Ovelser);
+
+    private sealed record OvelseChoice(
+        int Id,
+        string Name,
+        string ShortName,
+        int HovedOvelseId,
+        int StarterCount)
+    {
+        public override string ToString() =>
+            $"{Name} (Id {Id}, starters={StarterCount})";
+    }
 
     private void AppendLog(string message)
     {

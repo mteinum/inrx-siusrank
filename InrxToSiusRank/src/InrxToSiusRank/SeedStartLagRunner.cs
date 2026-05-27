@@ -10,7 +10,7 @@ public static class SeedStartLagRunner
         CancellationToken cancellationToken = default)
     {
         using var repository = new SeedStartLagRepository(options.DatabasePath);
-        var inputs = repository.GetEventInputs(options.StevneIds);
+        var inputs = repository.GetEventInputs(options.StevneIds, options.SilhouetteShootersPerStand);
         using var ownedRankingClient = rankingProvider is null ? new NsfRankingClient() : null;
         var provider = rankingProvider ?? ownedRankingClient!;
 

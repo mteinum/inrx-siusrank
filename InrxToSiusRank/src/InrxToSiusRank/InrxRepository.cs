@@ -99,6 +99,49 @@ public sealed class InrxRepository : IDisposable
         return ReadStevne(reader);
     }
 
+    public string GetStevneEventType(int stevneId)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT mestDm, mestKm, mestNm
+            FROM Stevne
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", stevneId);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            throw new InvalidOperationException($"Could not find Stevne.Id={stevneId}.");
+        }
+
+        return EventProjectPlanner.ResolveEventType(
+            GetInt(reader, "mestDm"),
+            GetInt(reader, "mestKm"),
+            GetInt(reader, "mestNm"));
+    }
+
+    public OvelseInfo GetOvelseById(int ovelseDefId)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT Id, navn, kortNavn, HovedOvelseId
+            FROM OvelseDef
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", ovelseDefId);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            throw new InvalidOperationException($"Could not find OvelseDef.Id={ovelseDefId}.");
+        }
+
+        return ReadOvelse(reader);
+    }
+
     public IReadOnlyList<KmNmClassSummary> GetKmNmClasses(int stevneId, int ovelseDefId)
     {
         using var command = _connection.CreateCommand();

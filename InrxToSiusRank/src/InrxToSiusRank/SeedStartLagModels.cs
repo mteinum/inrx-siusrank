@@ -5,7 +5,8 @@ public sealed record SeedStartLagOptions(
     IReadOnlyList<int> StevneIds,
     string RankingPeriodStart,
     string RankingPeriodEnd,
-    bool Apply);
+    bool Apply,
+    int SilhouetteShootersPerStand = 2);
 
 public sealed record SeedStartLagEventInput(
     StevneInfo Stevne,

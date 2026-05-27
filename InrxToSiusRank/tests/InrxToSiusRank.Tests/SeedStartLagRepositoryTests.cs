@@ -5,6 +5,18 @@ namespace InrxToSiusRank.Tests;
 public sealed class SeedStartLagRepositoryTests
 {
     [Fact]
+    public void ResolveSilhouetteTargets_uses_middle_targets_for_one_shooter_per_stand()
+    {
+        Assert.Equal([3, 8, 13, 18, 23, 28, 33], SeedStartLagRepository.ResolveSilhouetteTargets(1));
+    }
+
+    [Fact]
+    public void ResolveSilhouetteTargets_uses_side_targets_for_two_shooters_per_stand()
+    {
+        Assert.Equal([2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34], SeedStartLagRepository.ResolveSilhouetteTargets(2));
+    }
+
+    [Fact]
     public void Apply_creates_missing_startlag_and_updates_resultat()
     {
         using var db = TempDatabase.Create();

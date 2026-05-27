@@ -7,11 +7,16 @@ public static class OutputFileName
         var date = stevne.Date.Length >= 10
             ? stevne.Date[..10].Replace("-", string.Empty, StringComparison.Ordinal)
             : "event";
+        var eventCode = EventFilterForImport(ovelse, kmNmClass);
+        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(eventCode)}.csv";
+    }
+
+    public static string EventFilterForImport(OvelseInfo ovelse, string kmNmClass)
+    {
         var classSuffix = ClassSuffix(kmNmClass);
-        var eventCode = ApprobertPistolEventCodes.TryResolveEventCode(ovelse, kmNmClass, out var approbertEventCode)
+        return ApprobertPistolEventCodes.TryResolveEventCode(ovelse, kmNmClass, out var approbertEventCode)
             ? approbertEventCode
             : $"{ExerciseSuffix(ovelse, classSuffix)}_{classSuffix}";
-        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(eventCode)}.csv";
     }
 
     public static string ForImport(StevneInfo stevne, OvelseSummary ovelse, KmNmClassSummary kmNmClass)
