@@ -240,6 +240,7 @@ public partial class MainWindow : Window
         Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Kopierer templates", CopyTemplatesToSiusRankAsync);
         Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Oppretter bib-map.csv", RunCreateBibMapAsync);
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Lager CSV-filer", RunExportAsync);
+        Get<Button>("RunSiusDataStartListExportButton").Click += async (_, _) => await RunSafelyAsync("Lager CSV fra SIUS Data", RunSiusDataStartListExportAsync);
         Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Tørrkjører writeback", () => RunWritebackAsync(apply: false));
         Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Skriver til inrX", () => RunWritebackAsync(apply: true));
         Get<Button>("ScanWritebackResultsButton").Click += async (_, _) => await RunSafelyAsync("Finner resultater", ScanWritebackResultsAsync);
@@ -2052,6 +2053,46 @@ public partial class MainWindow : Window
         AppendLog(FormatBibMapResult(result));
     }
 
+    private async Task RunSiusDataStartListExportAsync()
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Velg SIUS Data eller Relay-mappe",
+            AllowMultiple = false,
+            SuggestedStartLocation = await TryGetDefaultSiusDataFolderAsync()
+        });
+        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } siusDataDirectory)
+        {
+            AppendLog("CSV fra SIUS Data avbrutt.");
+            return;
+        }
+
+        var options = BuildSiusDataStartListExportOptions(siusDataDirectory);
+        AppendLog(BuildSiusDataStartListCommand(options));
+        var result = await Task.Run(() => SiusDataStartListExporter.Run(options));
+        BibMapPathInput.Text = ToEventDisplayPath(result.BibMapPath);
+        SscBibMapPathInput.Text = BibMapPathInput.Text;
+        SaveDesktopSettings();
+        AppendLog(FormatSiusDataStartListResult(result));
+    }
+
+    private async Task<IStorageFolder?> TryGetDefaultSiusDataFolderAsync()
+    {
+        if (!Directory.Exists(SiusDataStartListCommand.DefaultSiusDataDirectory))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await StorageProvider.TryGetFolderFromPathAsync(SiusDataStartListCommand.DefaultSiusDataDirectory);
+        }
+        catch (Exception ex) when (ex is ArgumentException or UriFormatException or IOException)
+        {
+            return null;
+        }
+    }
+
     private Task RunWritebackAsync(bool apply)
     {
         var options = BuildWritebackOptions(apply);
@@ -2282,6 +2323,7 @@ public partial class MainWindow : Window
         SetControlEnabled("CopyTemplatesButton", !_isRunning);
         SetControlEnabled("CreateBibMapButton", csvBase.CanRun && csvPreflightCanExport && !_isRunning);
         SetControlEnabled("RunExportButton", csvExport.CanRun && csvPreflightCanExport && !_isRunning);
+        SetControlEnabled("RunSiusDataStartListExportButton", csvBase.CanRun && !_isRunning);
         SetControlEnabled("RunWritebackPreviewButton", writeback.CanRun && !_isRunning);
         SetControlEnabled("RunWritebackApplyButton", writeback.CanRun && !_isRunning);
         SetControlEnabled("ScanWritebackResultsButton", _currentEventConfig is not null && !_isRunning);
@@ -2640,6 +2682,22 @@ public partial class MainWindow : Window
             SelectedCsvExerciseSelection()));
     }
 
+    private SiusDataStartListExportOptions BuildSiusDataStartListExportOptions(string siusDataDirectory)
+    {
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        var outputDirectory = ResolveEventPath(NormalizeOutputDirectoryInput());
+        var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
+        var exercise = SelectedCsvExerciseSelection();
+        return new SiusDataStartListExportOptions(
+            databasePath,
+            siusDataDirectory,
+            ids,
+            exercise.IsAll ? null : exercise.OvelseId,
+            exercise.IsAll ? null : exercise.Name,
+            outputDirectory,
+            SelectedEncoding());
+    }
+
     private SiusRankWritebackOptions BuildWritebackOptions(bool apply)
     {
         var exportsDirectory = RequireExistingDirectory(ExportsDirectoryInput.Text, "Exports directory");
@@ -2958,6 +3016,31 @@ public partial class MainWindow : Window
         return "$ " + string.Join(' ', parts);
     }
 
+    private static string BuildSiusDataStartListCommand(SiusDataStartListExportOptions options)
+    {
+        var parts = new List<string>
+        {
+            "InrxToSiusRank",
+            SiusDataStartListCommand.Name,
+            "--db", Quote(options.DatabasePath),
+            "--stevne-ids", Quote(FormatIds(options.StevneIds)),
+            "--sius-data", Quote(options.SiusDataDirectory),
+            "--output-dir", Quote(options.OutputDirectory),
+            "--encoding", options.EncodingName
+        };
+
+        if (options.OvelseId is not null)
+        {
+            parts.AddRange(["--ovelse-id", options.OvelseId.Value.ToString(CultureInfo.InvariantCulture)]);
+        }
+        else if (!string.IsNullOrWhiteSpace(options.OvelseName))
+        {
+            parts.AddRange(["--ovelse", Quote(options.OvelseName)]);
+        }
+
+        return "$ " + string.Join(' ', parts);
+    }
+
     private static string BuildWritebackCommand(SiusRankWritebackOptions options)
     {
         var parts = new List<string>
@@ -3083,6 +3166,36 @@ public partial class MainWindow : Window
         builder.AppendLine($"Events: {result.EventCount}");
         builder.AppendLine($"Starters: {result.StarterCount}");
         builder.AppendLine($"Unique shooters: {result.ShooterCount}");
+        return builder.ToString();
+    }
+
+    private static string FormatSiusDataStartListResult(SiusDataStartListExportResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SIUS Rank importfiler laget fra SIUS Data startliste.");
+        builder.AppendLine($"Output-mappe: {result.OutputDirectory}");
+        builder.AppendLine($"bib-map.csv: {result.BibMapPath}");
+        builder.AppendLine($"Startlisterader: {result.StartListRows}");
+        builder.AppendLine($"Matchet mot inrX: {result.MatchedRows}");
+        builder.AppendLine($"Ikke matchet: {result.UnmatchedRows}");
+        builder.AppendLine($"Filer laget: {result.Files.Count}");
+        foreach (var file in result.Files)
+        {
+            builder.AppendLine(
+                $"- {Path.GetFileName(file.OutputPath)}: Stevne.Id={file.Stevne.Id}, " +
+                $"{file.Ovelse.Name}, KM/NM={file.KmNmClass}, starters={file.StarterCount}");
+        }
+
+        foreach (var warning in result.Warnings.Take(30))
+        {
+            builder.AppendLine($"WARNING: {warning}");
+        }
+
+        if (result.Warnings.Count > 30)
+        {
+            builder.AppendLine($"... {result.Warnings.Count - 30} flere advarsler.");
+        }
+
         return builder.ToString();
     }
 

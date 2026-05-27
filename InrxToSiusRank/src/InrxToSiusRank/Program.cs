@@ -70,6 +70,13 @@ public static class Program
                 return result.HasErrors ? 1 : 0;
             }
 
+            if (SiusDataStartListCommand.IsCommand(args))
+            {
+                var startListOptions = SiusDataStartListCommand.Parse(args.Skip(1).ToArray());
+                PrintSiusDataStartListResult(SiusDataStartListExporter.Run(startListOptions));
+                return 0;
+            }
+
             var options = AppOptions.Parse(args);
             if (options.Wizard)
             {
@@ -135,6 +142,28 @@ public static class Program
             }
         }
     }
+
+    public static void PrintSiusDataStartListResult(SiusDataStartListExportResult result)
+    {
+        Console.WriteLine("SIUS Rank import files created from SIUS Data start list.");
+        Console.WriteLine($"Output directory: {result.OutputDirectory}");
+        Console.WriteLine($"bib-map.csv: {result.BibMapPath}");
+        Console.WriteLine($"Start list rows: {result.StartListRows}");
+        Console.WriteLine($"Matched inrX starters: {result.MatchedRows}");
+        Console.WriteLine($"Unmatched SIUS rows: {result.UnmatchedRows}");
+        Console.WriteLine($"Files created: {result.Files.Count}");
+        foreach (var file in result.Files)
+        {
+            Console.WriteLine(
+                $"- {Path.GetFileName(file.OutputPath)}: Stevne.Id={file.Stevne.Id}, " +
+                $"{file.Ovelse.Name}, KM/NM={file.KmNmClass}, starters={file.StarterCount}");
+        }
+
+        foreach (var warning in result.Warnings)
+        {
+            Console.WriteLine($"WARNING: {warning}");
+        }
+    }
 }
 
 internal static class Usage
@@ -163,6 +192,8 @@ internal static class Usage
           InrxToSiusRank export-ssc-users --db storage.db3 --stevne-ids 405-411 --bib-map siusrank-import\bib-map.csv --output ssc-setup\ssc-users.csv
           InrxToSiusRank validate-ssc --db storage.db3 --stevne-ids 405-411 --bib-map siusrank-import\bib-map.csv --users-csv ssc-setup\ssc-users.csv
           InrxToSiusRank export-ssc-lanes --db storage.db3 --stevne-id 405 --startlag "2026-07-06T09:00:00" --bib-map siusrank-import\bib-map.csv --output-dir ssc-setup\lanes --lane-count 40
+          InrxToSiusRank export-siusdata-startlist --db storage.db3 --stevne-id 422 --sius-data "SIUS Data\Relay 1" --output-dir siusrank-import
+          InrxToSiusRank export-siusdata-startlist --db storage.db3 --stevne-id 422 --output-dir siusrank-import
           InrxToSiusRank apply-nm2026-timetable --db storage.db3 --siusrank "NM Bane Pistol 2026.srkl" --proposal "FORSLAG_Tidsplan mannskap NM2026.xlsx" --output-dir inrx-export
 
         appsettings.json:
@@ -230,6 +261,18 @@ internal static class Usage
           --startlag <datetime>               Startlag datetime for active lanes, for example 2026-07-06T09:00:00.
           --output-dir <path>                 Output directory for export-ssc-lanes JSON files.
           --lane-count <10|25|40>             Lane count. Default: 40.
+
+        SIUS Data start list recovery options:
+          export-siusdata-startlist           Create SIUS Rank import CSV from SIUS Data *_stl.csv start lists and inrX starters.
+          --db <path>                         Path to storage.db3. Overrides appsettings.
+          --settings <path>                   Path to appsettings.json.
+          --sius-data <path>                  SIUS Data directory, or a Relay folder containing start list CSV files. Default: C:\SIUS\SiusData\Data.
+          --stevne-id <id>                    Select one inrX Stevne.Id.
+          --stevne-ids <ids>                  Select several inrX events.
+          --ovelse-id <id>                    Optional exercise filter.
+          --ovelse <name>                     Optional exercise filter by name.
+          --output-dir <path>                 Output directory for generated SIUS Rank CSV files and bib-map.csv.
+          --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
 
         apply-nm2026-timetable options:
           apply-nm2026-timetable             Preview or apply NM2026 timetable/capacity fixes to inrX and SIUS Rank.
