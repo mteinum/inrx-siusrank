@@ -30,6 +30,29 @@ public sealed class SiusDataStartListExportTests
     }
 
     [Fact]
+    public void Reader_supports_sius_data_rows_where_target_follows_empty_column()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        using var directory = TempDirectory.Create();
+        var relay = Path.Combine(directory.Path, "SIUS Data", "Relay 1");
+        Directory.CreateDirectory(relay);
+        var path = Path.Combine(relay, "start_stl.csv");
+        File.WriteAllText(
+            path,
+            ";7415;Landsverk;Arne;A. Landsverk;B;0;1;Greipstad Pistolklub;;16;1;18:00;16;1;0;0\r\n",
+            Encoding.GetEncoding(1252));
+
+        var row = Assert.Single(SiusDataStartListReader.ReadDirectory(directory.Path));
+
+        Assert.Equal("7415", row.StartNumber);
+        Assert.Equal("Landsverk", row.LastName);
+        Assert.Equal("Arne", row.FirstName);
+        Assert.Equal("Greipstad Pistolklub", row.Club);
+        Assert.Equal(16, row.TargetNumber);
+        Assert.Equal(1, row.Relay);
+    }
+
+    [Fact]
     public void Match_uses_name_target_and_club_and_handles_diacritics()
     {
         var start = new SiusDataStartListRow(
@@ -51,11 +74,38 @@ public sealed class SiusDataStartListExportTests
         };
         var warnings = new List<string>();
 
-        var matched = SiusDataStartListExporter.MatchStartListRows([start], starters, warnings);
+        var matched = SiusDataStartListExporter.MatchStartListRows([start], starters, [Stevne()], warnings);
 
         var item = Assert.Single(matched);
         Assert.Equal(1, item.Starter.ResultatId);
         Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void Match_uses_valid_sius_data_result_id_as_import_start_number()
+    {
+        var start = new SiusDataStartListRow(
+            "start_stl.csv",
+            1,
+            "7415",
+            "Landsverk",
+            "Arne",
+            "A. Landsverk",
+            "B",
+            "Greipstad Pistolklub",
+            16,
+            1,
+            "18:00");
+        var starter = CreateStarter(
+            resultatId: 7415,
+            firstName: "Arne",
+            lastName: "Landsverk",
+            clubShortName: "Greipstad Pistolklub",
+            target: 16);
+
+        var item = Assert.Single(SiusDataStartListExporter.MatchStartListRows([start], [starter], [Stevne()]));
+
+        Assert.Equal("7415", item.ImportStartNumber);
     }
 
     [Fact]
@@ -130,6 +180,9 @@ public sealed class SiusDataStartListExportTests
             DmClass: string.Empty,
             OvelseName: "Hurtig Fin",
             StevneName: "20260527 Hurtig F");
+
+    private static StevneInfo Stevne() =>
+        new(422, "20260527 Hurtig F", "2026-05-27 18:00:00", 1);
 
     private sealed class TempDirectory : IDisposable
     {

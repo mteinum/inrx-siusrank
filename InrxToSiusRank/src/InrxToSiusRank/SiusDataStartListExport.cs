@@ -67,7 +67,7 @@ public static class SiusDataStartListExporter
         var eventExports = ResolveEventExports(repository, options);
         var allStarters = eventExports.SelectMany(item => item.Starters).ToList();
         var warnings = new List<string>();
-        var matched = MatchStartListRows(startListRows, allStarters, warnings);
+        var matched = MatchStartListRows(startListRows, allStarters, eventExports.Select(item => item.Stevne), warnings);
         if (matched.Count == 0)
         {
             throw new InvalidOperationException(
@@ -97,9 +97,11 @@ public static class SiusDataStartListExporter
                 var rows = classGroup
                     .Select(starter =>
                     {
-                        var startList = matchedByResultatId[starter.ResultatId].StartList;
+                        var matchedStart = matchedByResultatId[starter.ResultatId];
+                        var startList = matchedStart.StartList;
                         var assignedStarter = starter with
                         {
+                            AccreditationNumber = startList.StartNumber,
                             KmNmClass = classGroup.Key,
                             Standplass = startList.TargetNumber ?? starter.Standplass,
                             Relay = startList.Relay ?? starter.Relay
@@ -108,7 +110,7 @@ public static class SiusDataStartListExporter
                             assignedStarter,
                             siusGroupOverride: null,
                             includeClubTeam: true,
-                            startNumber: startList.StartNumber);
+                            startNumber: matchedStart.ImportStartNumber);
                     })
                     .ToList();
 
@@ -142,6 +144,7 @@ public static class SiusDataStartListExporter
     public static IReadOnlyList<SiusDataMatchedStart> MatchStartListRows(
         IReadOnlyList<SiusDataStartListRow> startListRows,
         IReadOnlyList<InrxStarter> starters,
+        IEnumerable<StevneInfo> stevner,
         List<string>? warnings = null)
     {
         var remaining = starters.ToList();
@@ -176,10 +179,84 @@ public static class SiusDataStartListExporter
 
             var starter = candidates[0];
             remaining.RemoveAll(item => item.ResultatId == starter.ResultatId);
-            matched.Add(new SiusDataMatchedStart(startList, starter));
+            matched.Add(new SiusDataMatchedStart(startList, starter, ImportStartNumber: string.Empty));
         }
 
-        return matched;
+        return AssignImportStartNumbers(matched, stevner, warnings);
+    }
+
+    private static IReadOnlyList<SiusDataMatchedStart> AssignImportStartNumbers(
+        IReadOnlyList<SiusDataMatchedStart> matched,
+        IEnumerable<StevneInfo> stevner,
+        List<string>? warnings)
+    {
+        var yearPrefix = ResolveYearPrefix(stevner);
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        var nextSequence = 1;
+        var result = new List<SiusDataMatchedStart>();
+
+        foreach (var item in matched
+                     .OrderBy(item => item.StartList.Relay ?? int.MaxValue)
+                     .ThenBy(item => item.StartList.TargetNumber ?? int.MaxValue)
+                     .ThenBy(item => item.Starter.LastName, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(item => item.Starter.FirstName, StringComparer.OrdinalIgnoreCase))
+        {
+            var importStartNumber = IsValidSiusRankStartNumber(item.StartList.StartNumber) &&
+                                    used.Add(item.StartList.StartNumber)
+                ? item.StartList.StartNumber
+                : AllocateStartNumber(yearPrefix, used, ref nextSequence);
+
+            if (!string.Equals(importStartNumber, item.StartList.StartNumber, StringComparison.Ordinal))
+            {
+                warnings?.Add(
+                    $"{DisplaySource(item.StartList)}: SIUS Data-id {item.StartList.StartNumber} kan ikke brukes som SIUS Rank StartNumber. " +
+                    $"Bruker {importStartNumber} og beholder {item.StartList.StartNumber} som AccreditationNumber.");
+            }
+
+            result.Add(item with { ImportStartNumber = importStartNumber });
+        }
+
+        return result;
+    }
+
+    private static bool IsValidSiusRankStartNumber(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length is > 0 and <= 6 && trimmed.All(ch => ch is >= '0' and <= '9');
+    }
+
+    private static string AllocateStartNumber(string yearPrefix, HashSet<string> used, ref int nextSequence)
+    {
+        string value;
+        do
+        {
+            if (nextSequence > 9999)
+            {
+                throw new InvalidOperationException("Cannot allocate more SIUS Rank start numbers.");
+            }
+
+            value = $"{yearPrefix}{nextSequence:D3}";
+            nextSequence++;
+        }
+        while (!used.Add(value));
+
+        return value;
+    }
+
+    private static string ResolveYearPrefix(IEnumerable<StevneInfo> stevner)
+    {
+        var year = stevner
+            .Select(stevne => DateTime.TryParse(
+                stevne.Date,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed)
+                    ? parsed.Year
+                    : 0)
+            .Where(value => value > 0)
+            .DefaultIfEmpty(DateTime.Now.Year)
+            .Min();
+        return (year % 100).ToString("D2", CultureInfo.InvariantCulture);
     }
 
     private static IReadOnlyList<EventExport> ResolveEventExports(InrxRepository repository, SiusDataStartListExportOptions options)
@@ -319,14 +396,14 @@ public static class SiusDataStartListExporter
         var builder = new StringBuilder();
         builder.Append("nsfId,bibNumber,deltakerId,name,source").Append("\r\n");
         foreach (var item in matched
-                     .OrderBy(item => item.StartList.StartNumber, StringComparer.Ordinal)
+                     .OrderBy(item => item.ImportStartNumber, StringComparer.Ordinal)
                      .ThenBy(item => item.Starter.DeltakerId))
         {
             var name = $"{item.Starter.LastName} {item.Starter.FirstName}".Trim();
             builder.AppendJoin(',', new[]
             {
                 item.Starter.NsfId.Trim(),
-                item.StartList.StartNumber,
+                item.ImportStartNumber,
                 item.Starter.DeltakerId.ToString(CultureInfo.InvariantCulture),
                 name,
                 $"SIUS Data startliste: {Path.GetFileName(item.StartList.SourcePath)}"
@@ -343,7 +420,7 @@ public static class SiusDataStartListExporter
         IReadOnlyList<InrxStarter> Starters);
 }
 
-public sealed record SiusDataMatchedStart(SiusDataStartListRow StartList, InrxStarter Starter);
+public sealed record SiusDataMatchedStart(SiusDataStartListRow StartList, InrxStarter Starter, string ImportStartNumber);
 
 public static class SiusDataStartListReader
 {
@@ -384,7 +461,7 @@ public static class SiusDataStartListReader
                 fields[4].Trim(),
                 fields[5].Trim(),
                 fields[8].Trim(),
-                ParseNullableInt(fields[9]),
+                ParseTargetNumber(fields),
                 ResolveRelay(path, fields),
                 fields[12].Trim()));
         }
@@ -398,7 +475,20 @@ public static class SiusDataStartListReader
         IsInteger(fields[1]) &&
         !string.IsNullOrWhiteSpace(fields[2]) &&
         !string.IsNullOrWhiteSpace(fields[3]) &&
-        IsInteger(fields[9]);
+        ParseTargetNumber(fields) is not null;
+
+    private static int? ParseTargetNumber(IReadOnlyList<string> fields)
+    {
+        foreach (var index in new[] { 9, 10 })
+        {
+            if (index < fields.Count && ParseNullableInt(fields[index]) is { } target)
+            {
+                return target;
+            }
+        }
+
+        return null;
+    }
 
     private static int? ResolveRelay(string path, IReadOnlyList<string> fields)
     {
