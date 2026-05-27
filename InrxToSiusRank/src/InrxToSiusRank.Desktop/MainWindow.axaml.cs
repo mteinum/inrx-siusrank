@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     private bool _isRunning;
     private bool _updatingStevneChecks;
     private bool _updatingOvelseSelection;
+    private bool _sscValidationPassed;
+    private bool _sscLanesWritten;
     private readonly StringBuilder _logText = new();
     private LogWindow? _logWindow;
     private int _logErrorCount;
@@ -99,9 +101,27 @@ public partial class MainWindow : Window
 
     private TextBox SscStartlagInput => Get<TextBox>("SscStartlagBox");
 
+    private ComboBox SscStartlagChoiceInput => Get<ComboBox>("SscStartlagComboBox");
+
     private ComboBox SscLaneCountInput => Get<ComboBox>("SscLaneCountBox");
 
     private ComboBox SscStevneInput => Get<ComboBox>("SscStevneBox");
+
+    private TextBlock SscOrganizationSummaryLabel => Get<TextBlock>("SscOrganizationSummaryText");
+
+    private TextBlock SscOutputSummaryLabel => Get<TextBlock>("SscOutputSummaryText");
+
+    private TextBlock SscStevneDetailsLabel => Get<TextBlock>("SscStevneDetailsText");
+
+    private TextBlock SscUsersResultLabel => Get<TextBlock>("SscUsersResultText");
+
+    private TextBlock SscValidationResultLabel => Get<TextBlock>("SscValidationResultText");
+
+    private TextBlock SscLanesResultLabel => Get<TextBlock>("SscLanesResultText");
+
+    private TextBlock SscLanePreviewSummaryLabel => Get<TextBlock>("SscLanePreviewSummaryText");
+
+    private StackPanel SscLanePreviewRowsContainer => Get<StackPanel>("SscLanePreviewRowsPanel");
 
     private StackPanel WritebackClassRowsContainer => Get<StackPanel>("WritebackClassRowsPanel");
 
@@ -147,7 +167,7 @@ public partial class MainWindow : Window
         SscOutputDirectoryInput.Text = "./ssc-setup";
         SscBibMapPathInput.Text = "./siusrank-import/" + ChampionshipStartNumbers.BibMapFileName;
         SscUsersCsvPathInput.Text = Path.Combine(SscOutputDirectoryInput.Text, "ssc-users.csv");
-        SscStartlagInput.Text = "2026-07-06T09:00:00";
+        SscStartlagInput.Text = string.Empty;
         EncodingInput.SelectedIndex = 0;
 
         try
@@ -225,9 +245,11 @@ public partial class MainWindow : Window
         Get<Button>("ValidateAllWritebackButton").Click += async (_, _) => await RunSafelyAsync("Validerer alle", ValidateAllWritebackAsync);
         Get<Button>("DryRunReadyWritebackButton").Click += async (_, _) => await RunSafelyAsync("Tørrkjører klare", DryRunReadyWritebackAsync);
         Get<Button>("ApplyValidatedWritebackButton").Click += async (_, _) => await RunSafelyAsync("Skriver validerte til inrX", ApplyValidatedWritebackAsync);
-        Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC-brukere", RunSscUsersAsync);
-        Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Validerer SSC", RunSscValidateAsync);
-        Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC baner/reset", RunSscLanesAsync);
+        Get<Button>("RunSscNextStepButton").Click += async (_, _) => await RunSafelyAsync("Kjører neste SSC-steg", RunNextSscStepAsync);
+        Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Lager SSC-brukere", RunSscUsersAsync);
+        Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Kontrollerer SSC-oppsett", RunSscValidateAsync);
+        Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Lager SSC banefiler", RunSscLanesAsync);
+        Get<Button>("OpenSscOutputButton").Click += async (_, _) => await RunSafelyAsync("Åpner SSC-mappe", () => OpenFolderAsync(ResolveEventPath(SscOutputDirectoryInput.Text)));
         Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Laster stevner", ShowRecentStevnerAsync);
         Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Laster øvelser", ShowSelectedOvelserAsync);
         OpenLogButtonControl.Click += (_, _) => ShowLogWindow();
@@ -253,8 +275,30 @@ public partial class MainWindow : Window
 
         EncodingInput.SelectionChanged += (_, _) => UpdateActionStates();
         SilhouetteShootersPerStandInput.SelectionChanged += (_, _) => UpdateActionStates();
-        SscLaneCountInput.SelectionChanged += (_, _) => UpdateActionStates();
-        SscStevneInput.SelectionChanged += (_, _) => UpdateActionStates();
+        SscLaneCountInput.SelectionChanged += (_, _) =>
+        {
+            _sscLanesWritten = false;
+            RefreshSscLanePreview();
+            UpdateActionStates();
+        };
+        SscStevneInput.SelectionChanged += (_, _) =>
+        {
+            _sscLanesWritten = false;
+            RefreshSscStartlagChoices();
+            RefreshSscLanePreview();
+            UpdateActionStates();
+        };
+        SscStartlagChoiceInput.SelectionChanged += (_, _) =>
+        {
+            if (SscStartlagChoiceInput.SelectedItem is SscStartlagChoice choice)
+            {
+                SscStartlagInput.Text = choice.IsoValue;
+            }
+
+            _sscLanesWritten = false;
+            RefreshSscLanePreview();
+            UpdateActionStates();
+        };
         WireActionStateTextChanges();
     }
 
@@ -291,6 +335,21 @@ public partial class MainWindow : Window
                 if (ReferenceEquals(input, StevneIdsInput))
                 {
                     RefreshSscStevneChoices();
+                }
+
+                if (ReferenceEquals(input, SscStartlagInput))
+                {
+                    _sscLanesWritten = false;
+                    RefreshSscLanePreview();
+                }
+
+                if (ReferenceEquals(input, DatabasePathInput) ||
+                    ReferenceEquals(input, StevneIdsInput) ||
+                    ReferenceEquals(input, SscBibMapPathInput) ||
+                    ReferenceEquals(input, SscUsersCsvPathInput))
+                {
+                    _sscValidationPassed = false;
+                    _sscLanesWritten = false;
                 }
 
                 UpdateActionStates();
@@ -400,6 +459,8 @@ public partial class MainWindow : Window
         _currentEventConfig = config;
         _writebackRows.Clear();
         _writebackStatuses.Clear();
+        _sscValidationPassed = false;
+        _sscLanesWritten = false;
         WritebackScanSummaryLabel.Text = "Trykk Finn resultater i stevnemappen.";
         EventFilePathInput.Text = _currentEventFilePath;
         EventFilterInput.Text = string.Empty;
@@ -1086,18 +1147,46 @@ public partial class MainWindow : Window
     private void RenderSscStatusRows(IReadOnlyList<SscActionStatusRow> rows)
     {
         SscStatusRowsContainer.Children.Clear();
-        foreach (var row in rows)
+        var step = 1;
+        foreach (var row in ApplySscWorkflowCompletion(rows))
         {
             var grid = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("220,180,*"),
+                ColumnDefinitions = new ColumnDefinitions("34,180,150,*"),
                 ColumnSpacing = 8
             };
-            AddRowText(grid, 0, row.Action);
-            AddRowText(grid, 1, row.Status);
-            AddRowText(grid, 2, row.NextStep, wrap: true);
+            AddRowText(grid, 0, step.ToString(CultureInfo.InvariantCulture));
+            AddRowText(grid, 1, row.Action);
+            AddRowText(grid, 2, row.Status);
+            AddRowText(grid, 3, row.NextStep, wrap: true);
             SscStatusRowsContainer.Children.Add(CreateTableRow(grid));
+            step++;
         }
+    }
+
+    private IReadOnlyList<SscActionStatusRow> ApplySscWorkflowCompletion(IReadOnlyList<SscActionStatusRow> rows) =>
+        rows
+            .Select(row => row.Action switch
+            {
+                "Kontroller oppsett" when _sscValidationPassed =>
+                    row with { Status = "Ferdig", NextStep = "Kontroll OK. Gå videre til banefiler." },
+                "Lag banefiler" when _sscLanesWritten =>
+                    row with { Status = "Ferdig", NextStep = "Åpne ./ssc-setup og kontroller filene." },
+                _ => row
+            })
+            .ToList();
+
+    private void UpdateSscSummary(IReadOnlyList<SscActionStatusRow> rows)
+    {
+        SscOrganizationSummaryLabel.Text = $"Organisasjon: {CleanSetting(SscOrganizationNameInput.Text) ?? "ikke satt"}";
+        var outputDisplay = string.IsNullOrWhiteSpace(SscOutputDirectoryInput.Text)
+            ? "./ssc-setup"
+            : ToEventDisplayPath(ResolveEventPath(SscOutputDirectoryInput.Text));
+        SscOutputSummaryLabel.Text = $"SSC-filer lagres i {outputDisplay}";
+        var next = ApplySscWorkflowCompletion(rows).FirstOrDefault(row => row.CanRun && row.Status != "Ferdig") ??
+                   rows.FirstOrDefault(row => row.CanRun);
+        var nextButton = Get<Button>("RunSscNextStepButton");
+        nextButton.Content = next is null ? "Neste steg" : $"Neste steg: {next.Action}";
     }
 
     private void RenderDiagnosticStevner(IReadOnlyList<DiagnosticStevneRow> rows)
@@ -1162,7 +1251,7 @@ public partial class MainWindow : Window
             .Select(id =>
             {
                 var label = _stevneChoices.TryGetValue(id, out var choice)
-                    ? $"{id} - {choice.Date} {choice.Name}"
+                    ? $"{id} - {CompactStevneName(choice.Name)} - {FormatDate(choice.Date)}"
                     : id.ToString(CultureInfo.InvariantCulture);
                 return new SscStevneChoice(id, label);
             })
@@ -1172,6 +1261,163 @@ public partial class MainWindow : Window
         SscStevneInput.SelectedItem =
             options.FirstOrDefault(option => option.Id == previousId) ??
             options.FirstOrDefault();
+        RefreshSscStartlagChoices();
+        RefreshSscLanePreview();
+    }
+
+    private static string CompactStevneName(string name)
+    {
+        var normalized = name
+            .Replace("Finpistol", "Fin", StringComparison.OrdinalIgnoreCase)
+            .Replace("Grovpistol", "Grov", StringComparison.OrdinalIgnoreCase)
+            .Replace("Hurtig Fin", "Hurtig", StringComparison.OrdinalIgnoreCase)
+            .Replace("Hurtig Grov", "Hurtig", StringComparison.OrdinalIgnoreCase);
+        var parts = normalized.Split(" - ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.LastOrDefault() ?? normalized;
+    }
+
+    private void RefreshSscStartlagChoices()
+    {
+        var previous = SelectedSscStartlag();
+        if (!HasExistingFile(DatabasePathInput.Text) || SelectedSscStevneId() is not { } stevneId)
+        {
+            SscStartlagChoiceInput.ItemsSource = Array.Empty<SscStartlagChoice>();
+            SscStartlagChoiceInput.SelectedItem = null;
+            SscStevneDetailsLabel.Text = "Velg stevne for å se startlag.";
+            return;
+        }
+
+        try
+        {
+            using var repository = new InrxRepository(RequireExistingFile(DatabasePathInput.Text, "storage.db3"));
+            var stevne = repository.GetStevneById(stevneId);
+            var choices = BuildSscStartlagChoices(repository, stevneId);
+            SscStartlagChoiceInput.ItemsSource = choices;
+            SscStartlagChoiceInput.SelectedItem =
+                choices.FirstOrDefault(choice => string.Equals(choice.IsoValue, previous, StringComparison.OrdinalIgnoreCase)) ??
+                choices.FirstOrDefault();
+            var starterCount = repository.GetOvelserForStevne(stevneId).Sum(ovelse => ovelse.StarterCount);
+            SscStevneDetailsLabel.Text = choices.Count == 0
+                ? $"{FormatDate(stevne.Date)} - {stevne.Name}. Ingen startlag funnet for valgt stevne."
+                : $"{FormatDate(stevne.Date)} - {stevne.Name}. {starterCount} skyttere, {choices.Count} startlag.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            SscStartlagChoiceInput.ItemsSource = Array.Empty<SscStartlagChoice>();
+            SscStartlagChoiceInput.SelectedItem = null;
+            SscStevneDetailsLabel.Text = $"Kunne ikke lese startlag: {ex.Message}";
+        }
+    }
+
+    private static IReadOnlyList<SscStartlagChoice> BuildSscStartlagChoices(InrxRepository repository, int stevneId)
+    {
+        var rows = new List<(DateTime Startlag, string Exercise, int Count)>();
+        foreach (var ovelse in repository.GetOvelserForStevne(stevneId))
+        {
+            foreach (var group in repository.GetStarters(stevneId, ovelse.Id)
+                         .Where(starter => DateTime.TryParse(starter.RelayDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                         .GroupBy(starter => DateTime.Parse(starter.RelayDate, CultureInfo.InvariantCulture)))
+            {
+                rows.Add((group.Key, ovelse.Name, group.Count()));
+            }
+        }
+
+        return rows
+            .GroupBy(row => row.Startlag)
+            .OrderBy(group => group.Key)
+            .Select(group =>
+            {
+                var count = group.Sum(row => row.Count);
+                var exercises = string.Join(", ", group
+                    .Select(row => row.Exercise)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.OrdinalIgnoreCase));
+                return new SscStartlagChoice(
+                    group.Key.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
+                    $"{group.Key:HH:mm} - {count} skyttere - {exercises}",
+                    count,
+                    exercises);
+            })
+            .ToList();
+    }
+
+    private string? SelectedSscStartlag()
+    {
+        if (CleanSetting(SscStartlagInput.Text) is { } manualStartlag)
+        {
+            return manualStartlag;
+        }
+
+        if (SscStartlagChoiceInput.SelectedItem is SscStartlagChoice choice)
+        {
+            return choice.IsoValue;
+        }
+
+        return null;
+    }
+
+    private void RefreshSscLanePreview()
+    {
+        SscLanePreviewRowsContainer.Children.Clear();
+        var selectedStartlag = SelectedSscStartlag();
+        if (!HasExistingFile(DatabasePathInput.Text) || SelectedSscStevneId() is not { } stevneId)
+        {
+            SscLanePreviewSummaryLabel.Text = "Velg stevne for å se baner.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedStartlag))
+        {
+            SscLanePreviewSummaryLabel.Text = "Velg startlag for å se baner.";
+            return;
+        }
+
+        if (!DateTime.TryParse(selectedStartlag, CultureInfo.InvariantCulture, DateTimeStyles.None, out var startlag))
+        {
+            SscLanePreviewSummaryLabel.Text = "Startlag er ugyldig.";
+            return;
+        }
+
+        try
+        {
+            using var repository = new InrxRepository(RequireExistingFile(DatabasePathInput.Text, "storage.db3"));
+            var events = SscEventResolver.ResolveEvents(repository, [stevneId]);
+            var starters = events.SelectMany(eventExport => eventExport.Starters).ToList();
+            var startNumbers = ChampionshipStartNumbers.Resolve(
+                starters,
+                events.Select(eventExport => eventExport.Stevne),
+                HasExistingFile(SscBibMapPathInput.Text) ? ResolveEventPath(SscBibMapPathInput.Text) : null);
+            var active = SscLanePayloadBuilder.BuildActive(
+                events,
+                startlag,
+                startNumbers,
+                SelectedSscLaneCount(),
+                DateTimeOffset.UtcNow,
+                out var messages);
+            foreach (var lane in active.Lanes.OrderBy(lane => lane.Lane))
+            {
+                var grid = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("70,2*,100,1.4*"),
+                    ColumnSpacing = 8
+                };
+                AddRowText(grid, 0, lane.Lane.ToString(CultureInfo.InvariantCulture));
+                AddRowText(grid, 1, lane.DisplayName);
+                AddRowText(grid, 2, lane.UserId);
+                AddRowText(grid, 3, lane.ExerciseName);
+                SscLanePreviewRowsContainer.Children.Add(CreateTableRow(grid));
+            }
+
+            var resetCount = Math.Max(SelectedSscLaneCount() - active.Lanes.Count, 0);
+            var message = messages.FirstOrDefault(item => item.Severity == SscValidationSeverity.Error)?.Message;
+            SscLanePreviewSummaryLabel.Text = string.IsNullOrWhiteSpace(message)
+                ? $"{active.Lanes.Count} aktive baner. {resetCount} baner resettes/tømmes."
+                : $"{active.Lanes.Count} aktive baner. Kontroller oppsett: {message}";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            SscLanePreviewSummaryLabel.Text = $"Kunne ikke lage forhåndsvisning: {ex.Message}";
+        }
     }
 
     private void LoadEventTypeSelections(IReadOnlyDictionary<string, string> eventTypes)
@@ -1750,6 +1996,20 @@ public partial class MainWindow : Window
         });
     }
 
+    private Task RunNextSscStepAsync()
+    {
+        var rows = ApplySscWorkflowCompletion(BuildSscStatusRows());
+        var next = rows.FirstOrDefault(row => row.CanRun && row.Status != "Ferdig") ??
+                   rows.FirstOrDefault(row => row.CanRun);
+        return next?.Action switch
+        {
+            "Lag SSC-brukere" => RunSscUsersAsync(),
+            "Kontroller oppsett" => RunSscValidateAsync(),
+            "Lag banefiler" => RunSscLanesAsync(),
+            _ => Task.CompletedTask
+        };
+    }
+
     private Task RunSscUsersAsync()
     {
         var options = BuildSscUsersOptions();
@@ -1767,6 +2027,17 @@ public partial class MainWindow : Window
                 });
             }
 
+            Dispatcher.UIThread.Post(() =>
+            {
+                _sscValidationPassed = false;
+                _sscLanesWritten = false;
+                SscUsersResultLabel.Text = result.Written && !string.IsNullOrWhiteSpace(result.OutputPath)
+                    ? $"SSC-brukere laget: {result.UserCount} brukere - {ToEventDisplayPath(result.OutputPath)}"
+                    : result.HasErrors
+                        ? "SSC-brukere ble ikke laget. Se kontrollmeldingene under eller i loggen."
+                        : $"SSC-brukere kontrollert: {result.UserCount} brukere.";
+                UpdateActionStates();
+            });
             AppendLog(FormatSscUsersResult(result));
         });
     }
@@ -1779,6 +2050,14 @@ public partial class MainWindow : Window
         return Task.Run(() =>
         {
             var result = SscValidationRunner.Run(options);
+            Dispatcher.UIThread.Post(() =>
+            {
+                _sscValidationPassed = !result.HasErrors;
+                SscValidationResultLabel.Text = result.HasErrors
+                    ? $"Kontroll feilet: {result.Messages.Count(message => message.Severity == SscValidationSeverity.Error)} feil."
+                    : $"Kontroll OK: {result.StarterCount} startere og {result.UserCount} brukere.";
+                UpdateActionStates();
+            });
             AppendLog(FormatSscValidationResult(result));
         });
     }
@@ -1791,6 +2070,14 @@ public partial class MainWindow : Window
         return Task.Run(() =>
         {
             var result = SscLanesRunner.Run(options);
+            Dispatcher.UIThread.Post(() =>
+            {
+                _sscLanesWritten = !result.HasErrors;
+                SscLanesResultLabel.Text = result.HasErrors
+                    ? "Banefiler laget med kontrollmeldinger. Se loggen for detaljer."
+                    : $"Banefiler laget: {ToEventDisplayPath(result.ActiveLanesPath)} og {ToEventDisplayPath(result.ResetPath)}";
+                UpdateActionStates();
+            });
             AppendLog(FormatSscLanesResult(result));
         });
     }
@@ -1920,9 +2207,11 @@ public partial class MainWindow : Window
         SetControlEnabled("ValidateAllWritebackButton", classWriteback.CanRun && hasReadyWritebackRows && !_isRunning);
         SetControlEnabled("DryRunReadyWritebackButton", classWriteback.CanRun && hasReadyWritebackRows && !_isRunning);
         SetControlEnabled("ApplyValidatedWritebackButton", classWriteback.CanRun && hasValidatedReadyClass && !_isRunning);
-        SetControlEnabled("RunSscUsersButton", sscRows.First(row => row.Action == "Eksporter SSC-brukere").CanRun && !_isRunning);
-        SetControlEnabled("RunSscValidateButton", sscRows.First(row => row.Action == "Valider SSC").CanRun && !_isRunning);
-        SetControlEnabled("RunSscLanesButton", sscRows.First(row => row.Action == "Eksporter SSC baner/reset").CanRun && !_isRunning);
+        SetControlEnabled("RunSscUsersButton", sscRows.First(row => row.Action == "Lag SSC-brukere").CanRun && !_isRunning);
+        SetControlEnabled("RunSscValidateButton", sscRows.First(row => row.Action == "Kontroller oppsett").CanRun && !_isRunning);
+        SetControlEnabled("RunSscLanesButton", sscRows.First(row => row.Action == "Lag banefiler").CanRun && !_isRunning);
+        SetControlEnabled("RunSscNextStepButton", sscRows.Any(row => row.CanRun) && !_isRunning);
+        SetControlEnabled("OpenSscOutputButton", HasExistingDirectory(SscOutputDirectoryInput.Text) && !_isRunning);
         SetControlEnabled("ShowStevnerButton", databaseExists && !_isRunning);
         SetControlEnabled("ShowSelectedOvelserButton", databaseExists && hasIds && !_isRunning);
 
@@ -1947,6 +2236,7 @@ public partial class MainWindow : Window
         CsvActionHelpLabel.Text = FormatCsvMissing(csvBase, csvExport, _csvPreflight);
         WritebackActionHelpLabel.Text = FormatWritebackSummary(classWriteback);
         RenderSscStatusRows(sscRows);
+        UpdateSscSummary(sscRows);
         UpdatePathTooltips();
     }
 
@@ -2093,8 +2383,8 @@ public partial class MainWindow : Window
             BibMapExists: HasExistingFile(SscBibMapPathInput.Text),
             OrganizationNamePresent: !string.IsNullOrWhiteSpace(SscOrganizationNameInput.Text),
             OrganizationIdPresent: !string.IsNullOrWhiteSpace(SscOrganizationIdInput.Text),
-            StartlagPresent: !string.IsNullOrWhiteSpace(SscStartlagInput.Text),
-            StartlagValid: DateTime.TryParse(SscStartlagInput.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _)));
+            StartlagPresent: !string.IsNullOrWhiteSpace(SelectedSscStartlag()),
+            StartlagValid: DateTime.TryParse(SelectedSscStartlag(), CultureInfo.InvariantCulture, DateTimeStyles.None, out _)));
     }
 
     private void AddDatabaseRequirement(List<string> missing)
@@ -2334,7 +2624,7 @@ public partial class MainWindow : Window
         return new ExportSscLanesOptions(
             RequireExistingFile(DatabasePathInput.Text, "storage.db3"),
             selectedId.Value,
-            RequireText(SscStartlagInput.Text, "SSC startlag"),
+            RequireText(SelectedSscStartlag(), "SSC startlag"),
             CleanSetting(SscBibMapPathInput.Text) is { } bibMapPath ? ResolveEventPath(bibMapPath) : null,
             ResolveEventPath(RequireText(SscOutputDirectoryInput.Text, "SSC output directory")),
             SelectedSscLaneCount());
@@ -2885,6 +3175,15 @@ public partial class MainWindow : Window
         int StarterCount);
 
     private sealed record SscStevneChoice(int Id, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record SscStartlagChoice(
+        string IsoValue,
+        string Label,
+        int StarterCount,
+        string Exercises)
     {
         public override string ToString() => Label;
     }

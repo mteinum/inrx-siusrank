@@ -96,15 +96,15 @@ public sealed class DesktopUiStateTests
             StartlagPresent: true,
             StartlagValid: true));
 
-        var validate = rows.Single(row => row.Action == "Valider SSC");
+        var validate = rows.Single(row => row.Action == "Kontroller oppsett");
         Assert.False(validate.CanRun);
         Assert.Equal("Mangler Users CSV", validate.Status);
-        Assert.Equal("Kjør 'Eksporter SSC-brukere' først, eller velg en eksisterende Users CSV.", validate.NextStep);
+        Assert.Equal("Klikk Lag SSC-brukere først.", validate.NextStep);
 
-        var lanes = rows.Single(row => row.Action == "Eksporter SSC baner/reset");
+        var lanes = rows.Single(row => row.Action == "Lag banefiler");
         Assert.False(lanes.CanRun);
-        Assert.Equal("Mangler stevnevalg", lanes.Status);
-        Assert.Contains("Prosjektet har nå: 413-417 (5).", lanes.NextStep);
+        Assert.Equal("Velg stevne", lanes.Status);
+        Assert.Contains("Nå valgt i prosjektet: 413-417 (5).", lanes.NextStep);
     }
 
     [Fact]

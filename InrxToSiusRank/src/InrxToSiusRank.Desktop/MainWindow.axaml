@@ -313,79 +313,102 @@
         </TabItem>
 
         <TabItem Header="SSC">
-          <Grid RowDefinitions="Auto,*" Margin="0,10,0,0" RowSpacing="8">
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-              <Border Classes="section-card">
-                <Grid ColumnDefinitions="160,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
-                  <TextBlock Text="Organisasjon og filer" Grid.ColumnSpan="3" Classes="section-title" />
+          <Grid RowDefinitions="Auto,Auto,*" Margin="0,10,0,0" RowSpacing="8">
+            <Border Classes="section-card">
+              <Grid ColumnDefinitions="1.1*,1.2*" ColumnSpacing="18" RowDefinitions="Auto,Auto">
+                <StackPanel>
+                  <TextBlock Text="Stevne og startlag" Classes="section-title" />
+                  <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                    <TextBlock Text="Stevne" Classes="form-label" />
+                    <ComboBox x:Name="SscStevneBox"
+                              Grid.Column="1"
+                              HorizontalAlignment="Stretch"
+                              PlaceholderText="Velg stevne" />
+                    <TextBlock Grid.Row="1" Text="Startlag" Classes="form-label" />
+                    <ComboBox x:Name="SscStartlagComboBox"
+                              Grid.Row="1"
+                              Grid.Column="1"
+                              HorizontalAlignment="Stretch"
+                              PlaceholderText="Velg startlag" />
+                    <TextBlock Grid.Row="2" Text="Antall baner" Classes="form-label" />
+                    <ComboBox x:Name="SscLaneCountBox" Grid.Row="2" Grid.Column="1" Width="90" HorizontalAlignment="Left" SelectedIndex="2">
+                      <ComboBoxItem Content="10" />
+                      <ComboBoxItem Content="25" />
+                      <ComboBoxItem Content="40" />
+                    </ComboBox>
+                  </Grid>
+                  <TextBlock x:Name="SscStevneDetailsText" Margin="118,6,0,0" Classes="helper" />
+                </StackPanel>
 
-                  <TextBlock Grid.Row="1" Text="Organisasjonsnavn" Classes="form-label" />
-                  <TextBox x:Name="SscOrganizationNameBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" PlaceholderText="Legacy" />
-
-                  <TextBlock Grid.Row="2" Text="Organisasjons-id" Classes="form-label" />
-                  <TextBox x:Name="SscOrganizationIdBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" PlaceholderText="f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf" />
-
-                  <TextBlock Grid.Row="3" Text="bib-map.csv" Classes="form-label" />
-                  <TextBox x:Name="SscBibMapPathBox" Grid.Row="3" Grid.Column="1" PlaceholderText="siusrank-import/bib-map.csv" />
-                  <Button x:Name="BrowseSscBibMapButton" Grid.Row="3" Grid.Column="2" Content="Velg fil" />
-
-                  <TextBlock Grid.Row="4" Text="Users CSV" Classes="form-label" />
-                  <TextBox x:Name="SscUsersCsvPathBox" Grid.Row="4" Grid.Column="1" PlaceholderText="ssc-users.csv for validering" />
-                  <Button x:Name="BrowseSscUsersCsvButton" Grid.Row="4" Grid.Column="2" Content="Velg fil" />
-                  <TextBlock Grid.Row="5"
-                             Grid.Column="1"
-                             Grid.ColumnSpan="2"
-                             Text="SSC-filer lagres relativt til stevnemappen."
-                             Classes="helper" />
-                </Grid>
-              </Border>
-
-              <Border Grid.Column="1" Classes="section-card">
-                <Grid ColumnDefinitions="150,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
-                  <TextBlock Text="Baner og handlinger" Grid.ColumnSpan="3" Classes="section-title" />
-
-                  <TextBlock Grid.Row="1" Text="Output-mappe" Classes="form-label" />
-                  <TextBox x:Name="SscOutputDirectoryBox" Grid.Row="1" Grid.Column="1" PlaceholderText="ssc setup output mappe" />
-                  <Button x:Name="BrowseSscOutputButton" Grid.Row="1" Grid.Column="2" Content="Velg mappe" />
-
-                  <TextBlock Grid.Row="2" Text="Stevne" Classes="form-label" />
-                  <ComboBox x:Name="SscStevneBox"
-                            Grid.Row="2"
-                            Grid.Column="1"
-                            Grid.ColumnSpan="2"
-                            HorizontalAlignment="Stretch"
-                            PlaceholderText="Velg stevne for baner/reset" />
-
-                  <TextBlock Grid.Row="3" Text="Startlag" Classes="form-label" />
-                  <TextBox x:Name="SscStartlagBox" Grid.Row="3" Grid.Column="1" PlaceholderText="2026-07-06T09:00:00" />
-
-                  <TextBlock Grid.Row="4" Text="Antall baner" Classes="form-label" />
-                  <ComboBox x:Name="SscLaneCountBox" Grid.Row="4" Grid.Column="1" Width="90" HorizontalAlignment="Left" SelectedIndex="2">
-                    <ComboBoxItem Content="10" />
-                    <ComboBoxItem Content="25" />
-                    <ComboBoxItem Content="40" />
-                  </ComboBox>
-
-                  <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="RunSscUsersButton" Classes="primary" Content="Eksporter SSC-brukere" />
-                    <Button x:Name="RunSscValidateButton" Content="Valider SSC" />
-                    <Button x:Name="RunSscLanesButton" Content="Eksporter SSC baner/reset" />
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Text="Arbeidsområde" Classes="section-title" />
+                  <TextBlock x:Name="SscOrganizationSummaryText" Classes="helper" />
+                  <TextBlock x:Name="SscOutputSummaryText" Classes="helper" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="RunSscNextStepButton" Classes="primary" Content="Neste steg" />
+                    <Button x:Name="OpenSscOutputButton" Content="Åpne mappe" />
                   </StackPanel>
-                </Grid>
-              </Border>
-            </Grid>
+                </StackPanel>
+
+                <Expander Grid.Row="1" Grid.ColumnSpan="2" Header="Avansert: filer og organisasjon" Margin="0,10,0,0">
+                  <Grid ColumnDefinitions="160,*,Auto,160,*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8" Margin="0,8,0,0">
+                    <TextBlock Text="Organisasjonsnavn" Classes="form-label" />
+                    <TextBox x:Name="SscOrganizationNameBox" Grid.Column="1" Grid.ColumnSpan="2" PlaceholderText="Legacy" />
+
+                    <TextBlock Grid.Row="1" Text="Organisasjons-id" Classes="form-label" />
+                    <TextBox x:Name="SscOrganizationIdBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" PlaceholderText="f95a2bc3-79bd-4c24-98b6-4e17f99bbfaf" />
+
+                    <TextBlock Grid.Row="2" Text="bib-map.csv" Classes="form-label" />
+                    <TextBox x:Name="SscBibMapPathBox" Grid.Row="2" Grid.Column="1" PlaceholderText="./siusrank-import/bib-map.csv" />
+                    <Button x:Name="BrowseSscBibMapButton" Grid.Row="2" Grid.Column="2" Content="Velg fil" />
+
+                    <TextBlock Grid.Column="3" Text="Output-mappe" Classes="form-label" />
+                    <TextBox x:Name="SscOutputDirectoryBox" Grid.Column="4" PlaceholderText="./ssc-setup" />
+                    <Button x:Name="BrowseSscOutputButton" Grid.Column="5" Content="Velg mappe" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="3" Text="Users CSV" Classes="form-label" />
+                    <TextBox x:Name="SscUsersCsvPathBox" Grid.Row="1" Grid.Column="4" PlaceholderText="./ssc-setup/ssc-users.csv" />
+                    <Button x:Name="BrowseSscUsersCsvButton" Grid.Row="1" Grid.Column="5" Content="Velg fil" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="3" Text="Manuelt startlag" Classes="form-label" />
+                    <TextBox x:Name="SscStartlagBox" Grid.Row="2" Grid.Column="4" Grid.ColumnSpan="2" PlaceholderText="2026-07-06T09:00:00" />
+                  </Grid>
+                </Expander>
+              </Grid>
+            </Border>
 
             <Border Grid.Row="1" Classes="section-card">
-              <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
-                <TextBlock Text="Krav og neste steg" Classes="section-title" />
-                <Border Grid.Row="1" Background="#f6f8fa" BorderBrush="#d0d7de" BorderThickness="1" CornerRadius="6" Padding="8,5">
-                  <Grid ColumnDefinitions="220,180,*" ColumnSpacing="8">
-                    <TextBlock Text="Handling" Classes="muted" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" Text="Status" Classes="muted" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="2" Text="Neste steg" Classes="muted" FontWeight="SemiBold" />
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                <TextBlock Text="Arbeidsflyt" Classes="section-title" />
+                <StackPanel Grid.Row="1" Spacing="6">
+                  <StackPanel x:Name="SscStatusRowsPanel" Spacing="4" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="RunSscUsersButton" Content="Lag SSC-brukere" />
+                    <Button x:Name="RunSscValidateButton" Content="Kontroller oppsett" />
+                    <Button x:Name="RunSscLanesButton" Content="Lag banefiler" />
+                  </StackPanel>
+                  <TextBlock x:Name="SscUsersResultText" Classes="helper" />
+                  <TextBlock x:Name="SscValidationResultText" Classes="helper" />
+                  <TextBlock x:Name="SscLanesResultText" Classes="helper" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Classes="section-card">
+              <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="6">
+                <TextBlock Text="Forhåndsvisning av baner" Classes="section-title" />
+                <TextBlock x:Name="SscLanePreviewSummaryText" Grid.Row="1" Classes="helper" />
+                <Border Grid.Row="2" Background="#f6f8fa" BorderBrush="#d0d7de" BorderThickness="1" CornerRadius="6" Padding="8,5">
+                  <Grid ColumnDefinitions="70,2*,100,1.4*" ColumnSpacing="8">
+                    <TextBlock Text="Bane" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="Skytter" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="2" Text="UserId" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="Øvelse" Classes="muted" FontWeight="SemiBold" />
                   </Grid>
                 </Border>
-                <StackPanel x:Name="SscStatusRowsPanel" Grid.Row="2" Spacing="2" />
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel x:Name="SscLanePreviewRowsPanel" Spacing="2" />
+                </ScrollViewer>
               </Grid>
             </Border>
           </Grid>

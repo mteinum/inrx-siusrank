@@ -605,28 +605,28 @@ public static class SscActionStatusBuilder
         var common = CommonBlockingStatus(input);
         if (common is not null)
         {
-            return common with { Action = "Eksporter SSC-brukere" };
+            return common with { Action = "Lag SSC-brukere" };
         }
 
         if (!input.OutputDirectoryPresent)
         {
-            return new SscActionStatusRow("Eksporter SSC-brukere", "Mangler Output-mappe", "Velg hvor ssc-users.csv skal lagres.", false);
+            return new SscActionStatusRow("Lag SSC-brukere", "Mangler mappe", "Velg hvor SSC-filene skal lagres.", false);
         }
 
         if (!input.OrganizationNamePresent)
         {
-            return new SscActionStatusRow("Eksporter SSC-brukere", "Mangler organisasjonsnavn", "Fyll inn organisasjonsnavn.", false);
+            return new SscActionStatusRow("Lag SSC-brukere", "Mangler organisasjon", "Åpne Avansert og fyll inn organisasjonsnavn.", false);
         }
 
         if (!input.OrganizationIdPresent)
         {
-            return new SscActionStatusRow("Eksporter SSC-brukere", "Mangler organisasjons-id", "Fyll inn organisasjons-id.", false);
+            return new SscActionStatusRow("Lag SSC-brukere", "Mangler organisasjon", "Åpne Avansert og fyll inn organisasjons-id.", false);
         }
 
         return new SscActionStatusRow(
-            "Eksporter SSC-brukere",
-            $"Klar ({input.StevneIds.Count} Stevne.Id)",
-            "Lager ssc-users.csv og oppretter/oppdaterer bib-map.csv ved behov.",
+            "Lag SSC-brukere",
+            input.UsersCsvExists ? "Ferdig" : "Må kjøres",
+            input.UsersCsvExists ? "ssc-users.csv finnes. Gå videre til kontroll." : "Klikk Lag SSC-brukere.",
             true);
     }
 
@@ -635,28 +635,28 @@ public static class SscActionStatusBuilder
         var common = CommonBlockingStatus(input);
         if (common is not null)
         {
-            return common with { Action = "Valider SSC" };
+            return common with { Action = "Kontroller oppsett" };
         }
 
         if (!input.UsersCsvExists)
         {
             return new SscActionStatusRow(
-                "Valider SSC",
+                "Kontroller oppsett",
                 "Mangler Users CSV",
-                "Kjør 'Eksporter SSC-brukere' først, eller velg en eksisterende Users CSV.",
+                "Klikk Lag SSC-brukere først.",
                 false);
         }
 
         if (!input.BibMapExists)
         {
             return new SscActionStatusRow(
-                "Valider SSC",
+                "Kontroller oppsett",
                 "Mangler bib-map.csv",
-                "Opprett bib-map.csv på CSV export-fanen, eller velg filen her.",
+                "Lag SSC-brukere eller opprett bib-map.csv på CSV export-fanen.",
                 false);
         }
 
-        return new SscActionStatusRow("Valider SSC", $"Klar ({input.StevneIds.Count} Stevne.Id)", "Validerer brukere, bib-map, skiver og øvelsesmapping.", true);
+        return new SscActionStatusRow("Kontroller oppsett", "Klar", "Klikk Kontroller oppsett.", true);
     }
 
     private static SscActionStatusRow BuildLanesRow(SscActionStatusInput input)
@@ -664,7 +664,7 @@ public static class SscActionStatusBuilder
         var common = CommonBlockingStatus(input);
         if (common is not null)
         {
-            return common with { Action = "Eksporter SSC baner/reset" };
+            return common with { Action = "Lag banefiler" };
         }
 
         if (input.LaneStevneId is null)
@@ -673,40 +673,40 @@ public static class SscActionStatusBuilder
                 ? "ingen"
                 : input.SelectedStevneIdsText;
             return new SscActionStatusRow(
-                "Eksporter SSC baner/reset",
-                "Mangler stevnevalg",
-                $"Velg ett stevne i SSC-fanen. Prosjektet har nå: {selected} ({input.StevneIds.Count}).",
+                "Lag banefiler",
+                "Velg stevne",
+                $"Velg ett stevne øverst. Nå valgt i prosjektet: {selected} ({input.StevneIds.Count}).",
                 false);
         }
 
         if (!input.StartlagPresent)
         {
-            return new SscActionStatusRow("Eksporter SSC baner/reset", "Mangler startlag", "Fyll inn startlag, for eksempel 2026-07-06T09:00:00.", false);
+            return new SscActionStatusRow("Lag banefiler", "Velg startlag", "Velg et startlag før banefiler kan lages.", false);
         }
 
         if (!input.StartlagValid)
         {
-            return new SscActionStatusRow("Eksporter SSC baner/reset", "Ugyldig startlag", "Bruk format som 2026-07-06T09:00:00.", false);
+            return new SscActionStatusRow("Lag banefiler", "Ugyldig startlag", "Velg startlag fra listen, eller skriv ISO-tid i Avansert.", false);
         }
 
         if (!input.OutputDirectoryPresent)
         {
-            return new SscActionStatusRow("Eksporter SSC baner/reset", "Mangler Output-mappe", "Velg hvor lane/reset-filene skal lagres.", false);
+            return new SscActionStatusRow("Lag banefiler", "Mangler mappe", "Velg hvor SSC-filene skal lagres.", false);
         }
 
         if (!input.BibMapExists)
         {
             return new SscActionStatusRow(
-                "Eksporter SSC baner/reset",
+                "Lag banefiler",
                 "Mangler bib-map.csv",
-                "Opprett bib-map.csv på CSV export-fanen, eller velg filen her.",
+                "Lag SSC-brukere eller opprett bib-map.csv på CSV export-fanen.",
                 false);
         }
 
         return new SscActionStatusRow(
-            "Eksporter SSC baner/reset",
-            $"Klar (Stevne.Id {input.LaneStevneId.Value})",
-            "Lager reset-fil og aktiv lane-fil for valgt startlag.",
+            "Lag banefiler",
+            "Klar",
+            "Klikk Lag banefiler.",
             true);
     }
 
