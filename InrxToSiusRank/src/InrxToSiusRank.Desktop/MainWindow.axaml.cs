@@ -5,8 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 
@@ -18,14 +21,24 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, StevneChoice> _stevneChoices = new();
     private readonly Dictionary<int, ComboBox> _eventTypeInputs = new();
     private readonly Dictionary<string, TextBlock> _writebackStatusLabels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Button> _writebackValidateButtons = [];
+    private readonly List<Button> _writebackApplyButtons = [];
     private string? _currentEventFilePath;
     private EventProjectConfig? _currentEventConfig;
+    private bool _isRunning;
+    private bool _updatingStevneChecks;
+
+    private static readonly IBrush ReadyStatusBrush = new SolidColorBrush(Color.Parse("#dafbe1"));
+    private static readonly IBrush RunningStatusBrush = new SolidColorBrush(Color.Parse("#fff8c5"));
+    private static readonly IBrush ErrorStatusBrush = new SolidColorBrush(Color.Parse("#ffebe9"));
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeDefaults();
         WireEvents();
+        UpdateActionStates();
+        SetStatus(RunStatus.Ready);
         Closing += (_, _) => SaveDesktopSettings(logWarning: false);
     }
 
@@ -80,6 +93,18 @@ public partial class MainWindow : Window
     private TextBox LogInput => Get<TextBox>("LogBox");
 
     private TextBlock StatusLabel => Get<TextBlock>("StatusText");
+
+    private Border StatusBadgeControl => Get<Border>("StatusBadge");
+
+    private TextBlock EventActionHelpLabel => Get<TextBlock>("EventActionHelpText");
+
+    private TextBlock CsvActionHelpLabel => Get<TextBlock>("CsvActionHelpText");
+
+    private TextBlock WritebackActionHelpLabel => Get<TextBlock>("WritebackActionHelpText");
+
+    private TextBlock SscActionHelpLabel => Get<TextBlock>("SscActionHelpText");
+
+    private TextBlock StevneResultCountLabel => Get<TextBlock>("StevneResultCountText");
 
     private T Get<T>(string name)
         where T : Control =>
@@ -140,9 +165,12 @@ public partial class MainWindow : Window
 
     private void WireEvents()
     {
-        Get<MenuItem>("CreateEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Creating event.json", CreateEventFileAsync);
-        Get<MenuItem>("OpenEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Opening event.json", OpenEventFileAsync);
-        Get<MenuItem>("SaveEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Saving event.json", SaveEventFileAsync);
+        Get<MenuItem>("CreateEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
+        Get<MenuItem>("OpenEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
+        Get<MenuItem>("SaveEventMenuItem").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
+        Get<Button>("CreateEventButton").Click += async (_, _) => await RunSafelyAsync("Oppretter event.json", CreateEventFileAsync);
+        Get<Button>("OpenEventButton").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
+        Get<Button>("SaveEventButton").Click += async (_, _) => await RunSafelyAsync("Lagrer event.json", SaveEventFileAsync);
 
         Get<Button>("BrowseDatabaseButton").Click += async (_, _) =>
             await BrowseFileAsync(DatabasePathInput, "Select storage.db3", "SQLite database", ["*.db3", "*.sqlite", "*.sqlite3"]);
@@ -163,20 +191,24 @@ public partial class MainWindow : Window
         Get<Button>("BrowseSscUsersCsvButton").Click += async (_, _) =>
             await BrowseFileAsync(SscUsersCsvPathInput, "Select SSC users CSV", "CSV", ["*.csv"]);
 
-        Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Inspecting database", InspectDatabaseAsync);
-        Get<Button>("SearchStevnerButton").Click += async (_, _) => await RunSafelyAsync("Searching stevner", SearchStevnerAsync);
-        Get<Button>("RefreshOvelserButton").Click += async (_, _) => await RunSafelyAsync("Loading øvelser", RefreshOvelseChoicesAsync);
-        Get<Button>("RefreshEventClassesButton").Click += async (_, _) => await RunSafelyAsync("Updating classes", RefreshEventClassesAsync);
-        Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Copying templates", CopyTemplatesToSiusRankAsync);
-        Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Creating bib-map.csv", RunCreateBibMapAsync);
-        Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Creating CSV files", RunExportAsync);
-        Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Running writeback dry-run", () => RunWritebackAsync(apply: false));
-        Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Applying writeback", () => RunWritebackAsync(apply: true));
-        Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Exporting SSC users", RunSscUsersAsync);
-        Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Validating SSC setup", RunSscValidateAsync);
-        Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Exporting SSC lanes", RunSscLanesAsync);
-        Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Loading stevner", ShowRecentStevnerAsync);
-        Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Loading øvelser", ShowSelectedOvelserAsync);
+        Get<Button>("LoadDatabaseButton").Click += async (_, _) => await RunSafelyAsync("Kontrollerer database", InspectDatabaseAsync);
+        Get<Button>("SearchStevnerButton").Click += async (_, _) => await RunSafelyAsync("Søker etter stevner", SearchStevnerAsync);
+        Get<Button>("RefreshOvelserButton").Click += async (_, _) => await RunSafelyAsync("Laster øvelser", RefreshOvelseChoicesAsync);
+        Get<Button>("RefreshEventClassesButton").Click += async (_, _) => await RunSafelyAsync("Oppdaterer klasser", RefreshEventClassesAsync);
+        Get<Button>("SelectAllStevnerButton").Click += (_, _) => SetAllSearchResultSelections(isSelected: true);
+        Get<Button>("ClearStevnerButton").Click += (_, _) => SetAllSearchResultSelections(isSelected: false);
+        Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Kopierer templates", CopyTemplatesToSiusRankAsync);
+        Get<Button>("CreateBibMapButton").Click += async (_, _) => await RunSafelyAsync("Oppretter bib-map.csv", RunCreateBibMapAsync);
+        Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Lager CSV-filer", RunExportAsync);
+        Get<Button>("RunWritebackPreviewButton").Click += async (_, _) => await RunSafelyAsync("Tørrkjører writeback", () => RunWritebackAsync(apply: false));
+        Get<Button>("RunWritebackApplyButton").Click += async (_, _) => await RunSafelyAsync("Skriver til inrX", () => RunWritebackAsync(apply: true));
+        Get<Button>("RunSscUsersButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC-brukere", RunSscUsersAsync);
+        Get<Button>("RunSscValidateButton").Click += async (_, _) => await RunSafelyAsync("Validerer SSC", RunSscValidateAsync);
+        Get<Button>("RunSscLanesButton").Click += async (_, _) => await RunSafelyAsync("Eksporterer SSC baner/reset", RunSscLanesAsync);
+        Get<Button>("ShowStevnerButton").Click += async (_, _) => await RunSafelyAsync("Laster stevner", ShowRecentStevnerAsync);
+        Get<Button>("ShowSelectedOvelserButton").Click += async (_, _) => await RunSafelyAsync("Laster øvelser", ShowSelectedOvelserAsync);
+        Get<Button>("CopyLogButton").Click += async (_, _) => await RunSafelyAsync("Kopierer logg", CopyLogAsync);
+        Get<Button>("SaveLogButton").Click += async (_, _) => await RunSafelyAsync("Lagrer logg", SaveLogAsync);
         Get<Button>("ClearLogButton").Click += (_, _) => LogInput.Text = string.Empty;
         OvelseSelectInput.SelectionChanged += (_, _) =>
         {
@@ -184,7 +216,39 @@ public partial class MainWindow : Window
             {
                 OvelseFilterInput.Text = choice.Id.ToString(CultureInfo.InvariantCulture);
             }
+
+            UpdateActionStates();
         };
+
+        EncodingInput.SelectionChanged += (_, _) => UpdateActionStates();
+        SilhouetteShootersPerStandInput.SelectionChanged += (_, _) => UpdateActionStates();
+        SscLaneCountInput.SelectionChanged += (_, _) => UpdateActionStates();
+        WireActionStateTextChanges();
+    }
+
+    private void WireActionStateTextChanges()
+    {
+        foreach (var input in new[]
+        {
+            DatabasePathInput,
+            StevneIdsInput,
+            SiusRankFolderInput,
+            OutputDirectoryInput,
+            ShooterGroupsTemplateInput,
+            OvelseFilterInput,
+            ExportsDirectoryInput,
+            BibMapPathInput,
+            EventFilterInput,
+            SscBibMapPathInput,
+            SscOutputDirectoryInput,
+            SscUsersCsvPathInput,
+            SscStartlagInput,
+            SscOrganizationNameInput,
+            SscOrganizationIdInput
+        })
+        {
+            input.TextChanged += (_, _) => UpdateActionStates();
+        }
     }
 
     private async Task CreateEventFileAsync()
@@ -305,6 +369,7 @@ public partial class MainWindow : Window
         RenderEventTypeRows(ParseIdList(config.Inrx.Stevner, "Stevne ids"), config.EventTypes);
         RenderWritebackRows(config);
         SaveDesktopSettings();
+        UpdateActionStates();
     }
 
     private Task SearchStevnerAsync()
@@ -344,6 +409,7 @@ public partial class MainWindow : Window
                 OvelseSelectInput.ItemsSource = Array.Empty<OvelseChoice>();
                 OvelseSelectInput.SelectedItem = null;
                 OvelseFilterInput.Text = string.Empty;
+                UpdateActionStates();
             });
             return Task.CompletedTask;
         }
@@ -378,6 +444,8 @@ public partial class MainWindow : Window
                 {
                     OvelseFilterInput.Text = selected.Id.ToString(CultureInfo.InvariantCulture);
                 }
+
+                UpdateActionStates();
             });
         });
     }
@@ -409,6 +477,7 @@ public partial class MainWindow : Window
         {
             target.Text = path;
             SaveDesktopSettings();
+            UpdateActionStates();
         }
     }
 
@@ -424,27 +493,35 @@ public partial class MainWindow : Window
         {
             target.Text = path;
             SaveDesktopSettings();
+            UpdateActionStates();
         }
     }
 
     private async Task RunSafelyAsync(string status, Func<Task> action)
     {
-        StatusLabel.Text = status;
+        _isRunning = true;
+        SetStatus(RunStatus.Running, status);
+        UpdateActionStates();
         SaveDesktopSettings();
         try
         {
             await action();
-            StatusLabel.Text = "Klar";
+            SetStatus(RunStatus.Ready);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException or System.Xml.XmlException)
         {
             AppendLog($"ERROR: {ex.Message}");
-            StatusLabel.Text = "Feil";
+            SetStatus(RunStatus.Error, ex.Message);
         }
         catch (Exception ex)
         {
             AppendLog($"ERROR: {ex}");
-            StatusLabel.Text = "Feil";
+            SetStatus(RunStatus.Error, ex.Message);
+        }
+        finally
+        {
+            _isRunning = false;
+            UpdateActionStates();
         }
     }
 
@@ -499,17 +576,25 @@ public partial class MainWindow : Window
         _stevneChecks.Clear();
         _stevneChoices.Clear();
         StevneListContainer.Children.Clear();
+        StevneResultCountLabel.Text = rows.Count == 1
+            ? "1 treff."
+            : $"{rows.Count} treff.";
 
         foreach (var row in rows)
         {
             _stevneChoices[row.Id] = row;
             var checkBox = new CheckBox
             {
-                Content = $"{FormatDate(row.Date),10}  {row.Id,4}  {row.Name}  [{row.EventType}]  {row.Ovelser}",
-                IsChecked = selectedIds.Contains(row.Id)
+                IsChecked = selectedIds.Contains(row.Id),
+                VerticalAlignment = VerticalAlignment.Center
             };
             checkBox.IsCheckedChanged += (_, _) =>
             {
+                if (_updatingStevneChecks)
+                {
+                    return;
+                }
+
                 UpdateSelectedStevneIdsFromChecks();
                 var ids = ParseOptionalIdList(StevneIdsInput.Text);
                 RenderEventTypeRows(ids, BuildEventTypeMapFromChoices());
@@ -517,12 +602,81 @@ public partial class MainWindow : Window
                 {
                     _ = RefreshOvelseChoicesAsync();
                 }
+
+                UpdateActionStates();
             };
             _stevneChecks[row.Id] = checkBox;
-            StevneListContainer.Children.Add(checkBox);
+            StevneListContainer.Children.Add(CreateStevneRow(row, checkBox));
         }
 
         RenderEventTypeRows(ParseOptionalIdList(StevneIdsInput.Text), BuildEventTypeMapFromChoices());
+        UpdateActionStates();
+    }
+
+    private static Border CreateStevneRow(StevneChoice row, CheckBox checkBox)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("32,110,70,2*,110,2*"),
+            ColumnSpacing = 8
+        };
+        grid.Children.Add(checkBox);
+        AddRowText(grid, 1, FormatDate(row.Date));
+        AddRowText(grid, 2, row.Id.ToString(CultureInfo.InvariantCulture));
+        AddRowText(grid, 3, row.Name);
+        AddRowText(grid, 4, row.EventType);
+        AddRowText(grid, 5, row.Ovelser);
+
+        return new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.Parse("#d8dee4")),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(8, 5),
+            Child = grid
+        };
+    }
+
+    private static void AddRowText(Grid grid, int column, string text)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(block, column);
+        grid.Children.Add(block);
+    }
+
+    private void SetAllSearchResultSelections(bool isSelected)
+    {
+        _updatingStevneChecks = true;
+        try
+        {
+            foreach (var checkBox in _stevneChecks.Values)
+            {
+                checkBox.IsChecked = isSelected;
+            }
+        }
+        finally
+        {
+            _updatingStevneChecks = false;
+        }
+
+        UpdateSelectedStevneIdsFromChecks();
+        var ids = ParseOptionalIdList(StevneIdsInput.Text);
+        RenderEventTypeRows(ids, BuildEventTypeMapFromChoices());
+        if (ids.Count > 0)
+        {
+            _ = RefreshOvelseChoicesAsync();
+        }
+        else
+        {
+            OvelseSelectInput.SelectedItem = null;
+            OvelseFilterInput.Text = string.Empty;
+        }
+
+        UpdateActionStates();
     }
 
     private void UpdateSelectedStevneIdsFromChecks()
@@ -569,10 +723,13 @@ public partial class MainWindow : Window
                     ? EventProjectPlanner.ChampionshipEventType
                     : EventProjectPlanner.ApprovedEventType
             };
+            comboBox.SelectionChanged += (_, _) => UpdateActionStates();
             _eventTypeInputs[id] = comboBox;
             row.Children.Add(comboBox);
             EventTypesContainer.Children.Add(row);
         }
+
+        UpdateActionStates();
     }
 
     private EventProjectConfig BuildEventConfigFromUi(string eventPath, bool refreshClasses)
@@ -681,6 +838,8 @@ public partial class MainWindow : Window
     private void RenderWritebackRows(EventProjectConfig config)
     {
         _writebackStatusLabels.Clear();
+        _writebackValidateButtons.Clear();
+        _writebackApplyButtons.Clear();
         WritebackClassRowsContainer.Children.Clear();
         foreach (var classConfig in config.Classes)
         {
@@ -699,6 +858,7 @@ public partial class MainWindow : Window
             {
                 Text = classConfig.Exports,
                 Width = 300,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             });
             var status = new TextBlock
@@ -711,16 +871,21 @@ public partial class MainWindow : Window
             row.Children.Add(status);
             var validateButton = new Button { Content = "Valider" };
             validateButton.Click += async (_, _) => await RunSafelyAsync(
-                $"Validating {classConfig.Class}",
+                $"Validerer {classConfig.Class}",
                 () => RunClassWritebackAsync(classConfig, apply: false));
+            _writebackValidateButtons.Add(validateButton);
             row.Children.Add(validateButton);
             var writeButton = new Button { Content = "Skriv til inrX" };
+            writeButton.Classes.Add("danger");
             writeButton.Click += async (_, _) => await RunSafelyAsync(
-                $"Writing {classConfig.Class}",
+                $"Skriver {classConfig.Class}",
                 () => RunClassWritebackAsync(classConfig, apply: true));
+            _writebackApplyButtons.Add(writeButton);
             row.Children.Add(writeButton);
             WritebackClassRowsContainer.Children.Add(row);
         }
+
+        UpdateActionStates();
     }
 
     private async Task RunClassWritebackAsync(EventClassConfig classConfig, bool apply)
@@ -738,6 +903,12 @@ public partial class MainWindow : Window
         if (!status.CanApply)
         {
             AppendLog($"Writeback not applied for {classConfig.Class}: {status.Text}");
+            return;
+        }
+
+        if (!await ConfirmInrxWritebackAsync($"Skriv {classConfig.Class} til inrX?"))
+        {
+            AppendLog($"Writeback cancelled for {classConfig.Class}.");
             return;
         }
 
@@ -854,7 +1025,18 @@ public partial class MainWindow : Window
         var command = BuildWritebackCommand(options);
         AppendLog(command);
 
-        return Task.Run(() =>
+        return RunConfirmedWritebackAsync(options);
+    }
+
+    private async Task RunConfirmedWritebackAsync(SiusRankWritebackOptions options)
+    {
+        if (options.Apply && !await ConfirmInrxWritebackAsync("Skriv SIUS Rank-resultater til inrX?"))
+        {
+            AppendLog("Writeback cancelled.");
+            return;
+        }
+
+        await Task.Run(() =>
         {
             var result = SiusRankWritebackRunner.Run(options);
             AppendLog(FormatWritebackResult(result));
@@ -904,6 +1086,392 @@ public partial class MainWindow : Window
             var result = SscLanesRunner.Run(options);
             AppendLog(FormatSscLanesResult(result));
         });
+    }
+
+    private async Task CopyLogAsync()
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            throw new InvalidOperationException("Clipboard is not available.");
+        }
+
+        await clipboard.SetTextAsync(LogInput.Text ?? string.Empty);
+        AppendLog("Logg kopiert.");
+    }
+
+    private async Task SaveLogAsync()
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Lagre logg",
+            SuggestedFileName = $"inrxtosiusrank-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("Text") { Patterns = ["*.txt"] },
+                FilePickerFileTypes.All
+            ]
+        });
+
+        if (file is null)
+        {
+            AppendLog("Lagre logg avbrutt.");
+            return;
+        }
+
+        var text = LogInput.Text ?? string.Empty;
+        if (file.TryGetLocalPath() is { } path)
+        {
+            await File.WriteAllTextAsync(path, text, Encoding.UTF8);
+            AppendLog($"Logg lagret: {path}");
+            return;
+        }
+
+        await using var stream = await file.OpenWriteAsync();
+        await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        await writer.WriteAsync(text);
+        AppendLog("Logg lagret.");
+    }
+
+    private async Task<bool> ConfirmInrxWritebackAsync(string title)
+    {
+        var dialog = new ConfirmWritebackDialog(title);
+        return await dialog.ShowDialog<bool>(this);
+    }
+
+    private void UpdateActionStates()
+    {
+        var createEvent = BuildCreateEventActionState();
+        var saveEvent = BuildSaveEventActionState();
+        var csvBase = BuildCsvActionState(includeTemplate: false);
+        var csvExport = BuildCsvActionState(includeTemplate: true);
+        var writeback = BuildWritebackActionState();
+        var sscUsers = BuildSscUsersActionState();
+        var sscValidate = BuildSscValidateActionState();
+        var sscLanes = BuildSscLanesActionState();
+        var classWriteback = BuildEventClassWritebackActionState();
+        var databaseExists = HasExistingFile(DatabasePathInput.Text);
+        var idsAreValid = TryParseOptionalIds(StevneIdsInput.Text, out var ids);
+        var hasIds = idsAreValid && ids.Count > 0;
+
+        SetControlEnabled("CreateEventMenuItem", createEvent.CanRun && !_isRunning);
+        SetControlEnabled("CreateEventButton", createEvent.CanRun && !_isRunning);
+        SetControlEnabled("OpenEventMenuItem", !_isRunning);
+        SetControlEnabled("OpenEventButton", !_isRunning);
+        SetControlEnabled("SaveEventMenuItem", saveEvent.CanRun && !_isRunning);
+        SetControlEnabled("SaveEventButton", saveEvent.CanRun && !_isRunning);
+        SetControlEnabled("LoadDatabaseButton", databaseExists && !_isRunning);
+        SetControlEnabled("SearchStevnerButton", databaseExists && !_isRunning);
+        SetControlEnabled("RefreshOvelserButton", databaseExists && hasIds && !_isRunning);
+        SetControlEnabled("RefreshEventClassesButton", saveEvent.CanRun && !_isRunning);
+        SetControlEnabled("SelectAllStevnerButton", _stevneChecks.Count > 0 && !_isRunning);
+        SetControlEnabled("ClearStevnerButton", _stevneChecks.Count > 0 && !_isRunning);
+        SetControlEnabled("CopyTemplatesButton", !_isRunning);
+        SetControlEnabled("CreateBibMapButton", csvBase.CanRun && !_isRunning);
+        SetControlEnabled("RunExportButton", csvExport.CanRun && !_isRunning);
+        SetControlEnabled("RunWritebackPreviewButton", writeback.CanRun && !_isRunning);
+        SetControlEnabled("RunWritebackApplyButton", writeback.CanRun && !_isRunning);
+        SetControlEnabled("RunSscUsersButton", sscUsers.CanRun && !_isRunning);
+        SetControlEnabled("RunSscValidateButton", sscValidate.CanRun && !_isRunning);
+        SetControlEnabled("RunSscLanesButton", sscLanes.CanRun && !_isRunning);
+        SetControlEnabled("ShowStevnerButton", databaseExists && !_isRunning);
+        SetControlEnabled("ShowSelectedOvelserButton", databaseExists && hasIds && !_isRunning);
+
+        foreach (var button in _writebackValidateButtons)
+        {
+            button.IsEnabled = classWriteback.CanRun && !_isRunning;
+        }
+
+        foreach (var button in _writebackApplyButtons)
+        {
+            button.IsEnabled = classWriteback.CanRun && !_isRunning;
+        }
+
+        EventActionHelpLabel.Text = FormatMissing(createEvent);
+        CsvActionHelpLabel.Text = FormatCsvMissing(csvBase, csvExport);
+        WritebackActionHelpLabel.Text = FormatMissing(writeback);
+        SscActionHelpLabel.Text = FormatSscMissing(sscUsers, sscValidate, sscLanes);
+    }
+
+    private void SetStatus(RunStatus status, string? detail = null)
+    {
+        switch (status)
+        {
+            case RunStatus.Ready:
+                StatusLabel.Text = "Ready";
+                StatusBadgeControl.Background = ReadyStatusBrush;
+                ToolTip.SetTip(StatusBadgeControl, "Ready");
+                break;
+            case RunStatus.Running:
+                StatusLabel.Text = "Running";
+                StatusBadgeControl.Background = RunningStatusBrush;
+                ToolTip.SetTip(StatusBadgeControl, detail ?? "Running");
+                break;
+            case RunStatus.Error:
+                StatusLabel.Text = "Error";
+                StatusBadgeControl.Background = ErrorStatusBrush;
+                ToolTip.SetTip(StatusBadgeControl, detail ?? "Error");
+                break;
+        }
+    }
+
+    private void SetControlEnabled(string name, bool isEnabled)
+    {
+        if (this.FindControl<Control>(name) is { } control)
+        {
+            control.IsEnabled = isEnabled;
+        }
+    }
+
+    private ActionState BuildCreateEventActionState()
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        AddStevneIdsRequirement(missing);
+        AddOvelseRequirement(missing);
+        AddTextRequirement(missing, SiusRankFolderInput.Text, "SIUS Rank-mappe");
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildSaveEventActionState()
+    {
+        var missing = BuildCreateEventActionState().Missing.ToList();
+        AddTextRequirement(missing, OutputDirectoryInput.Text, "Output-mappe");
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildCsvActionState(bool includeTemplate)
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        AddStevneIdsRequirement(missing);
+        AddTextRequirement(missing, OutputDirectoryInput.Text, "Output-mappe");
+        AddOvelseRequirement(missing);
+        if (includeTemplate && !string.IsNullOrWhiteSpace(ShooterGroupsTemplateInput.Text) &&
+            !HasExistingFile(ShooterGroupsTemplateInput.Text))
+        {
+            missing.Add("ShooterGroupsTemplate.xml finnes ikke");
+        }
+
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildWritebackActionState()
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        AddStevneIdsRequirement(missing);
+        if (!HasExistingDirectory(ExportsDirectoryInput.Text))
+        {
+            missing.Add("eksportmappe finnes ikke");
+        }
+
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildEventClassWritebackActionState()
+    {
+        var missing = new List<string>();
+        if (_currentEventConfig is null)
+        {
+            missing.Add("event.json er ikke lastet");
+            return new ActionState(missing);
+        }
+
+        var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
+        if (!HasExistingFile(EventProjectFile.ResolvePath(eventPath, _currentEventConfig.Inrx.Db)))
+        {
+            missing.Add("storage.db3 finnes ikke");
+        }
+
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildSscUsersActionState()
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        AddStevneIdsRequirement(missing);
+        AddTextRequirement(missing, SscOutputDirectoryInput.Text, "Output-mappe");
+        AddTextRequirement(missing, SscOrganizationNameInput.Text, "organisasjonsnavn");
+        AddTextRequirement(missing, SscOrganizationIdInput.Text, "organisasjons-id");
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildSscValidateActionState()
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        AddStevneIdsRequirement(missing);
+        var usersCsvPath = ResolveSscUsersCsvPathForValidation();
+        if (string.IsNullOrWhiteSpace(usersCsvPath))
+        {
+            missing.Add("Users CSV mangler");
+        }
+        else if (!HasExistingFile(usersCsvPath))
+        {
+            missing.Add("Users CSV finnes ikke");
+        }
+
+        if (!string.IsNullOrWhiteSpace(SscBibMapPathInput.Text) && !HasExistingFile(SscBibMapPathInput.Text))
+        {
+            missing.Add("bib-map.csv finnes ikke");
+        }
+
+        return new ActionState(missing);
+    }
+
+    private ActionState BuildSscLanesActionState()
+    {
+        var missing = new List<string>();
+        AddDatabaseRequirement(missing);
+        if (!TryParseOptionalIds(StevneIdsInput.Text, out var ids))
+        {
+            missing.Add("Stevne.Id er ugyldig");
+        }
+        else if (ids.Count != 1)
+        {
+            missing.Add("nøyaktig én Stevne.Id");
+        }
+
+        if (string.IsNullOrWhiteSpace(SscStartlagInput.Text))
+        {
+            missing.Add("startlag mangler");
+        }
+        else if (!DateTime.TryParse(SscStartlagInput.Text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+        {
+            missing.Add("startlag er ugyldig");
+        }
+
+        AddTextRequirement(missing, SscOutputDirectoryInput.Text, "Output-mappe");
+        return new ActionState(missing);
+    }
+
+    private void AddDatabaseRequirement(List<string> missing)
+    {
+        if (!HasExistingFile(DatabasePathInput.Text))
+        {
+            missing.Add("storage.db3 finnes ikke");
+        }
+    }
+
+    private void AddStevneIdsRequirement(List<string> missing)
+    {
+        if (!TryParseOptionalIds(StevneIdsInput.Text, out var ids))
+        {
+            missing.Add("Stevne.Id er ugyldig");
+        }
+        else if (ids.Count == 0)
+        {
+            missing.Add("Stevne.Id mangler");
+        }
+    }
+
+    private void AddOvelseRequirement(List<string> missing)
+    {
+        if (!HasSelectedOvelse())
+        {
+            missing.Add("Øvelse mangler");
+        }
+    }
+
+    private static void AddTextRequirement(List<string> missing, string? value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            missing.Add($"{label} mangler");
+        }
+    }
+
+    private bool HasSelectedOvelse() =>
+        OvelseSelectInput.SelectedItem is OvelseChoice ||
+        int.TryParse(OvelseFilterInput.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+
+    private string? ResolveSscUsersCsvPathForValidation()
+    {
+        if (!string.IsNullOrWhiteSpace(SscUsersCsvPathInput.Text))
+        {
+            return SscUsersCsvPathInput.Text.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(SscOutputDirectoryInput.Text)
+            ? null
+            : Path.Combine(SscOutputDirectoryInput.Text.Trim(), "ssc-users.csv");
+    }
+
+    private static bool HasExistingFile(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && File.Exists(value.Trim());
+
+    private static bool HasExistingDirectory(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && Directory.Exists(value.Trim());
+
+    private static bool TryParseOptionalIds(string? value, out IReadOnlyList<int> ids)
+    {
+        try
+        {
+            ids = ParseOptionalIdList(value);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            ids = [];
+            return false;
+        }
+    }
+
+    private static string FormatMissing(ActionState state) =>
+        state.CanRun ? string.Empty : "Mangler: " + string.Join(", ", state.Missing) + ".";
+
+    private static string FormatCsvMissing(ActionState bibMapState, ActionState exportState)
+    {
+        var lines = new List<string>();
+        if (!bibMapState.CanRun)
+        {
+            lines.Add("bib-map.csv: " + string.Join(", ", bibMapState.Missing) + ".");
+        }
+
+        if (!exportState.CanRun)
+        {
+            lines.Add("CSV-filer: " + string.Join(", ", exportState.Missing) + ".");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatSscMissing(
+        ActionState usersState,
+        ActionState validateState,
+        ActionState lanesState)
+    {
+        var lines = new List<string>();
+        if (!usersState.CanRun)
+        {
+            lines.Add("SSC-brukere: " + string.Join(", ", usersState.Missing) + ".");
+        }
+
+        if (!validateState.CanRun)
+        {
+            lines.Add("Valider SSC: " + string.Join(", ", validateState.Missing) + ".");
+        }
+
+        if (!lanesState.CanRun)
+        {
+            lines.Add("SSC baner/reset: " + string.Join(", ", lanesState.Missing) + ".");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private enum RunStatus
+    {
+        Ready,
+        Running,
+        Error
+    }
+
+    private sealed record ActionState(IReadOnlyList<string> Missing)
+    {
+        public bool CanRun => Missing.Count == 0;
     }
 
     private AppOptions BuildExportOptions(bool includeTemplate = true)
@@ -1585,6 +2153,7 @@ public partial class MainWindow : Window
 
             LogInput.Text = text + $"[{DateTime.Now:HH:mm:ss}] " + message.TrimEnd() + Environment.NewLine;
             LogInput.CaretIndex = LogInput.Text.Length;
+            LogInput.ScrollToLine(Math.Max(0, LogInput.GetLineCount() - 1));
         });
     }
 }
