@@ -364,18 +364,17 @@ public partial class MainWindow : Window
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
         var ovelse = RequireSelectedOvelse();
         var ids = ParseIdList(StevneIdsInput.Text, "Stevne ids");
-        var parentFolders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var eventFolders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select parent directory for the exercise folder",
+            Title = "Velg stevnemappe for event.json",
             AllowMultiple = false
         });
-        if (parentFolders.Count == 0 || parentFolders[0].TryGetLocalPath() is not { } parentDirectory)
+        if (eventFolders.Count == 0 || eventFolders[0].TryGetLocalPath() is not { } eventDirectory)
         {
             AppendLog("Create event.json cancelled.");
             return;
         }
 
-        var eventDirectory = Path.Combine(parentDirectory, EventProjectPlanner.SanitizePathPart(ovelse.Name));
         Directory.CreateDirectory(eventDirectory);
         var eventPath = Path.Combine(eventDirectory, EventProjectFile.FileName);
 
