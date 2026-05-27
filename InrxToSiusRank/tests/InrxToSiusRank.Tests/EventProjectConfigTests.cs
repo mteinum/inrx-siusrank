@@ -18,12 +18,7 @@ public sealed class EventProjectConfigTests
             Csv = new EventCsvConfig { Output = "./inrX_export" },
             Classes =
             [
-                new EventClassConfig
-                {
-                    Class = "Apen",
-                    Folder = "./SiusRank_Silhuett_Apen",
-                    Exports = "./SiusRank_Silhuett_Apen/Exports"
-                }
+                new EventClassConfig { Class = "Apen" }
             ]
         };
 
@@ -43,6 +38,9 @@ public sealed class EventProjectConfigTests
         Assert.Equal(
             Path.Combine(directory.Path, "inrX_export"),
             EventProjectFile.ResolvePath(eventPath, EventProjectFile.ToStoredPath(eventPath, Path.Combine(directory.Path, "inrX_export"))));
+        var storedJson = File.ReadAllText(eventPath);
+        Assert.DoesNotContain("\"folder\"", storedJson);
+        Assert.DoesNotContain("\"exports\"", storedJson);
 
         var outsidePath = Path.Combine(Path.GetTempPath(), "outside-storage.db3");
         Assert.Equal(Path.GetFullPath(outsidePath), EventProjectFile.ToStoredPath(eventPath, outsidePath));
@@ -89,16 +87,17 @@ public sealed class EventProjectConfigTests
     }
 
     [Fact]
-    public void Class_folder_plan_uses_one_folder_per_effective_class()
+    public void Class_plan_stores_only_effective_classes()
     {
         var classes = EventProjectPlanner.BuildClassConfigs(
             new OvelseInfo(11, "Silhuett", "Sil", 8),
             ["V55", "Apen", "Jr-NM", "Apen"]);
 
         Assert.Equal(["Jr-NM", "Apen", "V55"], classes.Select(item => item.Class));
-        Assert.Contains(classes, item =>
-            item.Folder == "./SiusRank_Silhuett_Apen" &&
-            item.Exports == "./SiusRank_Silhuett_Apen/Exports");
+        Assert.All(classes, item =>
+        {
+            Assert.DoesNotContain(item.GetType().GetProperties(), property => property.Name is "Folder" or "Exports");
+        });
     }
 
     [Fact]

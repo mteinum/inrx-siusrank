@@ -407,10 +407,7 @@ public partial class MainWindow : Window
         StevneIdsInput.Text = config.Inrx.Stevner;
         SiusRankFolderInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.SiusRankFolder));
         OutputDirectoryInput.Text = ToProjectOutputDisplayPath(config.Csv.Output);
-        if (config.Classes.Count > 0)
-        {
-            ExportsDirectoryInput.Text = ToEventDisplayPath(EventProjectFile.ResolvePath(_currentEventFilePath, config.Classes[0].Exports));
-        }
+        ExportsDirectoryInput.Text = string.Empty;
         RefreshSscStevneChoices();
 
         var bibMapPath = Path.Combine(ResolveEventPath(OutputDirectoryInput.Text), ChampionshipStartNumbers.BibMapFileName);
@@ -425,6 +422,7 @@ public partial class MainWindow : Window
         SetSilhouetteShootersPerStand(config.Silhouette.ShootersPerStand);
         LoadEventTypeSelections(config.EventTypes);
         await RefreshOvelseChoicesAsync(config.Exercise.Id);
+        await SearchSelectedStevnerAsync();
         RenderWritebackRows(config);
         SaveDesktopSettings();
         UpdateActionStates();
@@ -451,6 +449,43 @@ public partial class MainWindow : Window
                 .ToList();
 
             Dispatcher.UIThread.Post(() => RenderStevneChoices(rows));
+        });
+    }
+
+    private Task SearchSelectedStevnerAsync()
+    {
+        if (!HasExistingFile(DatabasePathInput.Text) ||
+            !TryParseOptionalIds(StevneIdsInput.Text, out var ids) ||
+            ids.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
+        return Task.Run(() =>
+        {
+            using var repository = new InrxRepository(databasePath);
+            var rows = ids
+                .Distinct()
+                .Select(id =>
+                {
+                    var stevne = repository.GetStevneById(id);
+                    var ovelser = repository.GetOvelserForStevne(stevne.Id);
+                    return new StevneChoice(
+                        stevne.Id,
+                        stevne.Name,
+                        stevne.Date,
+                        repository.GetStevneEventType(stevne.Id),
+                        string.Join(", ", ovelser.Select(ovelse => ovelse.Name)));
+                })
+                .ToList();
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                StevneSearchInput.Text = string.Empty;
+                RenderStevneChoices(rows);
+            });
+            AppendLog($"Stevnesøk: lastet {rows.Count} valgte stevner fra event.json.");
         });
     }
 
@@ -537,7 +572,7 @@ public partial class MainWindow : Window
         var config = BuildEventConfigFromUi(path, refreshClasses: true);
         _currentEventConfig = config;
         RenderWritebackRows(config);
-        AppendLog($"Event classes updated: {config.Classes.Count}");
+        AppendLog("Event-oppsett oppdatert.");
         return Task.CompletedTask;
     }
 
@@ -852,8 +887,8 @@ public partial class MainWindow : Window
         comboBox.SelectionChanged += (_, _) =>
         {
             _eventTypeSelections[stevneId] = DesktopEventTypeSelections.Normalize(comboBox.SelectedItem?.ToString());
+            QueueCsvPreflightRefresh();
             UpdateActionStates();
-            SaveDesktopSettings();
         };
         _eventTypeInputs[stevneId] = comboBox;
         return comboBox;
@@ -953,6 +988,11 @@ public partial class MainWindow : Window
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
 
         var selection = SelectedCsvExerciseSelection();
+        var rememberedEventTypes = new Dictionary<int, string>(_eventTypeSelections);
+        var visibleEventTypes = _eventTypeInputs.ToDictionary(
+            item => item.Key,
+            item => item.Value.SelectedItem?.ToString());
+        var loadedEventTypes = _currentEventConfig?.EventTypes;
         try
         {
             var events = await Task.Run(() =>
@@ -974,7 +1014,12 @@ public partial class MainWindow : Window
                             stevne.Id,
                             stevne.Name,
                             FormatDate(stevne.Date),
-                            repository.GetStevneEventType(stevne.Id),
+                            DesktopEventTypeSelections.ResolveEffective(
+                                stevne.Id,
+                                rememberedEventTypes,
+                                visibleEventTypes,
+                                loadedEventTypes,
+                                repository.GetStevneEventType(stevne.Id)),
                             exercises);
                     })
                     .ToList();
@@ -1148,20 +1193,6 @@ public partial class MainWindow : Window
         var siusRankFolder = RequireText(SiusRankFolderInput.Text, "SIUS Rank folder");
         var outputDirectory = NormalizeOutputDirectoryInput(eventPath);
 
-        List<EventClassConfig> classes;
-        if (!refreshClasses && _currentEventConfig?.Classes.Count > 0)
-        {
-            classes = _currentEventConfig.Classes
-                .Select(classConfig => NormalizeClassPaths(eventPath, classConfig))
-                .ToList();
-        }
-        else
-        {
-            using var repository = new InrxRepository(databasePath);
-            classes = EventProjectPlanner.Build(repository, databasePath, ids, ovelse, SelectedSilhouetteShootersPerStand(), siusRankFolder)
-                .Classes;
-        }
-
         return new EventProjectConfig
         {
             Version = 1,
@@ -1187,16 +1218,9 @@ public partial class MainWindow : Window
             {
                 Output = EventProjectFile.ToStoredPath(eventPath, ResolveEventPath(outputDirectory))
             },
-            Classes = classes
+            Classes = []
         };
     }
-
-    private static EventClassConfig NormalizeClassPaths(string eventPath, EventClassConfig classConfig) =>
-        classConfig with
-        {
-            Folder = EventProjectFile.ToStoredPath(eventPath, EventProjectFile.ResolvePath(eventPath, classConfig.Folder)),
-            Exports = EventProjectFile.ToStoredPath(eventPath, EventProjectFile.ResolvePath(eventPath, classConfig.Exports))
-        };
 
     private Dictionary<string, string> BuildEventTypeMap(IReadOnlyList<int> ids)
         => new(DesktopEventTypeSelections.Build(
@@ -1206,24 +1230,19 @@ public partial class MainWindow : Window
             _currentEventConfig?.EventTypes), StringComparer.Ordinal);
 
     private string ResolveEventTypeSelection(int id, string? fallback)
+        => GetEffectiveEventTypeForStevne(id, fallback);
+
+    private string GetEffectiveEventTypeForStevne(int stevneId, string? repositoryFallback)
     {
-        if (_eventTypeSelections.TryGetValue(id, out var remembered))
-        {
-            return DesktopEventTypeSelections.Normalize(remembered);
-        }
-
-        if (_eventTypeInputs.TryGetValue(id, out var input))
-        {
-            return DesktopEventTypeSelections.Normalize(input.SelectedItem?.ToString());
-        }
-
-        var idText = id.ToString(CultureInfo.InvariantCulture);
-        if (_currentEventConfig?.EventTypes.TryGetValue(idText, out var configured) == true)
-        {
-            return DesktopEventTypeSelections.Normalize(configured);
-        }
-
-        return DesktopEventTypeSelections.Normalize(fallback);
+        var visibleSelections = _eventTypeInputs.ToDictionary(
+            item => item.Key,
+            item => item.Value.SelectedItem?.ToString());
+        return DesktopEventTypeSelections.ResolveEffective(
+            stevneId,
+            _eventTypeSelections,
+            visibleSelections,
+            _currentEventConfig?.EventTypes,
+            repositoryFallback);
     }
 
     private OvelseInfo RequireSelectedOvelse()
@@ -1262,22 +1281,14 @@ public partial class MainWindow : Window
         Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, config.Csv.Output));
         var eventDirectory = Path.GetDirectoryName(Path.GetFullPath(eventPath)) ?? Directory.GetCurrentDirectory();
         Directory.CreateDirectory(Path.Combine(eventDirectory, "SiusData_files"));
-        foreach (var classConfig in config.Classes)
-        {
-            Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, classConfig.Folder));
-            Directory.CreateDirectory(EventProjectFile.ResolvePath(eventPath, classConfig.Exports));
-        }
     }
 
     private void RenderWritebackRows(EventProjectConfig config)
     {
-        var rows = _writebackRows.Count == 0
-            ? BuildUnscannedWritebackRows(config)
-            : config.Classes
-                .Select(classConfig => _writebackRows.TryGetValue(classConfig.Class, out var row)
-                    ? row
-                    : BuildUnscannedWritebackRow(config, classConfig))
-                .ToList();
+        var rows = _writebackRows.Values
+            .OrderBy(row => row.Class, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.ExportsDisplayPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         RenderWritebackRows(rows);
     }
 
@@ -1295,10 +1306,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_currentEventConfig.Classes.Count == 0)
+        if (rows.Count == 0)
         {
             var empty = new Grid { ColumnDefinitions = new ColumnDefinitions("*") };
-            AddRowText(empty, 0, "Det finnes ingen klasseoppsett. Gå til Event-fanen og oppdater klasser.");
+            AddRowText(empty, 0, "Trykk Finn resultater i stevnemappen.");
             WritebackClassRowsContainer.Children.Add(CreateTableRow(empty));
             return;
         }
@@ -1404,21 +1415,6 @@ public partial class MainWindow : Window
         grid.Children.Add(block);
     }
 
-    private static IReadOnlyList<DesktopWritebackDiscoveryRow> BuildUnscannedWritebackRows(EventProjectConfig config) =>
-        config.Classes
-            .Select(classConfig => BuildUnscannedWritebackRow(config, classConfig))
-            .ToList();
-
-    private static DesktopWritebackDiscoveryRow BuildUnscannedWritebackRow(EventProjectConfig config, EventClassConfig classConfig) =>
-        new(
-            classConfig.Class,
-            BuildClassEventFilter(config, classConfig),
-            null,
-            null,
-            0,
-            DesktopWritebackDiscoveryStatus.NoMatch,
-            []);
-
     private static string WritebackDiscoveryStatusText(DesktopWritebackDiscoveryRow row) =>
         row.Status switch
         {
@@ -1430,7 +1426,7 @@ public partial class MainWindow : Window
         };
 
     private static int CountOdfFiles(string exportsFolder) =>
-        DesktopWritebackInstances.CountOdfFiles(exportsFolder);
+        DesktopSiusRankExportsScanner.CountOdfFiles(exportsFolder);
 
     private static string BuildInitialWritebackStatus(string instanceFolder, string exportsFolder, int odfCount)
     {
@@ -1453,8 +1449,8 @@ public partial class MainWindow : Window
         var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
         foreach (var classConfig in config.Classes)
         {
-            var folder = EventProjectFile.ResolvePath(eventPath, classConfig.Folder);
-            var exports = EventProjectFile.ResolvePath(eventPath, classConfig.Exports);
+            var folder = EventProjectFile.ResolvePath(eventPath, $"./Rank_{classConfig.Class}");
+            var exports = EventProjectFile.ResolvePath(eventPath, $"./Rank_{classConfig.Class}/Exports");
             if (Directory.Exists(folder))
             {
                 AppendLog($"{classConfig.Class}: SIUS Rank-kopi finnes allerede: {folder}");
@@ -1554,9 +1550,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private IReadOnlyList<EventClassConfig> CurrentEventClasses() =>
-        _currentEventConfig?.Classes ?? throw new InvalidOperationException("event.json er ikke lastet.");
-
     private IReadOnlyList<DesktopWritebackDiscoveryRow> ReadyWritebackRows() =>
         _writebackRows.Values
             .Where(row => row.CanRun)
@@ -1613,17 +1606,14 @@ public partial class MainWindow : Window
     {
         var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
         var config = _currentEventConfig ?? BuildEventConfigFromUi(eventPath, refreshClasses: false);
-        var classConfig = config.Classes.FirstOrDefault(item => item.Class.Equals(className, StringComparison.OrdinalIgnoreCase)) ??
-            throw new InvalidOperationException($"Klasse finnes ikke i event.json: {className}");
-        var row = _writebackRows.TryGetValue(classConfig.Class, out var discovered)
+        var row = _writebackRows.TryGetValue(className, out var discovered)
             ? discovered
             : throw new InvalidOperationException("Trykk Finn resultater i stevnemappen først.");
         if (!row.CanRun || string.IsNullOrWhiteSpace(row.ExportsFullPath))
         {
-            throw new InvalidOperationException($"{classConfig.Class}: finner ikke resultater. Trykk Rank List Main i SIUS Rank og prøv igjen.");
+            throw new InvalidOperationException($"{className}: finner ikke resultater. Trykk Rank List Main i SIUS Rank og prøv igjen.");
         }
 
-        var eventFilter = BuildClassEventFilter(config, classConfig);
         var csvOutput = EventProjectFile.ResolvePath(eventPath, config.Csv.Output);
         var bibMapPath = Path.Combine(csvOutput, ChampionshipStartNumbers.BibMapFileName);
         return new SiusRankWritebackOptions(
@@ -1631,18 +1621,8 @@ public partial class MainWindow : Window
             row.ExportsFullPath,
             ParseIdList(config.Inrx.Stevner, "Stevne ids"),
             File.Exists(bibMapPath) ? bibMapPath : null,
-            new HashSet<string>([eventFilter], StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>([row.EventFilter], StringComparer.OrdinalIgnoreCase),
             apply);
-    }
-
-    private static string BuildClassEventFilter(EventProjectConfig config, EventClassConfig classConfig)
-    {
-        var ovelse = new OvelseInfo(
-            config.Exercise.Id,
-            config.Exercise.Name,
-            config.Exercise.ShortName,
-            config.Exercise.HovedOvelseId);
-        return SiusRankEventDiscipline.NormalizeFilter(OutputFileName.EventFilterForImport(ovelse, classConfig.Class));
     }
 
     private void UpdateWritebackStatus(string className, SiusRankClassWritebackStatus status)
@@ -1977,21 +1957,15 @@ public partial class MainWindow : Window
             return FormatMissing(state);
         }
 
-        var classes = _currentEventConfig?.Classes ?? [];
-        if (classes.Count == 0)
-        {
-            return "Ingen klasseinstanser i event.json.";
-        }
-
         if (_writebackRows.Count == 0)
         {
             return "Trykk Finn resultater i stevnemappen.";
         }
 
         var ready = _writebackRows.Values.Count(row => row.CanRun);
-        return ready == classes.Count
-            ? $"Alle {classes.Count} klasser er klare."
-            : $"{ready} av {classes.Count} klasser er klare.";
+        return ready == _writebackRows.Count
+            ? $"Alle {ready} resultatsett er klare."
+            : $"{ready} av {_writebackRows.Count} resultatsett er klare.";
     }
 
     private void UpdatePathTooltips()
@@ -2095,11 +2069,6 @@ public partial class MainWindow : Window
             missing.Add("event.json er ikke lastet");
             return new ActionState(missing);
         }
-        if (_currentEventConfig.Classes.Count == 0)
-        {
-            missing.Add("ingen klasseinstanser i event.json");
-        }
-
         var eventPath = _currentEventFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), EventProjectFile.FileName);
         if (!HasExistingFile(EventProjectFile.ResolvePath(eventPath, _currentEventConfig.Inrx.Db)))
         {

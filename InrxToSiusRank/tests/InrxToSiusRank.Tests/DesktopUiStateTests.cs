@@ -134,31 +134,55 @@ public sealed class DesktopUiStateTests
     }
 
     [Fact]
-    public void Writeback_instances_are_built_from_event_class_config()
+    public void Event_type_effective_selection_prefers_ui_then_loaded_then_repository_fallback()
     {
-        var eventPath = Path.Combine("/Users/me/Stevner/Pinse2026", EventProjectFile.FileName);
-        var config = new EventProjectConfig
+        var remembered = new Dictionary<int, string>
         {
-            Exercise = new EventExerciseConfig { Id = 9, Name = "Finpistol", ShortName = "Fin", HovedOvelseId = 1 },
-            Inrx = new EventInrxConfig { Db = "./storage.db3", Stevner = "413-417" },
-            Classes =
-            [
-                new EventClassConfig
-                {
-                    Class = "B",
-                    Folder = "./SiusRank_Finpistol_B",
-                    Exports = "./SiusRank_Finpistol_B/Exports"
-                }
-            ]
+            [1] = EventProjectPlanner.ChampionshipEventType
+        };
+        var visible = new Dictionary<int, string?>
+        {
+            [2] = EventProjectPlanner.ChampionshipEventType,
+            [4] = "invalid"
+        };
+        var loaded = new Dictionary<string, string>
+        {
+            ["3"] = EventProjectPlanner.ChampionshipEventType
         };
 
-        var rows = DesktopWritebackInstances.Build(eventPath, config);
+        Assert.Equal(
+            EventProjectPlanner.ChampionshipEventType,
+            DesktopEventTypeSelections.ResolveEffective(1, remembered, visible, loaded, EventProjectPlanner.ApprovedEventType));
+        Assert.Equal(
+            EventProjectPlanner.ChampionshipEventType,
+            DesktopEventTypeSelections.ResolveEffective(2, remembered, visible, loaded, EventProjectPlanner.ApprovedEventType));
+        Assert.Equal(
+            EventProjectPlanner.ChampionshipEventType,
+            DesktopEventTypeSelections.ResolveEffective(3, remembered, visible, loaded, EventProjectPlanner.ApprovedEventType));
+        Assert.Equal(
+            EventProjectPlanner.ChampionshipEventType,
+            DesktopEventTypeSelections.ResolveEffective(5, remembered, visible, loaded, EventProjectPlanner.ChampionshipEventType));
+        Assert.Equal(
+            EventProjectPlanner.ApprovedEventType,
+            DesktopEventTypeSelections.ResolveEffective(4, remembered, visible, loaded, EventProjectPlanner.ChampionshipEventType));
+    }
 
-        var row = Assert.Single(rows);
-        Assert.Equal("B", row.Class);
-        Assert.Equal("./SiusRank_Finpistol_B", row.Folder);
-        Assert.Equal("./SiusRank_Finpistol_B/Exports", row.Exports);
-        Assert.Equal("6FB", row.EventFilter);
+    [Fact]
+    public void Csv_preflight_rows_keep_effective_event_type()
+    {
+        var effectiveEventType = DesktopEventTypeSelections.ResolveEffective(
+            413,
+            new Dictionary<int, string> { [413] = EventProjectPlanner.ChampionshipEventType },
+            new Dictionary<int, string?>(),
+            null,
+            EventProjectPlanner.ApprovedEventType);
+
+        var result = DesktopCsvPreflight.Build(
+            [Event(413, "NM Fin", [Exercise(9, "Finpistol", 21)], effectiveEventType)],
+            new CsvExerciseSelection(IsAll: false, OvelseId: 9, Name: "Finpistol"));
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(EventProjectPlanner.ChampionshipEventType, row.EventType);
     }
 
     [Fact]
@@ -170,8 +194,8 @@ public sealed class DesktopUiStateTests
         File.WriteAllText(Path.Combine(exports, "result.odf.xml"), "<root />");
         File.WriteAllText(Path.Combine(exports, "ignored.xml"), "<root />");
 
-        Assert.Equal(1, DesktopWritebackInstances.CountOdfFiles(exports));
-        Assert.Equal(0, DesktopWritebackInstances.CountOdfFiles(Path.Combine(directory.Path, "Missing")));
+        Assert.Equal(1, DesktopSiusRankExportsScanner.CountOdfFiles(exports));
+        Assert.Equal(0, DesktopSiusRankExportsScanner.CountOdfFiles(Path.Combine(directory.Path, "Missing")));
     }
 
     [Fact]
@@ -184,96 +208,115 @@ public sealed class DesktopUiStateTests
         var ignored = Path.Combine(directory.Path, "bin", "Rank_C", "Exports");
         Directory.CreateDirectory(rankB);
         Directory.CreateDirectory(ignored);
-        File.WriteAllText(Path.Combine(rankB, "result.odf.xml"), "<root />");
-        File.WriteAllText(Path.Combine(ignored, "ignored.odf.xml"), "<root />");
+        File.WriteAllText(Path.Combine(rankB, "result.odf.xml"), OdfXml("Fin_M", "SPM_M"));
+        File.WriteAllText(Path.Combine(ignored, "ignored.odf.xml"), OdfXml("Fin_K", "SPW_K"));
 
-        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Rank_B/Exports"), ("C", "./Rank_C/Exports")));
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithExercise(9, "Finpistol"));
 
         Assert.Single(result.FoundExports);
         Assert.Equal("./Rank_B/Exports", result.FoundExports[0].DisplayPath);
-        Assert.Contains(result.Rows, row => row.Class == "B" && row.Status == DesktopWritebackDiscoveryStatus.Ready);
-        Assert.Contains(result.Rows, row => row.Class == "C" && row.Status == DesktopWritebackDiscoveryStatus.NoMatch);
-    }
-
-    [Fact]
-    public void Writeback_scanner_prefers_exact_configured_exports_path()
-    {
-        using var directory = TempDirectory.Create();
-        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
-        File.WriteAllText(eventPath, "{}");
-        var exact = Path.Combine(directory.Path, "Configured", "Exports");
-        var suggested = Path.Combine(directory.Path, "Rank_B", "Exports");
-        Directory.CreateDirectory(exact);
-        Directory.CreateDirectory(suggested);
-        File.WriteAllText(Path.Combine(exact, "exact.odf.xml"), "<root />");
-        File.WriteAllText(Path.Combine(suggested, "suggested.odf.xml"), "<root />");
-
-        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Configured/Exports")));
-
         var row = Assert.Single(result.Rows);
-        Assert.Equal("./Configured/Exports", row.ExportsDisplayPath);
+        Assert.Equal("M", row.Class);
+        Assert.Equal("FINM", row.EventFilter);
         Assert.Equal(DesktopWritebackDiscoveryStatus.Ready, row.Status);
     }
 
     [Fact]
-    public void Writeback_scanner_reports_no_files_and_ambiguous_matches()
+    public void Writeback_scanner_derives_result_class_from_odf_not_folder_name()
     {
         using var directory = TempDirectory.Create();
         var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
         File.WriteAllText(eventPath, "{}");
-        Directory.CreateDirectory(Path.Combine(directory.Path, "Rank_B", "Exports"));
-        Directory.CreateDirectory(Path.Combine(directory.Path, "SiusRank_B", "Exports"));
+        var suggested = Path.Combine(directory.Path, "Rank_B", "Exports");
+        Directory.CreateDirectory(Path.Combine(directory.Path, "Configured", "Exports"));
+        Directory.CreateDirectory(suggested);
+        File.WriteAllText(Path.Combine(suggested, "suggested.odf.xml"), OdfXml("Fin_M", "SPM_M"));
 
-        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Expected_B/Exports")));
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithExercise(9, "Finpistol"));
 
         var row = Assert.Single(result.Rows);
-        Assert.Equal(DesktopWritebackDiscoveryStatus.Ambiguous, row.Status);
-        Assert.Equal(2, row.Candidates.Count);
-        Assert.All(row.Candidates, candidate => Assert.Equal(0, candidate.FileCount));
+        Assert.Equal("M", row.Class);
+        Assert.Equal("./Rank_B/Exports", row.ExportsDisplayPath);
+        Assert.Equal(DesktopWritebackDiscoveryStatus.Ready, row.Status);
     }
 
     [Fact]
-    public void Writeback_scanner_assumes_single_unmatched_folder_for_single_unmatched_class()
+    public void Writeback_scanner_ignores_results_for_other_exercises()
     {
         using var directory = TempDirectory.Create();
         var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
         File.WriteAllText(eventPath, "{}");
-        var exports = Path.Combine(directory.Path, "Ukjent", "Exports");
+        var exports = Path.Combine(directory.Path, "Rank_M", "Exports");
         Directory.CreateDirectory(exports);
-        File.WriteAllText(Path.Combine(exports, "result.odf.xml"), "<root />");
+        File.WriteAllText(Path.Combine(exports, "standard.odf.xml"), OdfXml("Standard_M", "STP_M"));
 
-        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithClasses(("B", "./Expected_B/Exports")));
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithExercise(9, "Finpistol"));
+
+        Assert.Single(result.FoundExports);
+        Assert.Empty(result.Rows);
+    }
+
+    [Fact]
+    public void Writeback_scanner_marks_matching_results_without_shots_as_no_files()
+    {
+        using var directory = TempDirectory.Create();
+        var eventPath = Path.Combine(directory.Path, EventProjectFile.FileName);
+        File.WriteAllText(eventPath, "{}");
+        var exports = Path.Combine(directory.Path, "Rank_M", "Exports");
+        Directory.CreateDirectory(exports);
+        File.WriteAllText(Path.Combine(exports, "startlist.odf.xml"), OdfXml("Fin_M", "SPM_M", includeShots: false));
+
+        var result = DesktopSiusRankExportsScanner.Scan(eventPath, ConfigWithExercise(9, "Finpistol"));
 
         var row = Assert.Single(result.Rows);
-        Assert.Equal(DesktopWritebackDiscoveryStatus.Assumed, row.Status);
-        Assert.Equal("./Ukjent/Exports", row.ExportsDisplayPath);
-        Assert.True(row.CanRun);
+        Assert.Equal(DesktopWritebackDiscoveryStatus.NoFiles, row.Status);
+        Assert.False(row.CanRun);
     }
 
     private static CsvPreflightEventInput Event(
         int id,
         string name,
-        IReadOnlyList<CsvPreflightExerciseInput> exercises) =>
-        new(id, name, "2026-07-06", EventProjectPlanner.ChampionshipEventType, exercises);
+        IReadOnlyList<CsvPreflightExerciseInput> exercises,
+        string eventType = EventProjectPlanner.ChampionshipEventType) =>
+        new(id, name, "2026-07-06", eventType, exercises);
 
     private static CsvPreflightExerciseInput Exercise(int id, string name, int starters) =>
         new(id, name, name[..Math.Min(3, name.Length)], HovedOvelseId: 1, starters);
 
-    private static EventProjectConfig ConfigWithClasses(params (string Class, string Exports)[] classes) =>
+    private static EventProjectConfig ConfigWithExercise(int ovelseId, string ovelseName) =>
         new()
         {
-            Exercise = new EventExerciseConfig { Id = 9, Name = "Finpistol", ShortName = "Fin", HovedOvelseId = 1 },
+            Exercise = new EventExerciseConfig { Id = ovelseId, Name = ovelseName, ShortName = "Fin", HovedOvelseId = 1 },
             Inrx = new EventInrxConfig { Db = "./storage.db3", Stevner = "413" },
-            Csv = new EventCsvConfig { Output = "./siusrank-import" },
-            Classes = classes
-                .Select(item => new EventClassConfig
-                {
-                    Class = item.Class,
-                    Folder = item.Exports.Replace("/Exports", string.Empty, StringComparison.Ordinal),
-                    Exports = item.Exports
-                })
-                .ToList()
+            Csv = new EventCsvConfig { Output = "./siusrank-import" }
         };
+
+    private static string OdfXml(string shortName, string eventCode, bool includeShots = true)
+    {
+        var shotXml = includeShots
+            ? """<ExtendedResult Type="CER_SH" Pos="1" Code="SH_SHOT" Value="10"><Extensions><Extension Type="SH_SHOT" Code="SH_TIMESTAMP" Value="2026-05-23T11:04:24.5300000" /></Extensions></ExtendedResult>"""
+            : string.Empty;
+        return $$"""
+        <?xml version="1.0" encoding="utf-8"?>
+        <OdfBody ResultStatus="INTERIM">
+          <Competition Code="">
+            <ExtendedHeader EventCode="{{eventCode}}" ShortName="{{shortName}}" EventUnitName="{{shortName}}" ProductType="IndividualResults" />
+            <CumulativeResult Rank="1" ResultType="POINTS" Result="10" SortOrder="1">
+              <Competitor AccreditationNumber="1273763" Bib="26008" Organisation="NOR" NameDisplay="Test Shooter">
+                <Composition>
+                  <Athlete Bib="26008" AccreditationNumber="1273763" FamilyName="Shooter" GivenName="Test">
+                    <ExtendedResults>
+                      <ExtendedResult Type="CER_SH" Code="SH_INNER_TENS" Value="1" />
+                      {{shotXml}}
+                    </ExtendedResults>
+                  </Athlete>
+                </Composition>
+              </Competitor>
+            </CumulativeResult>
+          </Competition>
+        </OdfBody>
+        """;
+    }
 
     private sealed class TempDirectory : IDisposable
     {

@@ -52,10 +52,6 @@ public sealed record EventCsvConfig
 public sealed record EventClassConfig
 {
     public string Class { get; init; } = string.Empty;
-
-    public string Folder { get; init; } = string.Empty;
-
-    public string Exports { get; init; } = string.Empty;
 }
 
 public static class EventProjectFile
@@ -308,23 +304,16 @@ public static class EventProjectPlanner
         OvelseInfo ovelse,
         IEnumerable<string> classes)
     {
-        var exercisePart = SanitizePathPart(ovelse.Name);
         return classes
             .Where(className => !string.IsNullOrWhiteSpace(className))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(EffectiveKmNmClass.SortKey)
             .ThenBy(className => className, StringComparer.OrdinalIgnoreCase)
             .Select(className =>
-            {
-                var classPart = SanitizePathPart(className);
-                var folder = $"./SiusRank_{exercisePart}_{classPart}";
-                return new EventClassConfig
+                new EventClassConfig
                 {
-                    Class = className,
-                    Folder = folder,
-                    Exports = $"{folder}/Exports"
-                };
-            })
+                    Class = className
+                })
             .ToList();
     }
 
