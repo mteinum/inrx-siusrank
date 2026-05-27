@@ -1601,7 +1601,7 @@ public partial class MainWindow : Window
                 () => RunClassWritebackAsync(discoveryRow.Class, apply: false));
             _writebackValidateButtons[discoveryRow.Class] = validateButton;
             actions.Children.Add(validateButton);
-            var writeButton = new Button { Content = "Skriv til inR" };
+            var writeButton = new Button { Content = "Skriv til inrX" };
             writeButton.Classes.Add("danger");
             writeButton.Click += async (_, _) => await RunSafelyAsync(
                 $"Skriver {discoveryRow.Class}",
@@ -1779,7 +1779,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!await ConfirmInrxWritebackAsync($"Skriv {ready.Count} validerte klasse(r) til inR?"))
+        if (!await ConfirmInrxWritebackAsync($"Skriv {ready.Count} validerte klasse(r) til inrX?"))
         {
             AppendLog("Writeback cancelled.");
             return;
@@ -1835,7 +1835,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!await ConfirmInrxWritebackAsync($"Skriv {className} til inR?"))
+        if (!await ConfirmInrxWritebackAsync($"Skriv {className} til inrX?"))
         {
             AppendLog($"Writeback cancelled for {className}.");
             return;
@@ -1890,7 +1890,7 @@ public partial class MainWindow : Window
             SiusRankClassWritebackStatusKind.MissingExport => "Finner ikke resultater",
             SiusRankClassWritebackStatusKind.NoCompleteResults => "Ingen ODF-filer",
             SiusRankClassWritebackStatusKind.ReadyForWriteback => "Tørrkjørt OK",
-            SiusRankClassWritebackStatusKind.WrittenBack => "Skrevet til inR",
+            SiusRankClassWritebackStatusKind.WrittenBack => "Skrevet til inrX",
             SiusRankClassWritebackStatusKind.Error => "Validering feilet",
             _ => status.Text
         };
@@ -2226,9 +2226,10 @@ public partial class MainWindow : Window
         foreach (var item in _writebackApplyButtons)
         {
             item.Value.IsEnabled = classWriteback.CanRun &&
-                _writebackRows.TryGetValue(item.Key, out _) &&
-                _writebackStatuses.TryGetValue(item.Key, out var status) &&
-                status.CanApply &&
+                _writebackRows.TryGetValue(item.Key, out var row) &&
+                row.CanRun &&
+                (!_writebackStatuses.TryGetValue(item.Key, out var status) ||
+                 status.Kind != SiusRankClassWritebackStatusKind.WrittenBack) &&
                 !_isRunning;
         }
 

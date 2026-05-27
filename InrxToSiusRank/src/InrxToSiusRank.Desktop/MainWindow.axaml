@@ -289,7 +289,7 @@
               <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
                 <Button x:Name="ValidateAllWritebackButton" Content="Valider alle" />
                 <Button x:Name="DryRunReadyWritebackButton" Grid.Column="1" Content="Tørrkjør alle klare" />
-                <Button x:Name="ApplyValidatedWritebackButton" Grid.Column="2" Classes="danger" Content="Skriv validerte til inR" />
+                <Button x:Name="ApplyValidatedWritebackButton" Grid.Column="2" Classes="danger" Content="Skriv validerte til inrX" />
                 <TextBlock x:Name="WritebackScanSummaryText" Grid.Column="3" Classes="helper" VerticalAlignment="Center" />
               </Grid>
             </Border>
