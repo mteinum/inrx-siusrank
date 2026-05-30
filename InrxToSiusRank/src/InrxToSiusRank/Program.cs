@@ -214,6 +214,8 @@ internal static class Usage
           --output-dir <path>                 Output directory for generated CSV files.
           --shooter-groups-template <path>    Validate Groups against SIUS Rank ShooterGroupsTemplate.xml.
           --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
+          --silhouette-shooters-per-stand <1|2>
+                                              Validate Silhuett targets for middle or side-target layout. Default: 2.
           --help                              Show help.
 
         seed-startlag options:
@@ -273,6 +275,8 @@ internal static class Usage
           --ovelse <name>                     Optional exercise filter by name.
           --output-dir <path>                 Output directory for generated SIUS Rank CSV files and bib-map.csv.
           --encoding <utf8-bom|windows-1252>  Output encoding. Default: utf8-bom.
+          --silhouette-shooters-per-stand <1|2>
+                                              Validate Silhuett targets for middle or side-target layout. Default: 2.
 
         apply-nm2026-timetable options:
           apply-nm2026-timetable             Preview or apply NM2026 timetable/capacity fixes to inrX and SIUS Rank.

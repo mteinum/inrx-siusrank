@@ -1,9 +1,16 @@
+using System.Globalization;
 using System.Text;
 
 namespace InrxToSiusRank;
 
 public static class SiusRankCsvWriter
 {
+    private static readonly string[] SilhouetteImportHeader =
+    [
+        "ImportShotFilter",
+        "SiusDataStartNumber"
+    ];
+
     public static readonly string[] Header =
     [
         "StartNumber",
@@ -33,9 +40,15 @@ public static class SiusRankCsvWriter
 
     public static string HeaderLine => string.Join(';', Header);
 
-    public static void Write(string outputPath, IReadOnlyList<SiusRankStarter> rows, string encodingName)
+    public static string SilhouetteImportHeaderLine => string.Join(';', Header.Concat(SilhouetteImportHeader));
+
+    public static void Write(
+        string outputPath,
+        IReadOnlyList<SiusRankStarter> rows,
+        string encodingName,
+        bool includeSilhouetteImportColumns = false)
     {
-        Write(outputPath, ToCsv(rows), encodingName);
+        Write(outputPath, ToCsv(rows, includeSilhouetteImportColumns), encodingName);
     }
 
     public static void Write(string outputPath, string csv, string encodingName)
@@ -49,18 +62,33 @@ public static class SiusRankCsvWriter
         File.WriteAllText(outputPath, csv, CsvEncoding.GetEncoding(encodingName));
     }
 
-    public static string ToCsv(IReadOnlyList<SiusRankStarter> rows)
+    public static string ToCsv(
+        IReadOnlyList<SiusRankStarter> rows,
+        bool includeSilhouetteImportColumns = false)
     {
         var builder = new StringBuilder();
-        builder.Append(HeaderLine).Append("\r\n");
+        builder
+            .Append(includeSilhouetteImportColumns ? SilhouetteImportHeaderLine : HeaderLine)
+            .Append("\r\n");
 
         foreach (var row in rows)
         {
-            builder.AppendJoin(';', row.ToFields().Select(EscapeField));
+            var fields = includeSilhouetteImportColumns
+                ? row.ToFields().Concat(SilhouetteImportFields(row))
+                : row.ToFields();
+            builder.AppendJoin(';', fields.Select(EscapeField));
             builder.Append("\r\n");
         }
 
         return builder.ToString();
+    }
+
+    private static IEnumerable<string> SilhouetteImportFields(SiusRankStarter row)
+    {
+        var mapping = SilhouetteImportMapping.ForTarget(row.TargetNumber);
+        return mapping is null
+            ? [string.Empty, string.Empty]
+            : [mapping.ImportShotFilter, mapping.SiusDataStartNumber.ToString(CultureInfo.InvariantCulture)];
     }
 
     private static string EscapeField(string value)

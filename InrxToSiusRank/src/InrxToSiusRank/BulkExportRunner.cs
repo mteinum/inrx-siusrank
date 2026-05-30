@@ -19,6 +19,7 @@ public static class BulkExportRunner
         Directory.CreateDirectory(outputDirectory);
 
         var eventExports = ResolveEventExports(repository, options, stevner);
+        ValidateSilhouetteTargets(eventExports, options.SilhouetteShootersPerStand);
 
         var startNumbers = ChampionshipStartNumbers.Create(
             eventExports.SelectMany(eventExport => eventExport.Starters),
@@ -55,7 +56,11 @@ public static class BulkExportRunner
                 var outputPath = Path.Combine(
                     outputDirectory,
                     OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, classGroup.Key));
-                SiusRankCsvWriter.Write(outputPath, rows, options.EncodingName);
+                SiusRankCsvWriter.Write(
+                    outputPath,
+                    rows,
+                    options.EncodingName,
+                    IncludeSilhouetteImportColumns(eventExport.Ovelse, options.SilhouetteShootersPerStand));
 
                 results.Add(new BulkExportFileResult(
                     eventExport.Stevne,
@@ -95,6 +100,22 @@ public static class BulkExportRunner
             eventExports.Sum(eventExport => eventExport.Starters.Count),
             startNumbers.Count);
     }
+
+    private static void ValidateSilhouetteTargets(
+        IReadOnlyList<EventExport> eventExports,
+        int silhouetteShootersPerStand)
+    {
+        foreach (var eventExport in eventExports)
+        {
+            ExportValidator.EnsureValidInrxSilhouetteTargets(
+                eventExport.Starters,
+                eventExport.Ovelse,
+                silhouetteShootersPerStand);
+        }
+    }
+
+    private static bool IncludeSilhouetteImportColumns(OvelseInfo ovelse, int silhouetteShootersPerStand) =>
+        silhouetteShootersPerStand == 2 && ExportValidator.IsSilhouette(ovelse);
 
     private static IReadOnlyList<StevneInfo> ResolveStevner(InrxRepository repository, AppOptions options)
     {

@@ -15,7 +15,8 @@ public sealed record AppOptions(
     string? ShooterGroupsTemplatePath,
     string? OutputDirectory,
     string EncodingName,
-    bool Wizard)
+    bool Wizard,
+    int SilhouetteShootersPerStand = 2)
 {
     public static AppOptions Parse(IReadOnlyList<string> args)
     {
@@ -95,6 +96,8 @@ public sealed record AppOptions(
         var encodingName = !string.IsNullOrWhiteSpace(encoding)
             ? CsvEncoding.NormalizeName(encoding)
             : CsvEncoding.Utf8Bom;
+        var silhouetteShootersPerStand = ParseSilhouetteShootersPerStand(
+            parseResult.GetValue(cli.SilhouetteShootersPerStandOption));
 
         var ovelseId = ParseNullableInt(parseResult.GetValue(cli.OvelseIdOption), "ovelse-id");
         var ovelseName = parseResult.GetValue(cli.OvelseNameOption);
@@ -111,7 +114,8 @@ public sealed record AppOptions(
             string.IsNullOrWhiteSpace(shooterGroupsTemplatePath) ? null : shooterGroupsTemplatePath,
             outputDirectory.Trim(),
             encodingName,
-            Wizard: false);
+            Wizard: false,
+            silhouetteShootersPerStand);
     }
 
     private static string? ResolveShooterGroupsTemplatePath(
@@ -167,6 +171,22 @@ public sealed record AppOptions(
         return parsed;
     }
 
+    private static int ParseSilhouetteShootersPerStand(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 2;
+        }
+
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is not (1 or 2))
+        {
+            throw new ArgumentException("Option '--silhouette-shooters-per-stand' must be 1 or 2.");
+        }
+
+        return parsed;
+    }
+
     private static IReadOnlyList<int> ParseIdList(string value, string name)
     {
         var ids = new List<int>();
@@ -210,7 +230,8 @@ public sealed record AppOptions(
         Option<string?> OvelseNameOption,
         Option<string?> OutputDirectoryOption,
         Option<string?> ShooterGroupsTemplateOption,
-        Option<string?> EncodingOption)
+        Option<string?> EncodingOption,
+        Option<string?> SilhouetteShootersPerStandOption)
     {
         public static AppCommandLine Create()
         {
@@ -262,6 +283,10 @@ public sealed record AppOptions(
             {
                 Description = "Output encoding. Default: utf8-bom."
             };
+            var silhouetteShootersPerStandOption = new Option<string?>("--silhouette-shooters-per-stand")
+            {
+                Description = "Silhuett target layout: 1 uses middle targets, 2 uses side targets. Default: 2."
+            };
 
             var rootCommand = new RootCommand("Export SIUS Rank starter import CSV files from an inrX SQLite database.")
             {
@@ -276,7 +301,8 @@ public sealed record AppOptions(
                 ovelseNameOption,
                 outputDirectoryOption,
                 shooterGroupsTemplateOption,
-                encodingOption
+                encodingOption,
+                silhouetteShootersPerStandOption
             };
 
             return new AppCommandLine(
@@ -292,7 +318,8 @@ public sealed record AppOptions(
                 ovelseNameOption,
                 outputDirectoryOption,
                 shooterGroupsTemplateOption,
-                encodingOption);
+                encodingOption,
+                silhouetteShootersPerStandOption);
         }
     }
 }

@@ -10,7 +10,8 @@ public sealed record SiusDataStartListExportOptions(
     int? OvelseId,
     string? OvelseName,
     string OutputDirectory,
-    string EncodingName);
+    string EncodingName,
+    int SilhouetteShootersPerStand = 2);
 
 public sealed record SiusDataStartListExportResult(
     string OutputDirectory,
@@ -113,11 +114,19 @@ public static class SiusDataStartListExporter
                             startNumber: matchedStart.ImportStartNumber);
                     })
                     .ToList();
+                ExportValidator.EnsureValidSilhouetteTargets(
+                    rows,
+                    eventExport.Ovelse,
+                    options.SilhouetteShootersPerStand);
 
                 var outputPath = Path.Combine(
                     outputDirectory,
                     OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, classGroup.Key));
-                SiusRankCsvWriter.Write(outputPath, rows, options.EncodingName);
+                SiusRankCsvWriter.Write(
+                    outputPath,
+                    rows,
+                    options.EncodingName,
+                    IncludeSilhouetteImportColumns(eventExport.Ovelse, options.SilhouetteShootersPerStand));
                 results.Add(new BulkExportFileResult(
                     eventExport.Stevne,
                     eventExport.Ovelse,
@@ -280,6 +289,9 @@ public static class SiusDataStartListExporter
             })
             .ToList();
     }
+
+    private static bool IncludeSilhouetteImportColumns(OvelseInfo ovelse, int silhouetteShootersPerStand) =>
+        silhouetteShootersPerStand == 2 && ExportValidator.IsSilhouette(ovelse);
 
     private static IReadOnlyList<OvelseInfo> ResolveOvelser(
         InrxRepository repository,
@@ -539,6 +551,7 @@ public static class SiusDataStartListCommand
         string? ovelseName = null;
         string? outputDirectory = null;
         string? encoding = null;
+        string? silhouetteShootersPerStand = null;
 
         for (var index = 0; index < args.Count; index++)
         {
@@ -572,6 +585,9 @@ public static class SiusDataStartListCommand
                     break;
                 case "--encoding":
                     encoding = ReadValue(args, ref index, arg);
+                    break;
+                case "--silhouette-shooters-per-stand":
+                    silhouetteShootersPerStand = ReadValue(args, ref index, arg);
                     break;
                 default:
                     throw new ArgumentException($"Unknown option for {Name}: {arg}");
@@ -613,7 +629,8 @@ public static class SiusDataStartListCommand
             ParseNullableInt(ovelseId, "ovelse-id"),
             string.IsNullOrWhiteSpace(ovelseName) ? null : ovelseName.Trim(),
             outputDirectory.Trim(),
-            string.IsNullOrWhiteSpace(encoding) ? CsvEncoding.Utf8Bom : CsvEncoding.NormalizeName(encoding));
+            string.IsNullOrWhiteSpace(encoding) ? CsvEncoding.Utf8Bom : CsvEncoding.NormalizeName(encoding),
+            ParseSilhouetteShootersPerStand(silhouetteShootersPerStand));
     }
 
     private static string ReadValue(IReadOnlyList<string> args, ref int index, string optionName)
@@ -637,6 +654,22 @@ public static class SiusDataStartListCommand
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : throw new ArgumentException($"Option '--{name}' must be an integer.");
+    }
+
+    private static int ParseSilhouetteShootersPerStand(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 2;
+        }
+
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is not (1 or 2))
+        {
+            throw new ArgumentException("Option '--silhouette-shooters-per-stand' must be 1 or 2.");
+        }
+
+        return parsed;
     }
 
     private static IReadOnlyList<int> ParseIdList(string value, string name)

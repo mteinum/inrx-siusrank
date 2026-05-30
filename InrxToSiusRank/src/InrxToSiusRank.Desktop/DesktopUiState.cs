@@ -156,7 +156,8 @@ public sealed record CsvPreflightExerciseInput(
     string Name,
     string ShortName,
     int HovedOvelseId,
-    int StarterCount);
+    int StarterCount,
+    string? ValidationStatus = null);
 
 public sealed record CsvPreflightEventInput(
     int Id,
@@ -240,7 +241,7 @@ public static class DesktopCsvPreflight
 
             foreach (var exercise in item.Exercises.OrderBy(exercise => exercise.Name, StringComparer.OrdinalIgnoreCase))
             {
-                var include = exercise.StarterCount > 0;
+                var include = exercise.StarterCount > 0 && string.IsNullOrWhiteSpace(exercise.ValidationStatus);
                 rows.Add(new CsvPreflightRow(
                     Include: include,
                     Date: item.Date,
@@ -250,7 +251,9 @@ public static class DesktopCsvPreflight
                     OvelseName: exercise.Name,
                     OvelseId: exercise.Id,
                     StarterCount: exercise.StarterCount,
-                    Status: include ? "Klar" : "Ingen startere for denne øvelsen"));
+                    Status: !string.IsNullOrWhiteSpace(exercise.ValidationStatus)
+                        ? exercise.ValidationStatus
+                        : include ? "Klar" : "Ingen startere for denne øvelsen"));
             }
         }
 
@@ -280,7 +283,7 @@ public static class DesktopCsvPreflight
                 continue;
             }
 
-            var include = exercise.StarterCount > 0;
+            var include = exercise.StarterCount > 0 && string.IsNullOrWhiteSpace(exercise.ValidationStatus);
             rows.Add(new CsvPreflightRow(
                 Include: include,
                 Date: item.Date,
@@ -290,7 +293,9 @@ public static class DesktopCsvPreflight
                 OvelseName: exercise.Name,
                 OvelseId: exercise.Id,
                 StarterCount: exercise.StarterCount,
-                Status: include ? "Klar" : "Ingen startere for denne øvelsen"));
+                Status: !string.IsNullOrWhiteSpace(exercise.ValidationStatus)
+                    ? exercise.ValidationStatus
+                    : include ? "Klar" : "Ingen startere for denne øvelsen"));
         }
 
         return rows;
@@ -552,7 +557,8 @@ public sealed record DesktopExportOptionsInput(
     string OutputDirectory,
     string EncodingName,
     string? ShooterGroupsTemplatePath,
-    CsvExerciseSelection Selection);
+    CsvExerciseSelection Selection,
+    int SilhouetteShootersPerStand = 2);
 
 public static class DesktopExportOptionsBuilder
 {
@@ -568,7 +574,8 @@ public static class DesktopExportOptionsBuilder
             ShooterGroupsTemplatePath: input.ShooterGroupsTemplatePath,
             OutputDirectory: input.OutputDirectory,
             EncodingName: input.EncodingName,
-            Wizard: false);
+            Wizard: false,
+            SilhouetteShootersPerStand: input.SilhouetteShootersPerStand);
 }
 
 public sealed record SscActionStatusInput(

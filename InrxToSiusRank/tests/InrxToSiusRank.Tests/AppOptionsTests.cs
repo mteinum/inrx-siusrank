@@ -42,6 +42,23 @@ public sealed class AppOptionsTests
         Assert.Empty(options.StevneIds);
         Assert.Null(options.OvelseName);
         Assert.Equal("imports", options.OutputDirectory);
+        Assert.Equal(2, options.SilhouetteShootersPerStand);
+    }
+
+    [Fact]
+    public void Export_accepts_silhouette_shooters_per_stand()
+    {
+        using var db = TempDatabaseFile.Create();
+
+        var options = AppOptions.Parse(
+        [
+            "--db", db.Path,
+            "--stevne-id", "423",
+            "--output-dir", "imports",
+            "--silhouette-shooters-per-stand", "1"
+        ]);
+
+        Assert.Equal(1, options.SilhouetteShootersPerStand);
     }
 
     [Fact]

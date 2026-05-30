@@ -26,6 +26,33 @@ public sealed class SiusRankCsvWriterTests
     }
 
     [Fact]
+    public void Csv_can_include_silhouette_import_columns_for_two_shooters_per_stand()
+    {
+        var starter = CreateStarter(firstName: "Rune", lastName: "Wold", standplass: 12);
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: "26001");
+
+        var csv = SiusRankCsvWriter.ToCsv([row], includeSilhouetteImportColumns: true);
+
+        Assert.StartsWith(SiusRankCsvWriter.SilhouetteImportHeaderLine + "\r\n", csv);
+        Assert.Contains(";12;", csv);
+        Assert.Contains(";V;3000\r\n", csv);
+    }
+
+    [Theory]
+    [InlineData(2, "V", 1000)]
+    [InlineData(4, "H", 1000)]
+    [InlineData(12, "V", 3000)]
+    [InlineData(14, "H", 3000)]
+    public void Silhouette_import_mapping_uses_side_targets(int target, string filter, int startNumber)
+    {
+        var mapping = SilhouetteImportMapping.ForTarget(target);
+
+        Assert.NotNull(mapping);
+        Assert.Equal(filter, mapping.ImportShotFilter);
+        Assert.Equal(startNumber, mapping.SiusDataStartNumber);
+    }
+
+    [Fact]
     public void Mapper_sets_required_sius_rank_fields_from_inrx_result()
     {
         var starter = CreateStarter(resultatId: 7270, nsfId: "905380", standplass: 17, relay: 1);

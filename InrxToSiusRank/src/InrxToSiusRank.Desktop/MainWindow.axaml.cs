@@ -277,7 +277,11 @@ public partial class MainWindow : Window
         };
 
         EncodingInput.SelectionChanged += (_, _) => UpdateActionStates();
-        SilhouetteShootersPerStandInput.SelectionChanged += (_, _) => UpdateActionStates();
+        SilhouetteShootersPerStandInput.SelectionChanged += (_, _) =>
+        {
+            QueueCsvPreflightRefresh();
+            UpdateActionStates();
+        };
         SscLaneCountInput.SelectionChanged += (_, _) =>
         {
             _sscLanesWritten = false;
@@ -1128,6 +1132,7 @@ public partial class MainWindow : Window
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
 
         var selection = SelectedCsvExerciseSelection();
+        var silhouetteShootersPerStand = SelectedSilhouetteShootersPerStand();
         var rememberedEventTypes = new Dictionary<int, string>(_eventTypeSelections);
         var visibleEventTypes = _eventTypeInputs.ToDictionary(
             item => item.Key,
@@ -1143,12 +1148,26 @@ public partial class MainWindow : Window
                     {
                         var stevne = repository.GetStevneById(id);
                         var exercises = repository.GetOvelserForStevne(id)
-                            .Select(ovelse => new CsvPreflightExerciseInput(
-                                ovelse.Id,
-                                ovelse.Name,
-                                ovelse.ShortName,
-                                ovelse.HovedOvelseId,
-                                ovelse.StarterCount))
+                            .Select(ovelse =>
+                            {
+                                var ovelseInfo = new OvelseInfo(
+                                    ovelse.Id,
+                                    ovelse.Name,
+                                    ovelse.ShortName,
+                                    ovelse.HovedOvelseId);
+                                return new CsvPreflightExerciseInput(
+                                    ovelse.Id,
+                                    ovelse.Name,
+                                    ovelse.ShortName,
+                                    ovelse.HovedOvelseId,
+                                    ovelse.StarterCount,
+                                    BuildSilhouettePreflightStatus(
+                                        repository,
+                                        id,
+                                        ovelseInfo,
+                                        ovelse.StarterCount,
+                                        silhouetteShootersPerStand));
+                            })
                             .ToList();
                         return new CsvPreflightEventInput(
                             stevne.Id,
@@ -1174,6 +1193,32 @@ public partial class MainWindow : Window
         }
 
         UpdateActionStates();
+    }
+
+    private static string? BuildSilhouettePreflightStatus(
+        InrxRepository repository,
+        int stevneId,
+        OvelseInfo ovelse,
+        int starterCount,
+        int silhouetteShootersPerStand)
+    {
+        if (starterCount == 0 || !ExportValidator.IsSilhouette(ovelse))
+        {
+            return null;
+        }
+
+        var errors = ExportValidator
+            .ValidateInrxSilhouetteTargets(
+                repository.GetStarters(stevneId, ovelse.Id),
+                ovelse,
+                silhouetteShootersPerStand)
+            .ToList();
+        return errors.Count switch
+        {
+            0 => null,
+            1 => errors[0],
+            _ => $"{errors[0]} (+{errors.Count - 1} til)"
+        };
     }
 
     private void ClearCsvPreflight(string message)
@@ -2679,7 +2724,8 @@ public partial class MainWindow : Window
             outputDirectory,
             SelectedEncoding(),
             templatePath,
-            SelectedCsvExerciseSelection()));
+            SelectedCsvExerciseSelection(),
+            SelectedSilhouetteShootersPerStand()));
     }
 
     private SiusDataStartListExportOptions BuildSiusDataStartListExportOptions(string siusDataDirectory)
@@ -2695,7 +2741,8 @@ public partial class MainWindow : Window
             exercise.IsAll ? null : exercise.OvelseId,
             exercise.IsAll ? null : exercise.Name,
             outputDirectory,
-            SelectedEncoding());
+            SelectedEncoding(),
+            SelectedSilhouetteShootersPerStand());
     }
 
     private SiusRankWritebackOptions BuildWritebackOptions(bool apply)
@@ -2973,7 +3020,8 @@ public partial class MainWindow : Window
             "--db", Quote(options.DatabasePath),
             "--stevne-ids", Quote(FormatIds(options.StevneIds)),
             "--output-dir", Quote(options.OutputDirectory ?? string.Empty),
-            "--encoding", options.EncodingName
+            "--encoding", options.EncodingName,
+            "--silhouette-shooters-per-stand", options.SilhouetteShootersPerStand.ToString(CultureInfo.InvariantCulture)
         };
 
         if (options.OvelseId is not null)
@@ -3026,7 +3074,8 @@ public partial class MainWindow : Window
             "--stevne-ids", Quote(FormatIds(options.StevneIds)),
             "--sius-data", Quote(options.SiusDataDirectory),
             "--output-dir", Quote(options.OutputDirectory),
-            "--encoding", options.EncodingName
+            "--encoding", options.EncodingName,
+            "--silhouette-shooters-per-stand", options.SilhouetteShootersPerStand.ToString(CultureInfo.InvariantCulture)
         };
 
         if (options.OvelseId is not null)

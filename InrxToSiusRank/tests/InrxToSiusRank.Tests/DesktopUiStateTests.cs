@@ -40,11 +40,13 @@ public sealed class DesktopUiStateTests
             OutputDirectory: "siusrank-import",
             EncodingName: CsvEncoding.Utf8Bom,
             ShooterGroupsTemplatePath: null,
-            Selection: CsvExerciseSelection.All));
+            Selection: CsvExerciseSelection.All,
+            SilhouetteShootersPerStand: 1));
 
         Assert.Null(options.OvelseId);
         Assert.Null(options.OvelseName);
         Assert.Equal([413, 414], options.StevneIds);
+        Assert.Equal(1, options.SilhouetteShootersPerStand);
     }
 
     [Fact]
