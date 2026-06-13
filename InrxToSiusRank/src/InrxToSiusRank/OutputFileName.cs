@@ -10,6 +10,14 @@ public static class OutputFileName
         return $"{SanitizeFilePart(date)}_{SanitizeFilePart(ExerciseSuffix(ovelse, string.Empty))}.csv";
     }
 
+    public static string ForSiusEventImport(StevneInfo stevne, string siusEventCode)
+    {
+        var date = stevne.Date.Length >= 10
+            ? stevne.Date[..10].Replace("-", string.Empty, StringComparison.Ordinal)
+            : "event";
+        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(siusEventCode)}.csv";
+    }
+
     public static string ForImport(StevneInfo stevne, OvelseInfo ovelse, string kmNmClass)
     {
         var date = stevne.Date.Length >= 10

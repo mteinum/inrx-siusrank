@@ -172,7 +172,7 @@
                            Text="Stier under stevnemappen vises relativt til event.json."
                            Classes="helper" />
 
-                <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="6">
                   <TextBlock Text="Øvelse" Classes="form-label" />
                   <ComboBox x:Name="OvelseSelectBox" Grid.Column="1" MinWidth="260" />
                   <Button x:Name="RefreshOvelserButton" Grid.Column="2" Content="Oppdater øvelser" />
@@ -194,7 +194,17 @@
                           Grid.Column="2"
                           Content="Kopier templates" />
 
-                  <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+                  <TextBlock Grid.Row="2" Text="Finaler" Classes="form-label" />
+                  <TextBox x:Name="CsvFinalClassesBox"
+                           Grid.Row="2"
+                           Grid.Column="1"
+                           Grid.ColumnSpan="2"
+                           MinHeight="64"
+                           AcceptsReturn="True"
+                           TextWrapping="Wrap"
+                           PlaceholderText="Silhuett: Apen,Jm&#x0a;Finpistol: K,Jk,SH1" />
+
+                  <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="RunExportButton" Classes="primary" Content="Lag CSV-filer" />
                   </StackPanel>
                 </Grid>
@@ -219,7 +229,7 @@
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="8,5">
-                  <Grid ColumnDefinitions="70,92,72,1.5*,100,1.2*,90,70,1.6*" ColumnSpacing="8">
+                  <Grid ColumnDefinitions="70,92,72,1.3*,92,1.05*,82,64,1*,84,1.35*" ColumnSpacing="8">
                     <TextBlock Text="Include" Classes="muted" FontWeight="SemiBold" />
                     <TextBlock Grid.Column="1" Text="Dato" Classes="muted" FontWeight="SemiBold" />
                     <TextBlock Grid.Column="2" Text="Stevne.Id" Classes="muted" FontWeight="SemiBold" />
@@ -228,7 +238,9 @@
                     <TextBlock Grid.Column="5" Text="Øvelse" Classes="muted" FontWeight="SemiBold" />
                     <TextBlock Grid.Column="6" Text="OvelseDef.Id" Classes="muted" FontWeight="SemiBold" />
                     <TextBlock Grid.Column="7" Text="Startere" Classes="muted" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="8" Text="Status" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="8" Text="Klasser" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="9" Text="Finale" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="10" Text="Status" Classes="muted" FontWeight="SemiBold" />
                   </Grid>
                 </Border>
 
@@ -243,7 +255,7 @@
         <TabItem Header="SIUS Rank writeback">
           <Grid RowDefinitions="Auto,Auto,*" Margin="0,10,0,0" RowSpacing="8">
             <Border Classes="section-card">
-              <Grid ColumnDefinitions="170,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="170,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
                 <TextBlock Text="SIUS Rank-resultater" Grid.ColumnSpan="3" Classes="section-title" />
                 <TextBlock Grid.Row="1"
                            Grid.ColumnSpan="3"
@@ -263,23 +275,6 @@
                   <TextBlock x:Name="WritebackActionHelpText" Classes="warning-helper" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <Expander Grid.Row="4" Grid.ColumnSpan="3" Header="Avansert: manuell import fra valgt Exports-mappe" IsExpanded="False">
-                  <Grid ColumnDefinitions="160,*,Auto,160,1.2*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8" Margin="0,8,0,0">
-                    <TextBlock Grid.ColumnSpan="5" Text="Brukes bare hvis automatisk søk ikke finner resultatene." Classes="helper" />
-                    <TextBlock Grid.Row="1" Text="Eksportmappe" Classes="form-label" />
-                    <TextBox x:Name="ExportsDirectoryBox" Grid.Row="1" Grid.Column="1" PlaceholderText="SIUS Rank Exports mappe" />
-                    <Button x:Name="BrowseExportsButton" Grid.Row="1" Grid.Column="2" Content="Velg mappe" />
-
-                    <TextBlock Grid.Row="1" Grid.Column="3" Text="Eventfilter" Classes="form-label" />
-                    <TextBox x:Name="EventFilterBox" Grid.Row="1" Grid.Column="4" PlaceholderText="Valgfritt: HurtigFin_M,HurtigGrov_Apen" />
-
-                    <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="RunWritebackPreviewButton" Content="Tørrkjør manuell" />
-                      <Button x:Name="RunWritebackApplyButton" Classes="danger" Content="Skriv manuell til inrX" />
-                      <TextBlock Text="Brukes bare for engangsimport fra en vilkårlig Exports-mappe." Classes="helper" VerticalAlignment="Center" />
-                    </StackPanel>
-                  </Grid>
-                </Expander>
               </Grid>
             </Border>
 

@@ -15,7 +15,11 @@ public sealed class EventProjectConfigTests
             Inrx = new EventInrxConfig { Db = @"C:\Users\ms\Dropbox\KPS-Stevne\INRX191\storage.db3", Stevner = "406" },
             EventTypes = new Dictionary<string, string> { ["406"] = EventProjectPlanner.ChampionshipEventType },
             Silhouette = new EventSilhouetteConfig { ShootersPerStand = 1 },
-            Csv = new EventCsvConfig { Output = "./inrX_export" },
+            Csv = new EventCsvConfig
+            {
+                Output = "./inrX_export",
+                FinalClasses = "Apen,Jm"
+            },
             Classes =
             [
                 new EventClassConfig { Class = "Apen" }
@@ -32,6 +36,7 @@ public sealed class EventProjectConfigTests
         Assert.Equal(
             Path.Combine(directory.Path, "inrX_export"),
             EventProjectFile.ResolvePath(eventPath, loaded.Csv.Output));
+        Assert.Equal("Apen,Jm", loaded.Csv.FinalClasses);
         Assert.Equal(
             loaded.Inrx.Db,
             EventProjectFile.ResolvePath(eventPath, loaded.Inrx.Db));
@@ -41,6 +46,7 @@ public sealed class EventProjectConfigTests
         var storedJson = File.ReadAllText(eventPath);
         Assert.DoesNotContain("\"folder\"", storedJson);
         Assert.DoesNotContain("\"exports\"", storedJson);
+        Assert.DoesNotContain("\"siusEventGrouping\"", storedJson);
 
         var outsidePath = Path.Combine(Path.GetTempPath(), "outside-storage.db3");
         Assert.Equal(Path.GetFullPath(outsidePath), EventProjectFile.ToStoredPath(eventPath, outsidePath));

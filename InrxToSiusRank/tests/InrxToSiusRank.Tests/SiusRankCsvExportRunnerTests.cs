@@ -34,6 +34,106 @@ public sealed class SiusRankCsvExportRunnerTests
         Assert.DoesNotContain("20260711_Fin_V55.csv", Directory.GetFiles(output.Path).Select(Path.GetFileName));
     }
 
+    [Fact]
+    public void Run_can_split_nm_silhouette_into_final_events_and_combined_non_final_event()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+
+        var result = SiusRankCsvExportRunner.Run(new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: 410,
+            StevneIds: [],
+            EventDate: null,
+            EventName: null,
+            OvelseId: 11,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom,
+            FinalClasses: ["Apen", "Jm"]));
+
+        Assert.Equal(
+            ["20260711_Silhuett_Apen.csv", "20260711_Silhuett_Jm.csv", "20260711_Silhuett.csv"],
+            result.Files.Select(file => Path.GetFileName(file.OutputPath)).ToArray());
+        Assert.Equal("Apen", result.Files[0].KmNmClass);
+        Assert.Equal("Jrm", result.Files[1].KmNmClass);
+        Assert.Equal("V55,V65,V73", result.Files[2].KmNmClass);
+
+        var veteranCsv = File.ReadAllText(Path.Combine(output.Path, "20260711_Silhuett.csv"));
+        Assert.Contains(";V55;", veteranCsv);
+        Assert.Contains(";V65;", veteranCsv);
+        Assert.Contains(";V73;", veteranCsv);
+        Assert.DoesNotContain(";Apen;", veteranCsv);
+        Assert.DoesNotContain(";Jrm;", veteranCsv);
+    }
+
+    [Fact]
+    public void Run_keeps_non_final_classes_in_combined_file_even_when_template_has_final_option()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+
+        var result = SiusRankCsvExportRunner.Run(new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: 410,
+            StevneIds: [],
+            EventDate: null,
+            EventName: null,
+            OvelseId: 18,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom,
+            FinalClasses: ["Apen"]));
+
+        var file = Assert.Single(result.Files);
+        Assert.Equal("20260711_Fri.csv", Path.GetFileName(file.OutputPath));
+        Assert.Equal("SH1", file.KmNmClass);
+
+        var csv = File.ReadAllText(file.OutputPath);
+        Assert.Contains(";SH1;", csv);
+    }
+
+    [Fact]
+    public void Run_uses_per_exercise_final_class_rules_when_exporting_all_exercises()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+
+        var result = SiusRankCsvExportRunner.Run(new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: null,
+            StevneIds: [410],
+            EventDate: null,
+            EventName: null,
+            OvelseId: null,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom,
+            FinalClasses: SiusRankCsvFinalClassRules.ParseText(
+                """
+                Fin: Apen
+                Silhuett: Apen,Jm
+                """)));
+
+        Assert.Equal(
+            [
+                "20260711_Fin_Apen.csv",
+                "20260711_Fin.csv",
+                "20260711_Fri.csv",
+                "20260711_Silhuett_Apen.csv",
+                "20260711_Silhuett_Jm.csv",
+                "20260711_Silhuett.csv"
+            ],
+            result.Files.Select(file => Path.GetFileName(file.OutputPath)).ToArray());
+
+        var fripistolCsv = File.ReadAllText(Path.Combine(output.Path, "20260711_Fri.csv"));
+        Assert.Contains(";SH1;", fripistolCsv);
+        Assert.DoesNotContain("20260711_Fri_Apen.csv", Directory.GetFiles(output.Path).Select(Path.GetFileName));
+    }
+
     private sealed class TempInrxDatabase : IDisposable
     {
         private TempInrxDatabase(string path)
@@ -139,7 +239,9 @@ public sealed class SiusRankCsvExportRunnerTests
                 VALUES (410, '20260711 NM Finpistol 2026', '2026-07-11 09:00:00', 377);
 
                 INSERT INTO OvelseDef (Id, navn, kortNavn, HovedOvelseId)
-                VALUES (9, 'Finpistol', 'Fin', 10);
+                VALUES (9, 'Finpistol', 'Fin', 10),
+                       (11, 'Silhuett', 'Sil', 8),
+                       (18, 'Fripistol', 'Fri', 2);
 
                 INSERT INTO Klubb (Id, navn, kortnavn)
                 VALUES (1, 'Kristiansand Pistolskyttere', 'KPS');
@@ -149,21 +251,36 @@ public sealed class SiusRankCsvExportRunnerTests
 
                 INSERT INTO Mklasse (Id, navn, sort)
                 VALUES (1, 'Å', 1),
-                       (2, 'V55', 2);
+                       (2, 'V55', 2),
+                       (3, 'Jm', 3),
+                       (4, 'V65', 4),
+                       (5, 'V73', 5),
+                       (6, 'SH1', 6);
 
                 INSERT INTO StartLag (Id, nr, dato)
                 VALUES (1, 1, '2026-07-11 09:00:00');
 
                 INSERT INTO Deltaker (Id, nsfId, medlemsnr, fnavn, enavn, foedselsaar, gender, land)
                 VALUES (100, '900100', '', 'Anne', 'Aasen', '1980-01-01', 'K', 'NOR'),
-                       (101, '900101', '', 'Bjarne', 'Berg', '1960-01-01', 'M', 'NOR');
+                       (101, '900101', '', 'Bjarne', 'Berg', '1960-01-01', 'M', 'NOR'),
+                       (102, '900102', '', 'Jan', 'Junior', '2005-01-01', 'M', 'NOR'),
+                       (103, '900103', '', 'Vera', 'Vang', '1961-01-01', 'K', 'NOR'),
+                       (104, '900104', '', 'Svein', 'Sund', '1955-01-01', 'M', 'NOR'),
+                       (105, '900105', '', 'Per', 'Pedersen', '1949-01-01', 'M', 'NOR'),
+                       (106, '900106', '', 'Siri', 'SH', '1977-01-01', 'K', 'NOR');
 
                 INSERT INTO Resultat (
                     Id, StevneId, OvelseDefId, DeltakerId, KlubbId, KlasseId, MklasseId1, MklasseId2,
                     startLagId, standplass, skivenrFra, skivenrTil, kommentar)
                 VALUES
                     (1000, 410, 9, 100, 1, 1, 1, NULL, 1, 1, '', '', ''),
-                    (1001, 410, 9, 101, 1, 1, 2, NULL, 1, 2, '', '', '');
+                    (1001, 410, 9, 101, 1, 1, 2, NULL, 1, 2, '', '', ''),
+                    (1002, 410, 11, 100, 1, 1, 1, NULL, 1, 2, '', '', ''),
+                    (1003, 410, 11, 102, 1, 1, 3, NULL, 1, 4, '', '', ''),
+                    (1004, 410, 11, 103, 1, 1, 2, NULL, 1, 7, '', '', ''),
+                    (1005, 410, 11, 104, 1, 1, 4, NULL, 1, 9, '', '', ''),
+                    (1006, 410, 11, 105, 1, 1, 5, NULL, 1, 12, '', '', ''),
+                    (1007, 410, 18, 106, 1, 1, 6, NULL, 1, 1, '', '', '');
                 """;
             command.ExecuteNonQuery();
         }

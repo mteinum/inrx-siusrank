@@ -47,6 +47,8 @@ public sealed record EventSilhouetteConfig
 public sealed record EventCsvConfig
 {
     public string Output { get; init; } = "./inrX_export";
+
+    public string FinalClasses { get; init; } = string.Empty;
 }
 
 public sealed record EventClassConfig

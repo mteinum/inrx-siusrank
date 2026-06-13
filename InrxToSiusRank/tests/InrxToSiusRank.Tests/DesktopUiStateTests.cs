@@ -32,6 +32,43 @@ public sealed class DesktopUiStateTests
     }
 
     [Fact]
+    public void Csv_preflight_missing_selected_exercise_rows_show_available_exercises()
+    {
+        var result = DesktopCsvPreflight.Build(
+            [
+                Event(413, "NM Hurtig", [Exercise(7, "Hurtigpistol", 12)]),
+                Event(414, "NM Standard", [Exercise(10, "Standard", 14)])
+            ],
+            new CsvExerciseSelection(IsAll: false, OvelseId: 10, Name: "Standard"));
+
+        var missing = result.Rows.Single(row => row.StevneId == 413);
+        Assert.Equal("Hurtigpistol", missing.OvelseName);
+        Assert.Null(missing.OvelseId);
+        Assert.Equal("Øvelsen finnes ikke i dette stevnet", missing.Status);
+
+        var included = result.Rows.Single(row => row.StevneId == 414);
+        Assert.Equal("Standard", included.OvelseName);
+        Assert.Equal(10, included.OvelseId);
+        Assert.True(included.Include);
+    }
+
+    [Fact]
+    public void Csv_preflight_rows_show_distinct_classes_for_exercise()
+    {
+        var result = DesktopCsvPreflight.Build(
+            [
+                Event(
+                    415,
+                    "NM Silhuett",
+                    [Exercise(11, "Silhuett", 3, ["V55", "Apen", "Apen", "Jrm"])])
+            ],
+            new CsvExerciseSelection(IsAll: false, OvelseId: 11, Name: "Silhuett"));
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("Jrm, Apen, V55", row.Classes);
+    }
+
+    [Fact]
     public void Csv_all_exercises_options_do_not_set_exercise_filter()
     {
         var options = DesktopExportOptionsBuilder.Build(new DesktopExportOptionsInput(
@@ -41,12 +78,14 @@ public sealed class DesktopUiStateTests
             EncodingName: CsvEncoding.Utf8Bom,
             ShooterGroupsTemplatePath: null,
             Selection: CsvExerciseSelection.All,
-            SilhouetteShootersPerStand: 1));
+            SilhouetteShootersPerStand: 1,
+            FinalClasses: ["Apen", "Jm"]));
 
         Assert.Null(options.OvelseId);
         Assert.Null(options.OvelseName);
         Assert.Equal([413, 414], options.StevneIds);
         Assert.Equal(1, options.SilhouetteShootersPerStand);
+        Assert.Equal(["Apen", "Jm"], options.FinalClasses);
     }
 
     [Fact]
@@ -282,8 +321,18 @@ public sealed class DesktopUiStateTests
         string eventType = EventProjectPlanner.ChampionshipEventType) =>
         new(id, name, "2026-07-06", eventType, exercises);
 
-    private static CsvPreflightExerciseInput Exercise(int id, string name, int starters) =>
-        new(id, name, name[..Math.Min(3, name.Length)], HovedOvelseId: 1, starters);
+    private static CsvPreflightExerciseInput Exercise(
+        int id,
+        string name,
+        int starters,
+        IReadOnlyList<string>? classes = null) =>
+        new(
+            id,
+            name,
+            name[..Math.Min(3, name.Length)],
+            HovedOvelseId: 1,
+            starters,
+            classes ?? []);
 
     private static EventProjectConfig ConfigWithExercise(int ovelseId, string ovelseName) =>
         new()

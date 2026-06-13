@@ -26,16 +26,14 @@ public static class SiusRankCsvExportRunner
             eventExports.Select(eventExport => eventExport.Stevne),
             Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName));
 
+        var fileExports = eventExports
+            .SelectMany(eventExport => ResolveFileExports(eventExport, options.FinalClasses ?? []))
+            .ToList();
+
         var results = new List<SiusRankCsvExportFileResult>();
-        foreach (var eventExport in eventExports)
+        foreach (var fileExport in fileExports)
         {
-            var starters = eventExport.Starters
-                .Select((starter, index) => new
-                {
-                    Starter = starter,
-                    EffectiveClass = EffectiveKmNmClass.Resolve(starter, eventExport.Ovelse),
-                    Index = index
-                })
+            var starters = fileExport.Starters
                 .OrderBy(item => EffectiveKmNmClass.SortKey(item.EffectiveClass))
                 .ThenBy(item => item.EffectiveClass, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(item => item.Index)
@@ -54,16 +52,18 @@ public static class SiusRankCsvExportRunner
             var warnings = ExportValidator.Validate(rows).ToList();
             var outputPath = Path.Combine(
                 outputDirectory,
-                OutputFileName.ForCompetitionImport(eventExport.Stevne, eventExport.Ovelse));
+                fileExport.SiusEventCode is null
+                    ? OutputFileName.ForCompetitionImport(fileExport.Stevne, fileExport.Ovelse)
+                    : OutputFileName.ForSiusEventImport(fileExport.Stevne, fileExport.SiusEventCode));
             SiusRankCsvWriter.Write(
                 outputPath,
                 rows,
                 options.EncodingName,
-                IncludeSilhouetteImportColumns(eventExport.Ovelse, options.SilhouetteShootersPerStand));
+                IncludeSilhouetteImportColumns(fileExport.Ovelse, options.SilhouetteShootersPerStand));
 
             results.Add(new SiusRankCsvExportFileResult(
-                eventExport.Stevne,
-                eventExport.Ovelse,
+                fileExport.Stevne,
+                fileExport.Ovelse,
                 FormatGroupSummary(rows),
                 rows.Count,
                 outputPath,
@@ -95,6 +95,52 @@ public static class SiusRankCsvExportRunner
 
     private static bool IncludeSilhouetteImportColumns(OvelseInfo ovelse, int silhouetteShootersPerStand) =>
         silhouetteShootersPerStand == 2 && ExportValidator.IsSilhouette(ovelse);
+
+    private static IReadOnlyList<EventFileExport> ResolveFileExports(
+        EventExport eventExport,
+        IReadOnlyList<string> finalClasses)
+    {
+        var starters = eventExport.Starters
+            .Select((starter, index) => new StarterExportItem(
+                starter,
+                EffectiveKmNmClass.Resolve(starter, eventExport.Ovelse),
+                index))
+            .ToList();
+
+        var finalClassSet = SiusRankCsvFinalClassRules.ResolveFor(eventExport.Ovelse, finalClasses);
+        if (finalClassSet.Count == 0)
+        {
+            return [new EventFileExport(eventExport.Stevne, eventExport.Ovelse, SiusEventCode: null, starters)];
+        }
+
+        var result = starters
+            .Where(item => IsFinalClass(item.EffectiveClass, finalClassSet))
+            .GroupBy(
+                item => OutputFileName.EventFilterForImport(eventExport.Ovelse, item.EffectiveClass),
+                StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new EventFileExport(
+                eventExport.Stevne,
+                eventExport.Ovelse,
+                group.Key,
+                group.ToList()))
+            .ToList();
+
+        var combined = starters
+            .Where(item => !IsFinalClass(item.EffectiveClass, finalClassSet))
+            .ToList();
+
+        if (combined.Count > 0)
+        {
+            result.Add(new EventFileExport(eventExport.Stevne, eventExport.Ovelse, SiusEventCode: null, combined));
+        }
+
+        return result;
+    }
+
+    private static bool IsFinalClass(string effectiveClass, IReadOnlySet<string> finalClassSet) =>
+        finalClassSet.Contains(effectiveClass.Trim()) ||
+        finalClassSet.Contains(GroupNormalizer.Normalize(effectiveClass));
 
     private static IReadOnlyList<StevneInfo> ResolveStevner(InrxRepository repository, SiusRankCsvExportOptions options)
     {
@@ -171,4 +217,16 @@ public static class SiusRankCsvExportRunner
         StevneInfo Stevne,
         OvelseInfo Ovelse,
         IReadOnlyList<InrxStarter> Starters);
+
+    private sealed record EventFileExport(
+        StevneInfo Stevne,
+        OvelseInfo Ovelse,
+        string? SiusEventCode,
+        IReadOnlyList<StarterExportItem> Starters);
+
+    private sealed record StarterExportItem(
+        InrxStarter Starter,
+        string EffectiveClass,
+        int Index);
+
 }

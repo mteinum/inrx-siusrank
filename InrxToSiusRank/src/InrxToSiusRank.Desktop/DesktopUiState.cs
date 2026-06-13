@@ -157,6 +157,7 @@ public sealed record CsvPreflightExerciseInput(
     string ShortName,
     int HovedOvelseId,
     int StarterCount,
+    IReadOnlyList<string> Classes,
     string? ValidationStatus = null);
 
 public sealed record CsvPreflightEventInput(
@@ -175,6 +176,8 @@ public sealed record CsvPreflightRow(
     string OvelseName,
     int? OvelseId,
     int StarterCount,
+    string Classes,
+    IReadOnlyList<string> ClassNames,
     string Status);
 
 public sealed record CsvPreflightResult(IReadOnlyList<CsvPreflightRow> Rows, CsvExerciseSelection Selection)
@@ -235,6 +238,8 @@ public static class DesktopCsvPreflight
                     OvelseName: "-",
                     OvelseId: null,
                     StarterCount: 0,
+                    Classes: "-",
+                    ClassNames: [],
                     Status: "Ingen øvelser med startere"));
                 continue;
             }
@@ -251,6 +256,8 @@ public static class DesktopCsvPreflight
                     OvelseName: exercise.Name,
                     OvelseId: exercise.Id,
                     StarterCount: exercise.StarterCount,
+                    Classes: FormatClasses(exercise.Classes),
+                    ClassNames: SortClasses(exercise.Classes),
                     Status: !string.IsNullOrWhiteSpace(exercise.ValidationStatus)
                         ? exercise.ValidationStatus
                         : include ? "Klar" : "Ingen startere for denne øvelsen"));
@@ -270,15 +277,18 @@ public static class DesktopCsvPreflight
             var exercise = item.Exercises.FirstOrDefault(exercise => exercise.Id == selection.OvelseId);
             if (exercise is null)
             {
+                var availableExercises = FormatAvailableExercises(item.Exercises);
                 rows.Add(new CsvPreflightRow(
                     Include: false,
                     Date: item.Date,
                     StevneId: item.Id,
                     StevneName: item.Name,
                     EventType: item.EventType,
-                    OvelseName: selection.Name,
-                    OvelseId: selection.OvelseId,
+                    OvelseName: availableExercises,
+                    OvelseId: null,
                     StarterCount: 0,
+                    Classes: "-",
+                    ClassNames: [],
                     Status: "Øvelsen finnes ikke i dette stevnet"));
                 continue;
             }
@@ -293,6 +303,8 @@ public static class DesktopCsvPreflight
                 OvelseName: exercise.Name,
                 OvelseId: exercise.Id,
                 StarterCount: exercise.StarterCount,
+                Classes: FormatClasses(exercise.Classes),
+                ClassNames: SortClasses(exercise.Classes),
                 Status: !string.IsNullOrWhiteSpace(exercise.ValidationStatus)
                     ? exercise.ValidationStatus
                     : include ? "Klar" : "Ingen startere for denne øvelsen"));
@@ -300,6 +312,31 @@ public static class DesktopCsvPreflight
 
         return rows;
     }
+
+    private static string FormatAvailableExercises(IReadOnlyList<CsvPreflightExerciseInput> exercises) =>
+        exercises.Count == 0
+            ? "-"
+            : string.Join(
+                ", ",
+                exercises
+                    .OrderBy(exercise => exercise.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(exercise => exercise.Name)
+                    .Distinct(StringComparer.OrdinalIgnoreCase));
+
+    private static string FormatClasses(IReadOnlyList<string> classes) =>
+        classes.Count == 0
+            ? "-"
+            : string.Join(
+                ", ",
+                SortClasses(classes));
+
+    private static IReadOnlyList<string> SortClasses(IReadOnlyList<string> classes) =>
+        classes
+            .Where(className => !string.IsNullOrWhiteSpace(className))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(EffectiveKmNmClass.SortKey)
+            .ThenBy(className => className, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 }
 
 public static class DesktopEventTypeSelections
@@ -558,7 +595,8 @@ public sealed record DesktopExportOptionsInput(
     string EncodingName,
     string? ShooterGroupsTemplatePath,
     CsvExerciseSelection Selection,
-    int SilhouetteShootersPerStand = 2);
+    int SilhouetteShootersPerStand = 2,
+    IReadOnlyList<string>? FinalClasses = null);
 
 public static class DesktopExportOptionsBuilder
 {
@@ -574,7 +612,8 @@ public static class DesktopExportOptionsBuilder
             ShooterGroupsTemplatePath: input.ShooterGroupsTemplatePath,
             OutputDirectory: input.OutputDirectory,
             EncodingName: input.EncodingName,
-            SilhouetteShootersPerStand: input.SilhouetteShootersPerStand);
+            SilhouetteShootersPerStand: input.SilhouetteShootersPerStand,
+            FinalClasses: input.FinalClasses);
 }
 
 public sealed record SscActionStatusInput(
