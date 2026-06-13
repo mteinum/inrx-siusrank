@@ -562,7 +562,7 @@ public sealed record DesktopExportOptionsInput(
 
 public static class DesktopExportOptionsBuilder
 {
-    public static AppOptions Build(DesktopExportOptionsInput input) =>
+    public static SiusRankCsvExportOptions Build(DesktopExportOptionsInput input) =>
         new(
             input.DatabasePath,
             StevneId: null,
@@ -574,7 +574,6 @@ public static class DesktopExportOptionsBuilder
             ShooterGroupsTemplatePath: input.ShooterGroupsTemplatePath,
             OutputDirectory: input.OutputDirectory,
             EncodingName: input.EncodingName,
-            Wizard: false,
             SilhouetteShootersPerStand: input.SilhouetteShootersPerStand);
 }
 

@@ -17,7 +17,7 @@ public sealed record Nm2026TimetableResult(
     string? InrxBackupPath,
     string? SiusRankBackupPath,
     IReadOnlyList<string> Messages,
-    BulkExportResult? ExportResult);
+    SiusRankCsvExportResult? ExportResult);
 
 public static class Nm2026TimetableCommand
 {
@@ -127,7 +127,7 @@ public static class Nm2026TimetableRunner
         };
 
         Nm2026TimetableRepository.ApplyInrx(options.DatabasePath);
-        var exportResult = BulkExportRunner.Run(new AppOptions(
+        var exportResult = SiusRankCsvExportRunner.Run(new SiusRankCsvExportOptions(
             options.DatabasePath,
             StevneId: null,
             StevneIds: Nm2026TimetablePlan.StevneIds,
@@ -137,8 +137,7 @@ public static class Nm2026TimetableRunner
             OvelseName: null,
             ShooterGroupsTemplatePath: null,
             OutputDirectory: options.OutputDirectory,
-            EncodingName: CsvEncoding.Utf8Bom,
-            Wizard: false));
+            EncodingName: CsvEncoding.Utf8Bom));
         messages.Add($"CSV files regenerated: {exportResult.Files.Count}");
 
         Nm2026TimetableRepository.ApplySiusRank(options.SiusRankPath, options.DatabasePath, Path.Combine(options.OutputDirectory, ChampionshipStartNumbers.BibMapFileName));
@@ -318,8 +317,12 @@ public static class Nm2026TimetablePlanner
 
         var silhouetteCount = CountStarters(connection, 406, 11);
         messages.Add($"Silhuett: repack {silhouetteCount} starters into 6 relays with side targets 2/4, 7/9, ..., 32/34.");
-        var finCount = CountStarters(connection, 408, 9);
-        messages.Add($"Finpistol: rebalance {finCount} starters over 4 relays with max 35 shooters per relay.");
+        foreach (var spec in Nm2026TimetablePlan.EventSpecs.Where(static item => item.OvelseDefId is >= 6 and <= 10))
+        {
+            var count = CountStarters(connection, spec.StevneId, spec.OvelseDefId);
+            messages.Add($"{spec.Name}: rebalance {count} starters over {spec.StartTimes.Count} relays with max 35 shooters per relay.");
+        }
+
         messages.Add($"SIUS Rank: patch relay/stage times and V/H import setup in {Path.GetFileName(siusRankPath)}.");
         return messages;
     }
@@ -382,7 +385,10 @@ public static class Nm2026TimetableRepository
         }
 
         RepackEvent(connection, transaction, Nm2026TimetablePlan.EventByStevneId(406), Nm2026TimetablePlan.SilhouetteTargets, deleteUnusedStartLags: true);
-        RepackEvent(connection, transaction, Nm2026TimetablePlan.EventByStevneId(408), Enumerable.Range(1, 35).ToArray(), deleteUnusedStartLags: false);
+        foreach (var spec in Nm2026TimetablePlan.EventSpecs.Where(static item => item.OvelseDefId is >= 6 and <= 10))
+        {
+            RepackEvent(connection, transaction, spec, Enumerable.Range(1, 35).ToArray(), deleteUnusedStartLags: false);
+        }
 
         transaction.Commit();
     }

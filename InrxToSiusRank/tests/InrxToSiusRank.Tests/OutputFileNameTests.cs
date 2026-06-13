@@ -3,6 +3,24 @@ namespace InrxToSiusRank.Tests;
 public sealed class OutputFileNameTests
 {
     [Theory]
+    [InlineData(18, "Fripistol", "Fri", 2, "20260711_Fri.csv")]
+    [InlineData(11, "Silhuett", "Sil", 8, "20260711_Silhuett.csv")]
+    [InlineData(9, "Finpistol", "Fin", 10, "20260711_Fin.csv")]
+    public void Competition_import_file_name_uses_date_and_event_without_class_suffix(
+        int id,
+        string name,
+        string shortName,
+        int hovedOvelseId,
+        string expected)
+    {
+        var fileName = OutputFileName.ForCompetitionImport(
+            CreateStevne(),
+            new OvelseInfo(id, name, shortName, hovedOvelseId));
+
+        Assert.Equal(expected, fileName);
+    }
+
+    [Theory]
     [InlineData(18, "Fripistol", "Fri", 2, "Å", "20260711_Fri_Apen.csv")]
     [InlineData(18, "Fripistol", "Fri", 2, "SH1-P4", "20260711_Fri_SH1-P4.csv")]
     [InlineData(10, "Standard", "Std", 9, "M", "20260711_Standard_M.csv")]

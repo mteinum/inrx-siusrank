@@ -17,7 +17,6 @@ permissions:
 env:
   DOTNET_VERSION: "8.0.x"
   SOLUTION_PATH: InrxToSiusRank/InrxToSiusRank.sln
-  PROJECT_PATH: InrxToSiusRank/src/InrxToSiusRank/InrxToSiusRank.csproj
   DESKTOP_PROJECT_PATH: InrxToSiusRank/src/InrxToSiusRank.Desktop/InrxToSiusRank.Desktop.csproj
 
 jobs:
@@ -63,14 +62,6 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish "${{ env.PROJECT_PATH }}" \
-            --configuration Release \
-            --runtime "${{ matrix.rid }}" \
-            --self-contained true \
-            --output "publish/cli/${{ matrix.rid }}" \
-            -p:PublishSingleFile=true \
-            -p:EnableCompressionInSingleFile=true
-
           dotnet publish "${{ env.DESKTOP_PROJECT_PATH }}" \
             --configuration Release \
             --runtime "${{ matrix.rid }}" \
@@ -90,15 +81,12 @@ jobs:
           fi
 
           rid="${{ matrix.rid }}"
-          cli_asset_name="InrxToSiusRank-${tag}-${rid}"
           desktop_asset_name="InrxToSiusRank.Desktop-${tag}-${rid}"
           mkdir -p dist
 
           if [[ "${rid}" == win-* ]]; then
-            (cd "publish/cli/${rid}" && zip -r "../../../dist/${cli_asset_name}.zip" .)
             (cd "publish/desktop/${rid}" && zip -r "../../../dist/${desktop_asset_name}.zip" .)
           else
-            tar -C "publish/cli/${rid}" -czf "dist/${cli_asset_name}.tar.gz" .
             tar -C "publish/desktop/${rid}" -czf "dist/${desktop_asset_name}.tar.gz" .
           fi
 

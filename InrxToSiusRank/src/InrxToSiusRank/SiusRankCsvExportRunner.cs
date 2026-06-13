@@ -1,8 +1,8 @@
 namespace InrxToSiusRank;
 
-public static class BulkExportRunner
+public static class SiusRankCsvExportRunner
 {
-    public static BulkExportResult Run(AppOptions options)
+    public static SiusRankCsvExportResult Run(SiusRankCsvExportOptions options)
     {
         if (options.OutputDirectory is null)
         {
@@ -26,80 +26,59 @@ public static class BulkExportRunner
             eventExports.Select(eventExport => eventExport.Stevne),
             Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName));
 
-        var results = new List<BulkExportFileResult>();
+        var results = new List<SiusRankCsvExportFileResult>();
         foreach (var eventExport in eventExports)
         {
-            var classGroups = eventExport.Starters
-                .GroupBy(starter => EffectiveKmNmClass.Resolve(starter, eventExport.Ovelse))
-                .OrderBy(group => EffectiveKmNmClass.SortKey(group.Key))
-                .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var classGroup in classGroups)
-            {
-                var selectedStarters = classGroup.ToList();
-                if (selectedStarters.Count == 0)
+            var starters = eventExport.Starters
+                .Select((starter, index) => new
                 {
-                    continue;
-                }
+                    Starter = starter,
+                    EffectiveClass = EffectiveKmNmClass.Resolve(starter, eventExport.Ovelse),
+                    Index = index
+                })
+                .OrderBy(item => EffectiveKmNmClass.SortKey(item.EffectiveClass))
+                .ThenBy(item => item.EffectiveClass, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.Index)
+                .ToList();
 
-                var rows = selectedStarters
-                    .Select(starter => StarterMapper.Map(
-                        starter with { KmNmClass = classGroup.Key },
-                        siusGroupOverride: null,
-                        includeClubTeam: true,
-                        startNumber: startNumbers[starter.DeltakerId]))
-                    .ToList();
+            var rows = starters
+                .Select(item => StarterMapper.Map(
+                    item.Starter with { KmNmClass = item.EffectiveClass },
+                    siusGroupOverride: null,
+                    includeClubTeam: true,
+                    startNumber: startNumbers[item.Starter.DeltakerId]))
+                .ToList();
 
-                ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);
+            ExportValidator.ValidateShooterGroups(rows, shooterGroupsTemplate);
 
-                var warnings = ExportValidator.Validate(rows).ToList();
-                var outputPath = Path.Combine(
-                    outputDirectory,
-                    OutputFileName.ForImport(eventExport.Stevne, eventExport.Ovelse, classGroup.Key));
-                SiusRankCsvWriter.Write(
-                    outputPath,
-                    rows,
-                    options.EncodingName,
-                    IncludeSilhouetteImportColumns(eventExport.Ovelse, options.SilhouetteShootersPerStand));
+            var warnings = ExportValidator.Validate(rows).ToList();
+            var outputPath = Path.Combine(
+                outputDirectory,
+                OutputFileName.ForCompetitionImport(eventExport.Stevne, eventExport.Ovelse));
+            SiusRankCsvWriter.Write(
+                outputPath,
+                rows,
+                options.EncodingName,
+                IncludeSilhouetteImportColumns(eventExport.Ovelse, options.SilhouetteShootersPerStand));
 
-                results.Add(new BulkExportFileResult(
-                    eventExport.Stevne,
-                    eventExport.Ovelse,
-                    classGroup.Key,
-                    rows.Count,
-                    outputPath,
-                    warnings));
-            }
+            results.Add(new SiusRankCsvExportFileResult(
+                eventExport.Stevne,
+                eventExport.Ovelse,
+                FormatGroupSummary(rows),
+                rows.Count,
+                outputPath,
+                warnings));
         }
 
-        return new BulkExportResult(outputDirectory, options.ShooterGroupsTemplatePath, results);
+        return new SiusRankCsvExportResult(outputDirectory, options.ShooterGroupsTemplatePath, results);
     }
 
-    public static BibMapCreateResult CreateBibMap(AppOptions options)
-    {
-        if (options.OutputDirectory is null)
-        {
-            throw new ArgumentException("Creating bib-map.csv requires --output-dir.");
-        }
-
-        using var repository = new InrxRepository(options.DatabasePath);
-        var stevner = ResolveStevner(repository, options);
-        var outputDirectory = Path.GetFullPath(options.OutputDirectory);
-        Directory.CreateDirectory(outputDirectory);
-        var eventExports = ResolveEventExports(repository, options, stevner);
-        var bibMapPath = Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName);
-        var startNumbers = ChampionshipStartNumbers.Create(
-            eventExports.SelectMany(eventExport => eventExport.Starters),
-            eventExports.Select(eventExport => eventExport.Stevne),
-            bibMapPath);
-
-        return new BibMapCreateResult(
-            outputDirectory,
-            bibMapPath,
-            eventExports.Count,
-            eventExports.Sum(eventExport => eventExport.Starters.Count),
-            startNumbers.Count);
-    }
+    private static string FormatGroupSummary(IReadOnlyList<SiusRankStarter> rows) =>
+        string.Join(
+            ",",
+            rows.Select(row => row.Groups)
+                .Where(group => !string.IsNullOrWhiteSpace(group))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
 
     private static void ValidateSilhouetteTargets(
         IReadOnlyList<EventExport> eventExports,
@@ -117,7 +96,7 @@ public static class BulkExportRunner
     private static bool IncludeSilhouetteImportColumns(OvelseInfo ovelse, int silhouetteShootersPerStand) =>
         silhouetteShootersPerStand == 2 && ExportValidator.IsSilhouette(ovelse);
 
-    private static IReadOnlyList<StevneInfo> ResolveStevner(InrxRepository repository, AppOptions options)
+    private static IReadOnlyList<StevneInfo> ResolveStevner(InrxRepository repository, SiusRankCsvExportOptions options)
     {
         if (options.StevneIds.Count > 0)
         {
@@ -132,7 +111,10 @@ public static class BulkExportRunner
         return [repository.ResolveStevne(options)];
     }
 
-    private static IReadOnlyList<OvelseInfo> ResolveOvelser(InrxRepository repository, AppOptions options, StevneInfo stevne)
+    private static IReadOnlyList<OvelseInfo> ResolveOvelser(
+        InrxRepository repository,
+        SiusRankCsvExportOptions options,
+        StevneInfo stevne)
     {
         if (options.OvelseId is not null || !string.IsNullOrWhiteSpace(options.OvelseName))
         {
@@ -163,7 +145,7 @@ public static class BulkExportRunner
 
     private static IReadOnlyList<EventExport> ResolveEventExports(
         InrxRepository repository,
-        AppOptions options,
+        SiusRankCsvExportOptions options,
         IReadOnlyList<StevneInfo> stevner)
     {
         return stevner

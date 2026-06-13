@@ -176,7 +176,7 @@ public sealed class InrxRepository : IDisposable
         return classes;
     }
 
-    public StevneInfo ResolveStevne(AppOptions options)
+    public StevneInfo ResolveStevne(SiusRankCsvExportOptions options)
     {
         if (options.StevneId is not null)
         {
@@ -218,7 +218,7 @@ public sealed class InrxRepository : IDisposable
         };
     }
 
-    public OvelseInfo ResolveOvelse(AppOptions options)
+    public OvelseInfo ResolveOvelse(SiusRankCsvExportOptions options)
     {
         if (options.OvelseId is not null)
         {
@@ -270,9 +270,12 @@ public sealed class InrxRepository : IDisposable
 
     public IReadOnlyList<InrxStarter> GetStarters(int stevneId, int ovelseDefId)
     {
+        var commentExpression = HasColumn("Resultat", "kommentar")
+            ? "r.kommentar"
+            : "''";
         using var command = _connection.CreateCommand();
         command.CommandText =
-            """
+            $"""
             SELECT
                 r.Id              AS StartNumber,
                 d.Id              AS DeltakerId,
@@ -293,6 +296,7 @@ public sealed class InrxRepository : IDisposable
                 k.navn            AS InrxClass,
                 km.navn           AS KmNmClass,
                 dm.navn           AS DmClass,
+                {commentExpression} AS Comment,
                 od.navn           AS OvelseName,
                 s.navn            AS StevneName
             FROM Resultat r
@@ -339,6 +343,7 @@ public sealed class InrxRepository : IDisposable
                 InrxClass: GetString(reader, "InrxClass"),
                 KmNmClass: GetString(reader, "KmNmClass"),
                 DmClass: GetString(reader, "DmClass"),
+                Comment: GetString(reader, "Comment"),
                 OvelseName: GetString(reader, "OvelseName"),
                 StevneName: GetString(reader, "StevneName")));
         }
@@ -347,6 +352,22 @@ public sealed class InrxRepository : IDisposable
     }
 
     public void Dispose() => _connection.Dispose();
+
+    private bool HasColumn(string tableName, string columnName)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({tableName});";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(GetString(reader, "name"), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static StevneInfo ReadStevne(IDataRecord reader) =>
         new(

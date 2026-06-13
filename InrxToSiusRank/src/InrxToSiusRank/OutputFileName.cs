@@ -2,6 +2,14 @@ namespace InrxToSiusRank;
 
 public static class OutputFileName
 {
+    public static string ForCompetitionImport(StevneInfo stevne, OvelseInfo ovelse)
+    {
+        var date = stevne.Date.Length >= 10
+            ? stevne.Date[..10].Replace("-", string.Empty, StringComparison.Ordinal)
+            : "event";
+        return $"{SanitizeFilePart(date)}_{SanitizeFilePart(ExerciseSuffix(ovelse, string.Empty))}.csv";
+    }
+
     public static string ForImport(StevneInfo stevne, OvelseInfo ovelse, string kmNmClass)
     {
         var date = stevne.Date.Length >= 10

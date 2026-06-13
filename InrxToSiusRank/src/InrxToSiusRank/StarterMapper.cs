@@ -42,7 +42,7 @@ public static class StarterMapper
             TeamIndex: "1",
             DuellIndex: "1",
             Groups: group,
-            Comment: string.Empty,
+            Comment: starter.Comment.Trim(),
             StarterId: resolvedStartNumber,
             TeamPosition: "1",
             Team: team,
