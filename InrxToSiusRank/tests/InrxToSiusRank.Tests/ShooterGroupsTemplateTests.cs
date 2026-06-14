@@ -87,18 +87,54 @@ public sealed class ShooterGroupsTemplateTests
         }
     }
 
+    [Fact]
+    public void Embedded_nm_pistol_shoot_events_use_common_event_for_non_final_groups_and_group_events_for_finals()
+    {
+        var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
+
+        var eventCodes = document.Root!
+            .Elements("ShootEventConfiguration")
+            .Select(element => element.Element("EventCode")!.Value)
+            .ToArray();
+
+        Assert.Equal(
+            [
+                "Fin_common",
+                "Fin_K",
+                "Fin_Jk",
+                "Fin_SH1-P3",
+                "Standard_common",
+                "Grov_common",
+                "Silhuett_common",
+                "Silhuett_Apen",
+                "Silhuett_Jr-NM",
+                "HurtigFin_common",
+                "HurtigGrov_common",
+                "Fri_common",
+                "Fri_SH1-P4"
+            ],
+            eventCodes);
+    }
+
     [Theory]
-    [InlineData("Fri_V73", "50m Fripistol V73", "V73")]
-    [InlineData("Fri_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1")]
-    [InlineData("Fin_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1")]
-    [InlineData("Silhuett_Jr-NM", "25m Silhuettpistol Jr-NM", "JrNM")]
-    [InlineData("Silhuett_V55", "25m Silhuettpistol V55", "V55")]
-    [InlineData("Standard_M", "25m Standardpistol M", "Menn")]
-    [InlineData("HurtigFin_K", "25m Hurtigpistol Fin K", "Kvinner")]
-    public void Embedded_shoot_events_include_class_specific_nm_import_events(
+    [InlineData("Fin_common", "25m Finpistol common", "Menn", "0")]
+    [InlineData("Fin_K", "25m Finpistol K", "Kvinner", "8")]
+    [InlineData("Fin_Jk", "25m Finpistol Jk", "Jrk", "8")]
+    [InlineData("Fin_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1", "8")]
+    [InlineData("Standard_common", "25m Standardpistol common", "Menn", "0")]
+    [InlineData("Grov_common", "25m Grovpistol common", "Apen", "0")]
+    [InlineData("Silhuett_common", "25m Silhuettpistol common", "V55", "0")]
+    [InlineData("Silhuett_Apen", "25m Silhuettpistol Apen", "Apen", "8")]
+    [InlineData("Silhuett_Jr-NM", "25m Silhuettpistol Jr-NM", "JrNM", "8")]
+    [InlineData("HurtigFin_common", "25m Hurtigpistol Fin common", "Menn", "0")]
+    [InlineData("HurtigGrov_common", "25m Hurtigpistol Grov common", "Apen", "0")]
+    [InlineData("Fri_common", "50m Fripistol common", "Apen", "0")]
+    [InlineData("Fri_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1", "8")]
+    public void Embedded_nm_pistol_shoot_events_have_expected_defaults_and_final_counts(
         string eventCode,
         string expectedName,
-        string expectedDefaultGroup)
+        string expectedDefaultGroup,
+        string expectedNumberOfFinalists)
     {
         var document = XDocument.Load(Path.Combine(TemplatesDirectory(), "ShootEventsTemplate2026_NM_Pistol.xml"));
         var shootEvent = document.Root!
@@ -107,6 +143,7 @@ public sealed class ShooterGroupsTemplateTests
 
         Assert.Equal(expectedName, shootEvent.Element("Name")!.Value);
         Assert.Equal(expectedDefaultGroup, shootEvent.Element("DefaultShooterGroup")!.Value);
+        Assert.Equal(expectedNumberOfFinalists, shootEvent.Element("NumberOfFinalists")!.Value);
     }
 
     [Theory]
