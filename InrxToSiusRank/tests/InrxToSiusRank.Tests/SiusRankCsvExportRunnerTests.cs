@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.Data.Sqlite;
 
 namespace InrxToSiusRank.Tests;
@@ -132,6 +133,56 @@ public sealed class SiusRankCsvExportRunnerTests
         var fripistolCsv = File.ReadAllText(Path.Combine(output.Path, "20260711_Fri.csv"));
         Assert.Contains(";SH1;", fripistolCsv);
         Assert.DoesNotContain("20260711_Fri_Apen.csv", Directory.GetFiles(output.Path).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Run_xlsx_writes_one_workbook_with_one_sheet_per_selected_event_and_filter()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+        AddSecondStevne(database.Path);
+
+        var result = SiusRankXlsxExportRunner.Run(new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: null,
+            StevneIds: [410, 411],
+            EventDate: null,
+            EventName: null,
+            OvelseId: null,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom));
+
+        Assert.Equal("20260711-20260712_SIUS_Rank.xlsx", Path.GetFileName(result.OutputPath));
+        Assert.True(File.Exists(result.OutputPath));
+        Assert.Equal(2, result.Sheets.Count);
+        Assert.Equal([410, 411], result.Sheets.Select(sheet => sheet.Stevne.Id).ToArray());
+
+        using var archive = ZipFile.OpenRead(result.OutputPath);
+        var workbookXml = ReadZipEntry(archive, "xl/workbook.xml");
+        Assert.Contains("20260711 NM Finpistol 2026", workbookXml);
+        Assert.Contains("20260712 NM Standard 2026", workbookXml);
+        var stylesXml = ReadZipEntry(archive, "xl/styles.xml");
+        Assert.Contains("fgColor rgb=\"FFFFFF00\"", stylesXml);
+        Assert.Contains("<cellXfs count=\"3\">", stylesXml);
+
+        var firstSheetXml = ReadZipEntry(archive, "xl/worksheets/sheet1.xml");
+        Assert.Contains("<autoFilter ref=\"A1:Y9\"", firstSheetXml);
+        Assert.Contains("<sortState ref=\"A2:Y9\"", firstSheetXml);
+        Assert.Contains("<sortCondition ref=\"M2:M9\" />", firstSheetXml);
+        Assert.Contains("<sortCondition ref=\"L2:L9\" />", firstSheetXml);
+        Assert.Contains("<ignoredError sqref=\"A2:Y9\" numberStoredAsText=\"1\" />", firstSheetXml);
+        Assert.Contains("<c r=\"P1\" s=\"2\" t=\"inlineStr\"><is><t>Groups</t></is></c>", firstSheetXml);
+        Assert.Contains("<c r=\"A2\"><v>", firstSheetXml);
+        Assert.DoesNotContain("<c r=\"A2\" t=\"inlineStr\">", firstSheetXml);
+        Assert.Contains("<t>StartNumber</t>", firstSheetXml);
+        Assert.Contains("<t>SiusDataStartNumber</t>", firstSheetXml);
+
+        var secondSheetXml = ReadZipEntry(archive, "xl/worksheets/sheet2.xml");
+        Assert.Contains("<autoFilter ref=\"A1:W2\"", secondSheetXml);
+        Assert.Contains("<sortState ref=\"A2:W2\"", secondSheetXml);
+        Assert.Contains("<ignoredError sqref=\"A2:W2\" numberStoredAsText=\"1\" />", secondSheetXml);
     }
 
     private sealed class TempInrxDatabase : IDisposable
@@ -284,6 +335,38 @@ public sealed class SiusRankCsvExportRunnerTests
                 """;
             command.ExecuteNonQuery();
         }
+    }
+
+    private static void AddSecondStevne(string databasePath)
+    {
+        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO Stevne (Id, navn, dato, ArrangementId)
+            VALUES (411, '20260712 NM Standard 2026', '2026-07-12 09:00:00', 377);
+
+            INSERT INTO OvelseDef (Id, navn, kortNavn, HovedOvelseId)
+            VALUES (10, 'Standard', 'Std', 12);
+
+            INSERT INTO Deltaker (Id, nsfId, medlemsnr, fnavn, enavn, foedselsaar, gender, land)
+            VALUES (107, '900107', '', 'Stine', 'Standard', '1982-01-01', 'K', 'NOR');
+
+            INSERT INTO Resultat (
+                Id, StevneId, OvelseDefId, DeltakerId, KlubbId, KlasseId, MklasseId1, MklasseId2,
+                startLagId, standplass, skivenrFra, skivenrTil, kommentar)
+            VALUES (1008, 411, 10, 107, 1, 1, 1, NULL, 1, 3, '', '', '');
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static string ReadZipEntry(ZipArchive archive, string entryName)
+    {
+        var entry = archive.GetEntry(entryName) ?? throw new InvalidOperationException($"Missing zip entry {entryName}.");
+        using var stream = entry.Open();
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     private sealed class TempDirectory : IDisposable

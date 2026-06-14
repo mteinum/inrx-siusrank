@@ -21,6 +21,18 @@ public sealed record SiusRankCsvExportResult(
     string? ShooterGroupsTemplatePath,
     IReadOnlyList<SiusRankCsvExportFileResult> Files);
 
+public sealed record SiusRankXlsxExportSheetResult(
+    StevneInfo Stevne,
+    string SheetName,
+    int StarterCount,
+    IReadOnlyList<string> Warnings);
+
+public sealed record SiusRankXlsxExportResult(
+    string OutputDirectory,
+    string OutputPath,
+    string? ShooterGroupsTemplatePath,
+    IReadOnlyList<SiusRankXlsxExportSheetResult> Sheets);
+
 public sealed record InrxStarter(
     int ResultatId,
     int DeltakerId,

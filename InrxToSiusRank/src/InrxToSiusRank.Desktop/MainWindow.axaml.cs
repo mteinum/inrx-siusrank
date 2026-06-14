@@ -237,6 +237,7 @@ public partial class MainWindow : Window
         Get<Button>("ClearStevnerButton").Click += (_, _) => SetAllSearchResultSelections(isSelected: false);
         Get<Button>("CopyTemplatesButton").Click += async (_, _) => await RunSafelyAsync("Kopierer templates", CopyTemplatesToSiusRankAsync);
         Get<Button>("RunExportButton").Click += async (_, _) => await RunSafelyAsync("Lager CSV-filer", RunExportAsync);
+        Get<Button>("RunXlsxExportButton").Click += async (_, _) => await RunSafelyAsync("Lager XLSX", RunXlsxExportAsync);
         Get<Button>("ScanWritebackResultsButton").Click += async (_, _) => await RunSafelyAsync("Finner resultater", ScanWritebackResultsAsync);
         Get<Button>("OpenEventFromWritebackButton").Click += async (_, _) => await RunSafelyAsync("Åpner event.json", OpenEventFileAsync);
         Get<Button>("ValidateAllWritebackButton").Click += async (_, _) => await RunSafelyAsync("Validerer alle", ValidateAllWritebackAsync);
@@ -2242,6 +2243,21 @@ public partial class MainWindow : Window
         AppendLog(FormatSiusRankCsvExportResult(result));
     }
 
+    private async Task RunXlsxExportAsync()
+    {
+        await RefreshCsvPreflightAsync();
+        AppendCsvSkippedMessage();
+        var options = BuildExportOptions();
+        AppendLog(BuildXlsxExportSummary(options));
+
+        var result = await Task.Run(() => SiusRankXlsxExportRunner.Run(options));
+        var bibMapPath = Path.Combine(result.OutputDirectory, ChampionshipStartNumbers.BibMapFileName);
+        BibMapPathInput.Text = ToEventDisplayPath(bibMapPath);
+        SscBibMapPathInput.Text = BibMapPathInput.Text;
+        SaveDesktopSettings();
+        AppendLog(FormatSiusRankXlsxExportResult(result));
+    }
+
     private async Task CopyTemplatesToSiusRankAsync()
     {
         var sourceDirectory = ResolveBundledTemplatesDirectory();
@@ -2465,6 +2481,7 @@ public partial class MainWindow : Window
         SetControlEnabled("ClearStevnerButton", _stevneChecks.Count > 0 && !_isRunning);
         SetControlEnabled("CopyTemplatesButton", !_isRunning);
         SetControlEnabled("RunExportButton", csvExport.CanRun && csvPreflightCanExport && !_isRunning);
+        SetControlEnabled("RunXlsxExportButton", csvExport.CanRun && csvPreflightCanExport && !_isRunning);
         SetControlEnabled("ScanWritebackResultsButton", _currentEventConfig is not null && !_isRunning);
         SetControlEnabled("OpenEventFromWritebackButton", _currentEventConfig is null && !_isRunning);
         SetControlEnabled("ValidateAllWritebackButton", classWriteback.CanRun && hasReadyWritebackRows && !_isRunning);
@@ -3061,6 +3078,12 @@ public partial class MainWindow : Window
         return "CSV export: " + string.Join(", ", parts);
     }
 
+    private static string BuildXlsxExportSummary(SiusRankCsvExportOptions options)
+    {
+        var summary = BuildExportSummary(options);
+        return "XLSX export: " + summary["CSV export: ".Length..];
+    }
+
     private static string BuildSscUsersCommand(ExportSscUsersOptions options)
     {
         var parts = new List<string>
@@ -3140,6 +3163,30 @@ public partial class MainWindow : Window
                 $"- {Path.GetFileName(file.OutputPath)}: Stevne.Id={file.Stevne.Id}, " +
                 $"{file.Ovelse.Name}, groups={file.KmNmClass}, starters={file.StarterCount}");
             foreach (var warning in file.Warnings)
+            {
+                builder.AppendLine($"  WARNING: {warning}");
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string FormatSiusRankXlsxExportResult(SiusRankXlsxExportResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SIUS Rank XLSX import file created.");
+        builder.AppendLine($"Output file: {result.OutputPath}");
+        if (!string.IsNullOrWhiteSpace(result.ShooterGroupsTemplatePath))
+        {
+            builder.AppendLine($"Shooter groups template: {Path.GetFullPath(result.ShooterGroupsTemplatePath)}");
+        }
+
+        builder.AppendLine($"Sheets created: {result.Sheets.Count}");
+        foreach (var sheet in result.Sheets)
+        {
+            builder.AppendLine(
+                $"- {sheet.SheetName}: Stevne.Id={sheet.Stevne.Id}, starters={sheet.StarterCount}");
+            foreach (var warning in sheet.Warnings)
             {
                 builder.AppendLine($"  WARNING: {warning}");
             }

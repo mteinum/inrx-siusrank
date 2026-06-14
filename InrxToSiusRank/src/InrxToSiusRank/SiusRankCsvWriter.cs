@@ -1,46 +1,14 @@
-using System.Globalization;
 using System.Text;
 
 namespace InrxToSiusRank;
 
 public static class SiusRankCsvWriter
 {
-    private static readonly string[] SilhouetteImportHeader =
-    [
-        "ImportShotFilter",
-        "SiusDataStartNumber"
-    ];
+    public static readonly string[] Header = SiusRankExportTable.Header;
 
-    public static readonly string[] Header =
-    [
-        "StartNumber",
-        "AccreditationNumber",
-        "IssfId",
-        "DisplayNameLong",
-        "DisplayName",
-        "FirstName",
-        "Name",
-        "BirthDay",
-        "Gender",
-        "Nation",
-        "BibNumber",
-        "TargetNumber",
-        "Relay",
-        "TeamIndex",
-        "DuellIndex",
-        "Groups",
-        "Comment",
-        "StarterId",
-        "TeamPosition",
-        "Team",
-        "TeamDisplay",
-        "TeamDuellIndex",
-        "TeamComment"
-    ];
+    public static string HeaderLine => string.Join(';', SiusRankExportTable.Headers());
 
-    public static string HeaderLine => string.Join(';', Header);
-
-    public static string SilhouetteImportHeaderLine => string.Join(';', Header.Concat(SilhouetteImportHeader));
+    public static string SilhouetteImportHeaderLine => string.Join(';', SiusRankExportTable.Headers(includeSilhouetteImportColumns: true));
 
     public static void Write(
         string outputPath,
@@ -73,22 +41,12 @@ public static class SiusRankCsvWriter
 
         foreach (var row in rows)
         {
-            var fields = includeSilhouetteImportColumns
-                ? row.ToFields().Concat(SilhouetteImportFields(row))
-                : row.ToFields();
+            var fields = SiusRankExportTable.Fields(row, includeSilhouetteImportColumns);
             builder.AppendJoin(';', fields.Select(EscapeField));
             builder.Append("\r\n");
         }
 
         return builder.ToString();
-    }
-
-    private static IEnumerable<string> SilhouetteImportFields(SiusRankStarter row)
-    {
-        var mapping = SilhouetteImportMapping.ForTarget(row.TargetNumber);
-        return mapping is null
-            ? [string.Empty, string.Empty]
-            : [mapping.ImportShotFilter, mapping.SiusDataStartNumber.ToString(CultureInfo.InvariantCulture)];
     }
 
     private static string EscapeField(string value)

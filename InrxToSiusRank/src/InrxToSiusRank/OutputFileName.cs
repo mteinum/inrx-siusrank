@@ -18,6 +18,26 @@ public static class OutputFileName
         return $"{SanitizeFilePart(date)}_{SanitizeFilePart(siusEventCode)}.csv";
     }
 
+    public static string ForWorkbookImport(IReadOnlyList<StevneInfo> stevner)
+    {
+        var dates = stevner
+            .Select(stevne => stevne.Date.Length >= 10
+                ? stevne.Date[..10].Replace("-", string.Empty, StringComparison.Ordinal)
+                : "event")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(date => date, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var datePart = dates.Count switch
+        {
+            0 => "event",
+            1 => dates[0],
+            _ => $"{dates[0]}-{dates[^1]}"
+        };
+
+        return $"{SanitizeFilePart(datePart)}_SIUS_Rank.xlsx";
+    }
+
     public static string ForImport(StevneInfo stevne, OvelseInfo ovelse, string kmNmClass)
     {
         var date = stevne.Date.Length >= 10
