@@ -185,6 +185,32 @@ public sealed class SiusRankCsvExportRunnerTests
         Assert.Contains("<ignoredError sqref=\"A2:W2\" numberStoredAsText=\"1\" />", secondSheetXml);
     }
 
+    [Fact]
+    public void Run_xlsx_exports_nm_junior_group_with_sius_rank_internal_name()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+        AddNmJuniorFripistolStarter(database.Path);
+
+        var result = SiusRankXlsxExportRunner.Run(new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: 410,
+            StevneIds: [],
+            EventDate: null,
+            EventName: null,
+            OvelseId: 18,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom));
+
+        using var archive = ZipFile.OpenRead(result.OutputPath);
+        var sheetXml = ReadZipEntry(archive, "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<t>JrNM</t>", sheetXml);
+        Assert.DoesNotContain("<t>Jr-NM</t>", sheetXml);
+    }
+
     private sealed class TempInrxDatabase : IDisposable
     {
         private TempInrxDatabase(string path)
@@ -357,6 +383,27 @@ public sealed class SiusRankCsvExportRunnerTests
                 Id, StevneId, OvelseDefId, DeltakerId, KlubbId, KlasseId, MklasseId1, MklasseId2,
                 startLagId, standplass, skivenrFra, skivenrTil, kommentar)
             VALUES (1008, 411, 10, 107, 1, 1, 1, NULL, 1, 3, '', '', '');
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void AddNmJuniorFripistolStarter(string databasePath)
+    {
+        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO Mklasse (Id, navn, sort)
+            VALUES (7, 'Jr-NM', 7);
+
+            INSERT INTO Deltaker (Id, nsfId, medlemsnr, fnavn, enavn, foedselsaar, gender, land)
+            VALUES (108, '900108', '', 'Jonas', 'Juniornm', '2006-01-01', 'M', 'NOR');
+
+            INSERT INTO Resultat (
+                Id, StevneId, OvelseDefId, DeltakerId, KlubbId, KlasseId, MklasseId1, MklasseId2,
+                startLagId, standplass, skivenrFra, skivenrTil, kommentar)
+            VALUES (1009, 410, 18, 108, 1, 1, 7, NULL, 1, 3, '', '', '');
             """;
         command.ExecuteNonQuery();
     }

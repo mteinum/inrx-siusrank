@@ -22,7 +22,7 @@ public static class StarterMapper
             : $"{upperLastName} {firstName}";
         var team = includeClubTeam ? FirstNonEmpty(starter.ClubShortName, starter.ClubName) : string.Empty;
         var group = string.IsNullOrWhiteSpace(siusGroupOverride)
-            ? GroupNormalizer.Normalize(starter.KmNmClass)
+            ? SiusRankShooterGroupName.ForImport(starter.KmNmClass)
             : siusGroupOverride.Trim();
 
         return new SiusRankStarter(
@@ -42,7 +42,7 @@ public static class StarterMapper
             TeamIndex: "1",
             DuellIndex: "1",
             Groups: group,
-            Comment: starter.Comment.Trim(),
+            Comment: string.Empty,
             StarterId: resolvedStartNumber,
             TeamPosition: "1",
             Team: team,

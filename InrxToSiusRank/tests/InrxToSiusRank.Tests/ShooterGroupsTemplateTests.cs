@@ -40,7 +40,7 @@ public sealed class ShooterGroupsTemplateTests
             }.All(groupNames.Contains));
 
         Assert.True(
-            new[] { "Apen", "Menn", "Kvinner", "Jr", "Jr-NM", "Jrm", "Jrk", "U", "U-NM", "V55", "V65", "V73" }
+            new[] { "Apen", "Menn", "Kvinner", "Jr", "JrNM", "Jrm", "Jrk", "U", "UNM", "V55", "V65", "V73" }
                 .All(groupNames.Contains));
 
         Assert.True(
@@ -91,7 +91,7 @@ public sealed class ShooterGroupsTemplateTests
     [InlineData("Fri_V73", "50m Fripistol V73", "V73")]
     [InlineData("Fri_SH1-P4", "P4 - Mixed 50m Pistol SH1", "SH1")]
     [InlineData("Fin_SH1-P3", "P3 - Mixed 25m Pistol SH1", "SH1")]
-    [InlineData("Silhuett_Jr-NM", "25m Silhuettpistol Jr-NM", "Jr-NM")]
+    [InlineData("Silhuett_Jr-NM", "25m Silhuettpistol Jr-NM", "JrNM")]
     [InlineData("Silhuett_V55", "25m Silhuettpistol V55", "V55")]
     [InlineData("Standard_M", "25m Standardpistol M", "Menn")]
     [InlineData("HurtigFin_K", "25m Hurtigpistol Fin K", "Kvinner")]

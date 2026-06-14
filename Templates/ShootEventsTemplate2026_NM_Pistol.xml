@@ -2857,7 +2857,7 @@
         <EventCode>Fin_U-NM</EventCode>
         <ShortEventCode>Fin_U-NM</ShortEventCode>
         <Name>25m Finpistol U-NM</Name>
-        <DefaultShooterGroup>U-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>UNM</DefaultShooterGroup>
         <Description>25m Finpistol U-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>
@@ -5206,7 +5206,7 @@
         <EventCode>Standard_U-NM</EventCode>
         <ShortEventCode>Standard_U-NM</ShortEventCode>
         <Name>25m Standardpistol U-NM</Name>
-        <DefaultShooterGroup>U-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>UNM</DefaultShooterGroup>
         <Description>25m Standardpistol U-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>
@@ -5921,7 +5921,7 @@
         <EventCode>Grov_Jr-NM</EventCode>
         <ShortEventCode>Grov_Jr-NM</ShortEventCode>
         <Name>25m Grovpistol Jr-NM</Name>
-        <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>JrNM</DefaultShooterGroup>
         <Description>25m Grovpistol Jr-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>
@@ -6800,7 +6800,7 @@
         <EventCode>Silhuett_Jr-NM</EventCode>
         <ShortEventCode>Silhuett_Jr-NM</ShortEventCode>
         <Name>25m Silhuettpistol Jr-NM</Name>
-        <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>JrNM</DefaultShooterGroup>
         <Description>25m Silhuettpistol Jr-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>8</NumberOfFinalists>
@@ -8363,7 +8363,7 @@
         <EventCode>HurtigFin_U-NM</EventCode>
         <ShortEventCode>HurtigFin_U-NM</ShortEventCode>
         <Name>25m Hurtigpistol Fin U-NM</Name>
-        <DefaultShooterGroup>U-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>UNM</DefaultShooterGroup>
         <Description>25m Hurtigpistol Fin U-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>
@@ -9348,7 +9348,7 @@
         <EventCode>HurtigGrov_Jr-NM</EventCode>
         <ShortEventCode>HurtigGrov_Jr-NM</ShortEventCode>
         <Name>25m Hurtigpistol Grov Jr-NM</Name>
-        <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>JrNM</DefaultShooterGroup>
         <Description>25m Hurtigpistol Grov Jr-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>
@@ -10279,7 +10279,7 @@
         <EventCode>Fri_Jr-NM</EventCode>
         <ShortEventCode>Fri_Jr-NM</ShortEventCode>
         <Name>50m Fripistol Jr-NM</Name>
-        <DefaultShooterGroup>Jr-NM</DefaultShooterGroup>
+        <DefaultShooterGroup>JrNM</DefaultShooterGroup>
         <Description>50m Fripistol Jr-NM</Description>
         <Gender>X</Gender>
         <NumberOfFinalists>0</NumberOfFinalists>

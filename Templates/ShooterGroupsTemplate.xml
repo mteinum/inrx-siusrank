@@ -328,7 +328,7 @@
         <AddShortnameToRemarks>false</AddShortnameToRemarks>
     </ShooterGroupConfiguration>
     <ShooterGroupConfiguration>
-        <Name>Jr-NM</Name>
+        <Name>JrNM</Name>
         <Description>NM klasse Junior NM</Description>
         <Index>110</Index>
         <ShortName>Jr-NM</ShortName>
@@ -341,7 +341,7 @@
         <AddShortnameToRemarks>false</AddShortnameToRemarks>
     </ShooterGroupConfiguration>
     <ShooterGroupConfiguration>
-        <Name>U-NM</Name>
+        <Name>UNM</Name>
         <Description>NM klasse Ungdom NM</Description>
         <Index>111</Index>
         <ShortName>U-NM</ShortName>

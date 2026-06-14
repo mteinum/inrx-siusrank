@@ -102,6 +102,20 @@ public sealed class SiusRankCsvWriterTests
         Assert.Equal("Å", row.Groups);
     }
 
+    [Theory]
+    [InlineData("Jr-NM", "JrNM")]
+    [InlineData("U-NM", "UNM")]
+    public void Mapper_uses_sius_rank_internal_group_names_for_nm_juniors_and_youth(
+        string kmNmClass,
+        string expectedGroup)
+    {
+        var starter = CreateStarter(kmNmClass: kmNmClass);
+
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: false, startNumber: "26001");
+
+        Assert.Equal(expectedGroup, row.Groups);
+    }
+
     [Fact]
     public void Mapper_can_fill_team_from_club_short_name()
     {
@@ -113,6 +127,17 @@ public sealed class SiusRankCsvWriterTests
         Assert.Equal("KPS", row.TeamDisplay);
     }
 
+    [Fact]
+    public void Mapper_does_not_export_inrx_comment()
+    {
+        var starter = CreateStarter(comment: "Våpendeling; deler pistol med annen skytter");
+
+        var row = StarterMapper.Map(starter, siusGroupOverride: null, includeClubTeam: true, startNumber: "26001");
+
+        Assert.Equal(string.Empty, row.Comment);
+        Assert.DoesNotContain("Våpendeling", SiusRankCsvWriter.ToCsv([row]));
+    }
+
     private static InrxStarter CreateStarter(
         int resultatId = 1,
         int standplass = 5,
@@ -122,7 +147,9 @@ public sealed class SiusRankCsvWriterTests
         string nsfId = "905380",
         string accreditationNumber = "",
         string clubShortName = "KPS",
-        string clubName = "Kristiansand Pistolskyttere") =>
+        string clubName = "Kristiansand Pistolskyttere",
+        string comment = "",
+        string kmNmClass = "Å") =>
         new(
             ResultatId: resultatId,
             DeltakerId: 100,
@@ -141,8 +168,9 @@ public sealed class SiusRankCsvWriterTests
             ClubName: clubName,
             ClubShortName: clubShortName,
             InrxClass: "-",
-            KmNmClass: "Å",
+            KmNmClass: kmNmClass,
             DmClass: "-",
             OvelseName: "Fripistol",
-            StevneName: "20260706 NM Fripistol 2026");
+            StevneName: "20260706 NM Fripistol 2026",
+            Comment: comment);
 }
