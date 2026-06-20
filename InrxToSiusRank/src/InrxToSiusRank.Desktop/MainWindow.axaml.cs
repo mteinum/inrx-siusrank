@@ -2247,11 +2247,12 @@ public partial class MainWindow : Window
     {
         await RefreshCsvPreflightAsync();
         AppendCsvSkippedMessage();
-        var options = BuildExportOptions();
+        var options = BuildExportOptions(
+            bibMapPath: RequireExistingFile(BibMapPathInput.Text, ChampionshipStartNumbers.BibMapFileName));
         AppendLog(BuildXlsxExportSummary(options));
 
         var result = await Task.Run(() => SiusRankXlsxExportRunner.Run(options));
-        var bibMapPath = Path.Combine(result.OutputDirectory, ChampionshipStartNumbers.BibMapFileName);
+        var bibMapPath = options.BibMapPath ?? Path.Combine(result.OutputDirectory, ChampionshipStartNumbers.BibMapFileName);
         BibMapPathInput.Text = ToEventDisplayPath(bibMapPath);
         SscBibMapPathInput.Text = BibMapPathInput.Text;
         SaveDesktopSettings();
@@ -2804,7 +2805,7 @@ public partial class MainWindow : Window
         public bool CanRun => Missing.Count == 0;
     }
 
-    private SiusRankCsvExportOptions BuildExportOptions(bool includeTemplate = true)
+    private SiusRankCsvExportOptions BuildExportOptions(bool includeTemplate = true, string? bibMapPath = null)
     {
         var databasePath = RequireExistingFile(DatabasePathInput.Text, "storage.db3");
         var outputDirectory = ResolveEventPath(NormalizeOutputDirectoryInput());
@@ -2823,7 +2824,8 @@ public partial class MainWindow : Window
             templatePath,
             SelectedCsvExerciseSelection(),
             SelectedSilhouetteShootersPerStand(),
-            SelectedCsvFinalClasses()));
+            SelectedCsvFinalClasses(),
+            bibMapPath));
     }
 
     private ExportSscUsersOptions BuildSscUsersOptions()
@@ -3073,6 +3075,11 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(options.ShooterGroupsTemplatePath))
         {
             parts.Add($"shooter-groups={options.ShooterGroupsTemplatePath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.BibMapPath))
+        {
+            parts.Add($"bib-map={options.BibMapPath}");
         }
 
         return "CSV export: " + string.Join(", ", parts);

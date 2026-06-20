@@ -4,7 +4,7 @@ public static class SiusRankXlsxExportRunner
 {
     public static SiusRankXlsxExportResult Run(SiusRankCsvExportOptions options)
     {
-        var plan = SiusRankExportPlanner.Build(options);
+        var plan = SiusRankExportPlanner.Build(options, updateBibMap: true, requireExistingBibMap: true);
         var sheetPlans = plan.Files
             .GroupBy(file => file.Stevne.Id)
             .Select(group => BuildSheet(group.ToList()))

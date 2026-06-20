@@ -2,7 +2,10 @@ namespace InrxToSiusRank;
 
 internal static class SiusRankExportPlanner
 {
-    public static SiusRankExportPlan Build(SiusRankCsvExportOptions options)
+    public static SiusRankExportPlan Build(
+        SiusRankCsvExportOptions options,
+        bool updateBibMap = true,
+        bool requireExistingBibMap = false)
     {
         if (options.OutputDirectory is null)
         {
@@ -21,10 +24,19 @@ internal static class SiusRankExportPlanner
         var eventExports = ResolveEventExports(repository, options, stevner);
         ValidateSilhouetteTargets(eventExports, options.SilhouetteShootersPerStand);
 
-        var startNumbers = ChampionshipStartNumbers.Create(
-            eventExports.SelectMany(eventExport => eventExport.Starters),
-            eventExports.Select(eventExport => eventExport.Stevne),
-            Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName));
+        var bibMapPath = ResolveBibMapPath(options, outputDirectory);
+        if (requireExistingBibMap && !File.Exists(bibMapPath))
+        {
+            throw new FileNotFoundException(
+                $"{ChampionshipStartNumbers.BibMapFileName} file does not exist: {bibMapPath}",
+                bibMapPath);
+        }
+
+        var startersForStartNumbers = eventExports.SelectMany(eventExport => eventExport.Starters).ToList();
+        var stevnerForStartNumbers = eventExports.Select(eventExport => eventExport.Stevne).ToList();
+        var startNumbers = updateBibMap
+            ? ChampionshipStartNumbers.Create(startersForStartNumbers, stevnerForStartNumbers, bibMapPath)
+            : ChampionshipStartNumbers.ResolveExisting(startersForStartNumbers, stevnerForStartNumbers, bibMapPath);
 
         var files = eventExports
             .SelectMany(eventExport => ResolveFileExports(eventExport, options.FinalClasses ?? []))
@@ -33,6 +45,11 @@ internal static class SiusRankExportPlanner
 
         return new SiusRankExportPlan(outputDirectory, options.ShooterGroupsTemplatePath, files);
     }
+
+    private static string ResolveBibMapPath(SiusRankCsvExportOptions options, string outputDirectory) =>
+        string.IsNullOrWhiteSpace(options.BibMapPath)
+            ? Path.Combine(outputDirectory, ChampionshipStartNumbers.BibMapFileName)
+            : Path.GetFullPath(options.BibMapPath);
 
     private static SiusRankPlannedFile BuildFile(
         EventFileExport fileExport,

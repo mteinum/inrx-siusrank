@@ -38,10 +38,29 @@ public static class ChampionshipStartNumbers
         return CreatePlan(starters, stevner, bibMapPath).StartNumbers;
     }
 
+    public static IReadOnlyDictionary<int, string> ResolveExisting(
+        IEnumerable<InrxStarter> starters,
+        IEnumerable<StevneInfo> stevner,
+        string bibMapPath)
+    {
+        if (string.IsNullOrWhiteSpace(bibMapPath))
+        {
+            throw new ArgumentException("Bib map path cannot be empty.", nameof(bibMapPath));
+        }
+
+        if (!File.Exists(bibMapPath))
+        {
+            throw new FileNotFoundException($"{BibMapFileName} file does not exist: {bibMapPath}", bibMapPath);
+        }
+
+        return CreatePlan(starters, stevner, bibMapPath, allowAllocateMissing: false).StartNumbers;
+    }
+
     private static StartNumberPlan CreatePlan(
         IEnumerable<InrxStarter> starters,
         IEnumerable<StevneInfo> stevner,
-        string? bibMapPath)
+        string? bibMapPath,
+        bool allowAllocateMissing = true)
     {
         var starterList = starters.ToList();
         var stevneList = stevner.ToList();
@@ -63,7 +82,7 @@ public static class ChampionshipStartNumbers
         var existingEntries = !string.IsNullOrWhiteSpace(bibMapPath) && File.Exists(bibMapPath)
             ? ReadBibMap(bibMapPath, yearPrefix)
             : [];
-        var assignments = AssignNumbers(shooters, existingEntries, yearPrefix, out var assignmentSources);
+        var assignments = AssignNumbers(shooters, existingEntries, yearPrefix, allowAllocateMissing, out var assignmentSources);
         var bibMapEntries = string.IsNullOrWhiteSpace(bibMapPath)
             ? []
             : MergeBibMap(existingEntries, shooters, assignments, assignmentSources, yearPrefix);
@@ -104,6 +123,7 @@ public static class ChampionshipStartNumbers
         IReadOnlyList<ShooterInfo> shooters,
         IReadOnlyList<BibMapEntry> existingEntries,
         string yearPrefix,
+        bool allowAllocateMissing,
         out IReadOnlyDictionary<int, string> assignmentSources)
     {
         var byDeltakerId = existingEntries
@@ -147,6 +167,20 @@ public static class ChampionshipStartNumbers
             assigned[shooter.DeltakerId] = bibNumber;
             assignedBibOwners[bibNumber] = shooter.DeltakerId;
             sources[shooter.DeltakerId] = FirstNonEmpty(matches.FirstOrDefault()?.Source, $"existing {BibMapFileName}");
+        }
+
+        if (!allowAllocateMissing)
+        {
+            var missing = shooters
+                .Where(shooter => !assigned.ContainsKey(shooter.DeltakerId))
+                .Select(shooter => $"{shooter.Name} (Deltaker.Id={shooter.DeltakerId})")
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Existing {BibMapFileName} is missing start numbers for: {string.Join(", ", missing)}.");
+            }
         }
 
         var nextSequence = 1;

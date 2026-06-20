@@ -12,4 +12,5 @@ public sealed record SiusRankCsvExportOptions(
     string OutputDirectory,
     string EncodingName,
     int SilhouetteShootersPerStand = 2,
-    IReadOnlyList<string>? FinalClasses = null);
+    IReadOnlyList<string>? FinalClasses = null,
+    string? BibMapPath = null);

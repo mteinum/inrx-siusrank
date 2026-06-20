@@ -596,7 +596,8 @@ public sealed record DesktopExportOptionsInput(
     string? ShooterGroupsTemplatePath,
     CsvExerciseSelection Selection,
     int SilhouetteShootersPerStand = 2,
-    IReadOnlyList<string>? FinalClasses = null);
+    IReadOnlyList<string>? FinalClasses = null,
+    string? BibMapPath = null);
 
 public static class DesktopExportOptionsBuilder
 {
@@ -613,7 +614,8 @@ public static class DesktopExportOptionsBuilder
             OutputDirectory: input.OutputDirectory,
             EncodingName: input.EncodingName,
             SilhouetteShootersPerStand: input.SilhouetteShootersPerStand,
-            FinalClasses: input.FinalClasses);
+            FinalClasses: input.FinalClasses,
+            BibMapPath: input.BibMapPath);
 }
 
 public sealed record SscActionStatusInput(

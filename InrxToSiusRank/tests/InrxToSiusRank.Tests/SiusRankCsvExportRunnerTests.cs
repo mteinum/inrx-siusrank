@@ -142,7 +142,7 @@ public sealed class SiusRankCsvExportRunnerTests
         using var output = TempDirectory.Create();
         AddSecondStevne(database.Path);
 
-        var result = SiusRankXlsxExportRunner.Run(new SiusRankCsvExportOptions(
+        var options = new SiusRankCsvExportOptions(
             DatabasePath: database.Path,
             StevneId: null,
             StevneIds: [410, 411],
@@ -152,7 +152,10 @@ public sealed class SiusRankCsvExportRunnerTests
             OvelseName: null,
             ShooterGroupsTemplatePath: null,
             OutputDirectory: output.Path,
-            EncodingName: CsvEncoding.Utf8Bom));
+            EncodingName: CsvEncoding.Utf8Bom);
+
+        SiusRankCsvExportRunner.Run(options);
+        var result = SiusRankXlsxExportRunner.Run(options);
 
         Assert.Equal("20260711-20260712_SIUS_Rank.xlsx", Path.GetFileName(result.OutputPath));
         Assert.True(File.Exists(result.OutputPath));
@@ -192,6 +195,40 @@ public sealed class SiusRankCsvExportRunnerTests
         using var output = TempDirectory.Create();
         AddNmJuniorFripistolStarter(database.Path);
 
+        var options = new SiusRankCsvExportOptions(
+            DatabasePath: database.Path,
+            StevneId: 410,
+            StevneIds: [],
+            EventDate: null,
+            EventName: null,
+            OvelseId: 18,
+            OvelseName: null,
+            ShooterGroupsTemplatePath: null,
+            OutputDirectory: output.Path,
+            EncodingName: CsvEncoding.Utf8Bom);
+
+        SiusRankCsvExportRunner.Run(options);
+        var result = SiusRankXlsxExportRunner.Run(options);
+
+        using var archive = ZipFile.OpenRead(result.OutputPath);
+        var sheetXml = ReadZipEntry(archive, "xl/worksheets/sheet1.xml");
+
+        Assert.Contains("<t>JrNM</t>", sheetXml);
+        Assert.DoesNotContain("<t>Jr-NM</t>", sheetXml);
+    }
+
+    [Fact]
+    public void Run_xlsx_preserves_existing_bib_map_and_adds_new_shooter()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+        AddNmJuniorFripistolStarter(database.Path);
+        var bibMapPath = Path.Combine(output.Path, ChampionshipStartNumbers.BibMapFileName);
+        var originalBibMap =
+            "nsfId,bibNumber,deltakerId,name,source\r\n" +
+            "900106,26999,106,SH Siri,manual\r\n";
+        File.WriteAllText(bibMapPath, originalBibMap);
+
         var result = SiusRankXlsxExportRunner.Run(new SiusRankCsvExportOptions(
             DatabasePath: database.Path,
             StevneId: 410,
@@ -202,13 +239,39 @@ public sealed class SiusRankCsvExportRunnerTests
             OvelseName: null,
             ShooterGroupsTemplatePath: null,
             OutputDirectory: output.Path,
-            EncodingName: CsvEncoding.Utf8Bom));
+            EncodingName: CsvEncoding.Utf8Bom,
+            BibMapPath: bibMapPath));
+
+        var bibMap = File.ReadAllText(bibMapPath);
+        Assert.Contains("900106,26999,106,SH Siri,manual", bibMap);
+        Assert.Contains("900108,26001,108,JUNIORNM Jonas,allocated by InrxToSiusRank", bibMap);
 
         using var archive = ZipFile.OpenRead(result.OutputPath);
         var sheetXml = ReadZipEntry(archive, "xl/worksheets/sheet1.xml");
+        Assert.Contains("26999", sheetXml);
+        Assert.Contains("26001", sheetXml);
+    }
 
-        Assert.Contains("<t>JrNM</t>", sheetXml);
-        Assert.DoesNotContain("<t>Jr-NM</t>", sheetXml);
+    [Fact]
+    public void Run_xlsx_rejects_missing_bib_map()
+    {
+        using var database = TempInrxDatabase.Create();
+        using var output = TempDirectory.Create();
+
+        var ex = Assert.Throws<FileNotFoundException>(() =>
+            SiusRankXlsxExportRunner.Run(new SiusRankCsvExportOptions(
+                DatabasePath: database.Path,
+                StevneId: 410,
+                StevneIds: [],
+                EventDate: null,
+                EventName: null,
+                OvelseId: 18,
+                OvelseName: null,
+                ShooterGroupsTemplatePath: null,
+                OutputDirectory: output.Path,
+                EncodingName: CsvEncoding.Utf8Bom)));
+
+        Assert.Contains("bib-map.csv file does not exist", ex.Message);
     }
 
     private sealed class TempInrxDatabase : IDisposable
