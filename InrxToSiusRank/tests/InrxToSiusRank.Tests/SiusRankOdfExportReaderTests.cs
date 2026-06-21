@@ -56,6 +56,62 @@ public sealed class SiusRankOdfExportReaderTests
         Assert.Equal(12.23656m, athlete.Shots[0].Y);
     }
 
+    [Fact]
+    public void Parse_flattens_team_results_with_athlete_shots()
+    {
+        using var file = TempFile.Create(
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <OdfBody ResultStatus="INTERIM">
+              <Competition Code="">
+                <ExtendedHeader EventCode="Silhuett_common" ShortName="Silhuett_common" EventUnitName="25m Silhuettpistol common" ProductType="TeamResults" />
+                <CumulativeResult Rank="1" ResultType="POINTS" Result="1405-21x" SortOrder="1">
+                  <Competitor Code="Arendal PK" Type="T" Organisation="NOR" NameDisplay="Arendal PK">
+                    <Composition>
+                      <Athlete Bib="26002" AccreditationNumber="26002" FamilyName="BARSTAD" GivenName="Lars Petter">
+                        <ExtendedResults>
+                          <ExtendedResult Type="CER_SH" Code="SH_INNER_TENS" Value="7" />
+                          <ExtendedResult Type="CER_SH" Code="SH_GRANDTOTAL" Value="482-7x" />
+                          <ExtendedResult Type="CER_SH" Pos="1" Code="SH_SHOT" Value="8">
+                            <Extensions>
+                              <Extension Type="SH_SHOT" Code="SH_TIMESTAMP" Value="2026-06-21T10:16:41.2600000" />
+                              <Extension Type="SH_SHOT" Code="SH_SHOT_X" Value="-11825.015" />
+                              <Extension Type="SH_SHOT" Code="SH_SHOT_Y" Value="4670.061" />
+                            </Extensions>
+                          </ExtendedResult>
+                        </ExtendedResults>
+                      </Athlete>
+                      <Athlete Bib="26003" AccreditationNumber="26003" FamilyName="BARSTAD" GivenName="Elena">
+                        <ExtendedResults>
+                          <ExtendedResult Type="CER_SH" Code="SH_INNER_TENS" Value="6" />
+                          <ExtendedResult Type="CER_SH" Code="SH_GRANDTOTAL" Value="477-6x" />
+                          <ExtendedResult Type="CER_SH" Pos="1" Code="SH_SHOT" Value="10">
+                            <Extensions>
+                              <Extension Type="SH_SHOT" Code="SH_TIMESTAMP" Value="2026-06-21T10:16:42.2600000" />
+                            </Extensions>
+                          </ExtendedResult>
+                        </ExtendedResults>
+                      </Athlete>
+                    </Composition>
+                  </Competitor>
+                </CumulativeResult>
+              </Competition>
+            </OdfBody>
+            """);
+
+        var export = SiusRankOdfExportReader.Parse(file.Path);
+
+        Assert.NotNull(export);
+        Assert.Equal("TeamResults", export.ProductType);
+        Assert.Equal(2, export.Athletes.Count);
+        Assert.Equal("26002", export.Athletes[0].BibNumber);
+        Assert.Equal(482, export.Athletes[0].Result);
+        Assert.Equal(7, export.Athletes[0].InnerTens);
+        Assert.Equal("26003", export.Athletes[1].BibNumber);
+        Assert.Equal(477, export.Athletes[1].Result);
+        Assert.Equal(6, export.Athletes[1].InnerTens);
+    }
+
     private sealed class TempFile : IDisposable
     {
         private TempFile(string path)

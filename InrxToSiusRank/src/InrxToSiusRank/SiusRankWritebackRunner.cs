@@ -10,7 +10,7 @@ public static class SiusRankWritebackRunner
         var warnings = new List<string>();
         if (exports.Count == 0)
         {
-            warnings.Add("No SIUS Rank IndividualResults ODF XML exports were found.");
+            warnings.Add("No SIUS Rank result ODF XML exports were found.");
         }
 
         using var repository = new SiusRankWritebackRepository(options.DatabasePath);

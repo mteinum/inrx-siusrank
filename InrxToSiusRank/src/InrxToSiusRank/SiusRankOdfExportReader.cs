@@ -14,7 +14,9 @@ public static class SiusRankOdfExportReader
             .Select(Parse)
             .Where(competition => competition is not null)
             .Select(competition => competition!)
-            .Where(competition => competition.ProductType.Equals("IndividualResults", StringComparison.OrdinalIgnoreCase))
+            .Where(competition =>
+                competition.ProductType.Equals("IndividualResults", StringComparison.OrdinalIgnoreCase) ||
+                competition.ProductType.Equals("TeamResults", StringComparison.OrdinalIgnoreCase))
             .Where(competition => SiusRankEventDiscipline.MatchesFilters(
                 competition.ShortName,
                 competition.EventCode,
@@ -51,9 +53,7 @@ public static class SiusRankOdfExportReader
 
         var athletes = document
             .Descendants("CumulativeResult")
-            .Select(ParseAthlete)
-            .Where(athlete => athlete is not null)
-            .Select(athlete => athlete!)
+            .SelectMany(ParseAthletes)
             .ToList();
 
         return new SiusRankExportCompetition(
@@ -67,25 +67,44 @@ public static class SiusRankOdfExportReader
             athletes);
     }
 
-    private static SiusRankExportAthlete? ParseAthlete(XElement cumulativeResult)
+    private static IReadOnlyList<SiusRankExportAthlete> ParseAthletes(XElement cumulativeResult)
     {
         var competitor = cumulativeResult.Element("Competitor");
-        var athlete = competitor?
-            .Element("Composition")?
-            .Elements("Athlete")
-            .FirstOrDefault();
-        if (competitor is null || athlete is null)
+        if (competitor is null)
         {
-            return null;
+            return [];
         }
 
+        var athletes = competitor
+            .Element("Composition")?
+            .Elements("Athlete")
+            .ToList() ?? [];
+        if (athletes.Count == 0)
+        {
+            return [];
+        }
+
+        return athletes
+            .Select(athlete => ParseAthlete(cumulativeResult, competitor, athlete))
+            .ToList();
+    }
+
+    private static SiusRankExportAthlete ParseAthlete(
+        XElement cumulativeResult,
+        XElement competitor,
+        XElement athlete)
+    {
         var extendedResults = athlete
             .Element("ExtendedResults")?
             .Elements("ExtendedResult")
             .ToList() ?? [];
 
-        var result = ParseInt(GetAttribute(cumulativeResult, "Result")) ??
-            ParseInt(ValueForCode(extendedResults, "SH_TOTAL")?.Split('-', 2)[0] ?? string.Empty);
+        var competitorType = GetAttribute(competitor, "Type");
+        var result = ParseScore(ValueForCode(extendedResults, "SH_GRANDTOTAL")) ??
+            ParseScore(ValueForCode(extendedResults, "SH_TOTAL")) ??
+            (competitorType.Equals("T", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : ParseScore(GetAttribute(cumulativeResult, "Result")));
         var innerTens = ParseInt(ValueForCode(extendedResults, "SH_INNER_TENS"));
         var shots = extendedResults
             .Where(element => GetAttribute(element, "Code").Equals("SH_SHOT", StringComparison.OrdinalIgnoreCase))
@@ -107,6 +126,16 @@ public static class SiusRankOdfExportReader
             result,
             innerTens,
             shots);
+    }
+
+    private static int? ParseScore(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return ParseInt(value.Split('-', 2)[0]);
     }
 
     private static SiusRankExportShot ParseShot(XElement shotElement)
