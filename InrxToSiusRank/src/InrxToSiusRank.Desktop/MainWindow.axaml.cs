@@ -2027,13 +2027,6 @@ public partial class MainWindow : Window
     private Task ScanWritebackResultsAsync()
     {
         var config = _currentEventConfig ?? throw new InvalidOperationException("Åpne event.json først.");
-        if (config.Classes.Count == 0)
-        {
-            WritebackScanSummaryLabel.Text = "Det finnes ingen klasseoppsett. Gå til Event-fanen og oppdater klasser.";
-            RenderWritebackRows(config);
-            return Task.CompletedTask;
-        }
-
         var eventPath = _currentEventFilePath ?? throw new InvalidOperationException("Åpne event.json først.");
         var result = DesktopSiusRankExportsScanner.Scan(eventPath, config);
         _writebackRows.Clear();
