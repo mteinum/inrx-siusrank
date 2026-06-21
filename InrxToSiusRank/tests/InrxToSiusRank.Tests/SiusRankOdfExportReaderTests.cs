@@ -105,9 +105,11 @@ public sealed class SiusRankOdfExportReaderTests
         Assert.Equal("TeamResults", export.ProductType);
         Assert.Equal(2, export.Athletes.Count);
         Assert.Equal("26002", export.Athletes[0].BibNumber);
+        Assert.Equal("BARSTAD Lars Petter", export.Athletes[0].NameForDisplay);
         Assert.Equal(482, export.Athletes[0].Result);
         Assert.Equal(7, export.Athletes[0].InnerTens);
         Assert.Equal("26003", export.Athletes[1].BibNumber);
+        Assert.Equal("BARSTAD Elena", export.Athletes[1].NameForDisplay);
         Assert.Equal(477, export.Athletes[1].Result);
         Assert.Equal(6, export.Athletes[1].InnerTens);
     }

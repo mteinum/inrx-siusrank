@@ -20,6 +20,8 @@ public sealed record SiusRankClassWritebackStatus(
 
 public static class SiusRankClassWritebackStatusResolver
 {
+    private const string IncompleteResultReason = "No complete result with shots in SIUS Rank export.";
+
     public static SiusRankClassWritebackStatus Validate(SiusRankWritebackOptions options)
     {
         if (!Directory.Exists(options.ExportsDirectory))
@@ -79,7 +81,17 @@ public static class SiusRankClassWritebackStatusResolver
                 messages.Count == 0 ? ["Export exists, but no athletes have complete shot results."] : messages);
         }
 
-        if (messages.Count > 0 || result.SkippedCount > 0)
+        var hasBlockingMessages = HasBlockingMessages(result);
+        if (result.UpdateCount > 0 && !hasBlockingMessages)
+        {
+            return new SiusRankClassWritebackStatus(
+                SiusRankClassWritebackStatusKind.ReadyForWriteback,
+                "Klar for writeback",
+                result,
+                [$"{result.UpdateCount} result row(s) can be written to inrX.", ..messages]);
+        }
+
+        if (hasBlockingMessages || result.SkippedCount > 0)
         {
             return new SiusRankClassWritebackStatus(
                 SiusRankClassWritebackStatusKind.Error,
@@ -112,6 +124,32 @@ public static class SiusRankClassWritebackStatusResolver
             result,
             ["Export exists, but no writable or up-to-date complete results were found."]);
     }
+
+    private static bool HasBlockingMessages(SiusRankWritebackResult result)
+    {
+        if (result.Warnings.Count > 0)
+        {
+            return true;
+        }
+
+        foreach (var eventPlan in result.Events)
+        {
+            if (eventPlan.Warnings.Count > 0)
+            {
+                return true;
+            }
+
+            if (eventPlan.Skipped.Any(skipped => !IsIncompleteResultSkip(skipped)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsIncompleteResultSkip(SkippedSiusRankWriteback skipped) =>
+        skipped.Reason.Equals(IncompleteResultReason, StringComparison.Ordinal);
 
     private static IReadOnlyList<string> BuildMessages(SiusRankWritebackResult result)
     {

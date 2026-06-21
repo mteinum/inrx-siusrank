@@ -111,6 +111,9 @@ public static class SiusRankOdfExportReader
             .Select(ParseShot)
             .OrderBy(shot => shot.Position)
             .ToList();
+        var displayName = competitorType.Equals("T", StringComparison.OrdinalIgnoreCase)
+            ? GetAttribute(athlete, "NameDisplay")
+            : FirstNonEmpty(GetAttribute(athlete, "NameDisplay"), GetAttribute(competitor, "NameDisplay"));
 
         return new SiusRankExportAthlete(
             FirstNonEmpty(
@@ -122,7 +125,7 @@ public static class SiusRankOdfExportReader
                 GetAttribute(competitor, "AccreditationNumber")),
             GetAttribute(athlete, "FamilyName"),
             GetAttribute(athlete, "GivenName"),
-            GetAttribute(competitor, "NameDisplay"),
+            displayName,
             result,
             innerTens,
             shots);

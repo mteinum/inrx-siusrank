@@ -29,6 +29,29 @@ public sealed class SiusRankWritebackStatusTests
     }
 
     [Fact]
+    public void Ready_status_is_returned_when_updates_have_incomplete_result_skip()
+    {
+        var export = CreateExport(hasShots: true);
+        var skipped = new SkippedSiusRankWriteback(
+            "Fin_M",
+            "26002",
+            "124",
+            "Incomplete Shooter",
+            "No complete result with shots in SIUS Rank export.");
+        var result = new SiusRankWritebackResult(
+            false,
+            null,
+            [new SiusRankWritebackEventPlan(export, 9, [CreateUpdate()], [], [skipped], [])],
+            []);
+
+        var status = SiusRankClassWritebackStatusResolver.FromDryRun([export], result);
+
+        Assert.Equal(SiusRankClassWritebackStatusKind.ReadyForWriteback, status.Kind);
+        Assert.True(status.CanApply);
+        Assert.Contains("Incomplete Shooter bib=26002: No complete result", status.Messages[1]);
+    }
+
+    [Fact]
     public void Written_back_status_is_returned_when_no_updates_remain()
     {
         var export = CreateExport(hasShots: true);
