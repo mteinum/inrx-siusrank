@@ -42,9 +42,18 @@ public sealed record SiusRankExportAthlete(
     string DisplayName,
     int? Result,
     int? InnerTens,
-    IReadOnlyList<SiusRankExportShot> Shots)
+    IReadOnlyList<SiusRankExportShot> Shots,
+    string ResultStatus = "")
 {
     public bool HasResult => Result is not null && Shots.Count > 0;
+
+    public bool HasTerminalStatus =>
+        ResultStatus
+            .Split([' ', ',', ';', ':', '/', '\\', '|', '-', '_', '.'], StringSplitOptions.RemoveEmptyEntries)
+            .Any(part =>
+                part.Equals("DNS", StringComparison.OrdinalIgnoreCase) ||
+                part.Equals("DNF", StringComparison.OrdinalIgnoreCase) ||
+                part.Equals("DSQ", StringComparison.OrdinalIgnoreCase));
 
     public string NameForDisplay =>
         !string.IsNullOrWhiteSpace(DisplayName)

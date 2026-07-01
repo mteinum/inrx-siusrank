@@ -23,7 +23,7 @@ Maks kapasitet per startlag:
 | Øvelse | Kapasitet |
 | --- | ---: |
 | Fripistol | 20 |
-| Silhuett | 14 |
+| Silhuett | 16 |
 | Standard | 35 |
 | Finpistol | 35 |
 | Grovpistol | 35 |
@@ -109,7 +109,7 @@ Etter flytting skal våpendeling valideres eksplisitt. Hvis en flytting ville sa
 Silhuett kvalifisering bruker to skyttere per skivestativ. I InrX representeres dette med side-skiver:
 
 ```text
-2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34
+2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34, 37, 39
 ```
 
 Mapping:
@@ -130,6 +130,8 @@ Mapping:
 | 29 | H | 6000 |
 | 32 | V | 7000 |
 | 34 | H | 7000 |
+| 37 | V | 8000 |
+| 39 | H | 8000 |
 
 SIUS Rank skal ha `TwoShootersPerLane = 1` for Silhuett kvalifisering. `ImportShotFilter` og `SiusDataStartNumber` håndteres i `.srkl`-synken, ikke ved å endre CSV-formatet.
 

@@ -78,6 +78,46 @@ public sealed class SiusRankWritebackPlannerTests
         Assert.Equal(7395, unchanged.ResultatId);
     }
 
+    [Fact]
+    public void Plan_treats_incomplete_export_result_as_unchanged_when_sius_export_is_dnf()
+    {
+        var export = CreateExport(
+            "Silhuett_Apen",
+            "RFP_Apen",
+            new SiusRankExportAthlete(
+                "26019",
+                "26019",
+                "GRANT",
+                "Nicolas Ryan",
+                "GRANT Nicolas Ryan",
+                Result: 300,
+                InnerTens: 0,
+                Enumerable.Range(1, 30)
+                    .Select(position => new SiusRankExportShot(position, 10, null, null, $"t{position}"))
+                    .ToList(),
+                ResultStatus: "IRM DNF"));
+        var input = CreateInput(
+            CreateRow(
+                resultId: 7395,
+                ovelseId: 11,
+                deltakerId: 19,
+                nsfId: "1663867",
+                firstName: "Nicolas Ryan",
+                lastName: "GRANT",
+                existingValues: new Dictionary<string, object?>()),
+            CreateOvelse(11, expectedShots: 60));
+        var bibMap = new[] { new BibMapEntry("1663867", "26019", 19, "GRANT Nicolas Ryan", "test") };
+
+        var plans = SiusRankWritebackPlanner.Plan([export], input, bibMap, out var warnings);
+
+        Assert.Empty(warnings);
+        var plan = Assert.Single(plans);
+        Assert.Empty(plan.Updates);
+        Assert.Empty(plan.Skipped);
+        var unchanged = Assert.Single(plan.Unchanged);
+        Assert.Equal(7395, unchanged.ResultatId);
+    }
+
     private static SiusRankExportCompetition CreateExport(
         string shortName,
         string eventCode,

@@ -7,13 +7,13 @@ public sealed class SeedStartLagRepositoryTests
     [Fact]
     public void ResolveSilhouetteTargets_uses_middle_targets_for_one_shooter_per_stand()
     {
-        Assert.Equal([3, 8, 13, 18, 23, 28, 33], SeedStartLagRepository.ResolveSilhouetteTargets(1));
+        Assert.Equal([3, 8, 13, 18, 23, 28, 33, 38], SeedStartLagRepository.ResolveSilhouetteTargets(1));
     }
 
     [Fact]
     public void ResolveSilhouetteTargets_uses_side_targets_for_two_shooters_per_stand()
     {
-        Assert.Equal([2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34], SeedStartLagRepository.ResolveSilhouetteTargets(2));
+        Assert.Equal([2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34, 37, 39], SeedStartLagRepository.ResolveSilhouetteTargets(2));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class SeedStartLagRepositoryTests
             new StevneInfo(406, "20260707 NM Silhuettpistol 2026", "2026-07-07 09:00:00", 378),
             new OvelseInfo(11, "Silhuett", "Sil", 8),
             "discipline",
-            [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34],
+            [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34, 37, 39],
             TimeSpan.FromMinutes(45),
             startLags,
             [assignment],

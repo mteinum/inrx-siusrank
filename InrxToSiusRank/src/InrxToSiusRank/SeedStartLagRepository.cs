@@ -6,8 +6,8 @@ namespace InrxToSiusRank;
 
 public sealed class SeedStartLagRepository : IDisposable
 {
-    private static readonly int[] SilhouetteTargets = [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34];
-    private static readonly int[] SingleShooterSilhouetteTargets = [3, 8, 13, 18, 23, 28, 33];
+    private static readonly int[] SilhouetteTargets = [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34, 37, 39];
+    private static readonly int[] SingleShooterSilhouetteTargets = [3, 8, 13, 18, 23, 28, 33, 38];
     private static readonly HashSet<int> TwentyFiveMeterOvelseIds = [6, 7, 8, 9, 10];
     private static readonly int[] TwentyFiveMeterCompetitionTargets = Enumerable.Range(1, 35).ToArray();
     private readonly SqliteConnection _connection;

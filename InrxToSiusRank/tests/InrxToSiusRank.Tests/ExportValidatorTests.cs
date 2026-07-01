@@ -3,8 +3,8 @@ namespace InrxToSiusRank.Tests;
 public sealed class ExportValidatorTests
 {
     [Theory]
-    [InlineData(2, 12)]
-    [InlineData(1, 13)]
+    [InlineData(2, 39)]
+    [InlineData(1, 38)]
     public void Silhouette_validation_accepts_targets_for_selected_layout(int shootersPerStand, int target)
     {
         var errors = ExportValidator.ValidateInrxSilhouetteTargets(
@@ -16,8 +16,8 @@ public sealed class ExportValidatorTests
     }
 
     [Theory]
-    [InlineData(2, 13)]
-    [InlineData(1, 12)]
+    [InlineData(2, 40)]
+    [InlineData(1, 39)]
     public void Silhouette_validation_rejects_targets_from_other_layout(int shootersPerStand, int target)
     {
         var errors = ExportValidator.ValidateInrxSilhouetteTargets(

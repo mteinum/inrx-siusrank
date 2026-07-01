@@ -231,7 +231,7 @@ public static class Nm2026TimetableReporter
 public static class Nm2026TimetablePlan
 {
     public static readonly int[] StevneIds = [405, 406, 407, 408, 409, 410, 411];
-    public static readonly int[] SilhouetteTargets = [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34];
+    public static readonly int[] SilhouetteTargets = [2, 4, 7, 9, 12, 14, 17, 19, 22, 24, 27, 29, 32, 34, 37, 39];
 
     private static readonly IReadOnlyList<Nm2026EventSpec> Events =
     [
@@ -316,7 +316,7 @@ public static class Nm2026TimetablePlanner
         }
 
         var silhouetteCount = CountStarters(connection, 406, 11);
-        messages.Add($"Silhuett: repack {silhouetteCount} starters into 6 relays with side targets 2/4, 7/9, ..., 32/34.");
+        messages.Add($"Silhuett: repack {silhouetteCount} starters into 6 relays with side targets 2/4, 7/9, ..., 37/39.");
         foreach (var spec in Nm2026TimetablePlan.EventSpecs.Where(static item => item.OvelseDefId is >= 6 and <= 10))
         {
             var count = CountStarters(connection, spec.StevneId, spec.OvelseDefId);

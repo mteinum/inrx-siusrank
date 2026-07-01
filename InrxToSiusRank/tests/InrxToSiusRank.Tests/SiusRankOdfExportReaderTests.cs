@@ -114,6 +114,38 @@ public sealed class SiusRankOdfExportReaderTests
         Assert.Equal(6, export.Athletes[1].InnerTens);
     }
 
+    [Fact]
+    public void Parse_marks_dnf_athlete_as_terminal_status()
+    {
+        using var file = TempFile.Create(
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <OdfBody ResultStatus="INTERIM">
+              <Competition Code="">
+                <ExtendedHeader EventCode="RFP_Apen" ShortName="Silhuett_Apen" EventUnitName="25m Silhuettpistol Apen" ProductType="IndividualResults" />
+                <CumulativeResult Rank="0" ResultType="IRM" Result="DNF" SortOrder="99">
+                  <Competitor AccreditationNumber="26008" Bib="26008" Organisation="NOR" NameDisplay="Test Shooter">
+                    <Composition>
+                      <Athlete Bib="26008" AccreditationNumber="26008" FamilyName="Shooter" GivenName="Test">
+                        <ExtendedResults>
+                          <ExtendedResult Type="CER_SH" Pos="1" Code="SH_SHOT" Value="10" />
+                        </ExtendedResults>
+                      </Athlete>
+                    </Composition>
+                  </Competitor>
+                </CumulativeResult>
+              </Competition>
+            </OdfBody>
+            """);
+
+        var export = SiusRankOdfExportReader.Parse(file.Path);
+
+        Assert.NotNull(export);
+        var athlete = Assert.Single(export.Athletes);
+        Assert.True(athlete.HasTerminalStatus);
+        Assert.Contains("DNF", athlete.ResultStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class TempFile : IDisposable
     {
         private TempFile(string path)

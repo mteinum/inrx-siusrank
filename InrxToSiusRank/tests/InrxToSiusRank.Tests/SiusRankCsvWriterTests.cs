@@ -43,6 +43,8 @@ public sealed class SiusRankCsvWriterTests
     [InlineData(4, "H", 1000)]
     [InlineData(12, "V", 3000)]
     [InlineData(14, "H", 3000)]
+    [InlineData(37, "V", 8000)]
+    [InlineData(39, "H", 8000)]
     public void Silhouette_import_mapping_uses_side_targets(int target, string filter, int startNumber)
     {
         var mapping = SilhouetteImportMapping.ForTarget(target);

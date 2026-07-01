@@ -128,8 +128,28 @@ public static class SiusRankOdfExportReader
             displayName,
             result,
             innerTens,
-            shots);
+            shots,
+            ResolveResultStatus(cumulativeResult, competitor, athlete));
     }
+
+    private static string ResolveResultStatus(
+        XElement cumulativeResult,
+        XElement competitor,
+        XElement athlete) =>
+        string.Join(
+            " ",
+            new[]
+            {
+                GetAttribute(cumulativeResult, "IRM"),
+                GetAttribute(cumulativeResult, "ResultType"),
+                GetAttribute(cumulativeResult, "Result"),
+                GetAttribute(competitor, "IRM"),
+                GetAttribute(competitor, "ResultType"),
+                GetAttribute(competitor, "Result"),
+                GetAttribute(athlete, "IRM"),
+                GetAttribute(athlete, "ResultType"),
+                GetAttribute(athlete, "Result")
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private static int? ParseScore(string? value)
     {

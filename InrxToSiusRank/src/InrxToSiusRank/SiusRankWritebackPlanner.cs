@@ -161,7 +161,7 @@ public static class SiusRankWritebackPlanner
         SiusRankExportAthlete athlete,
         InrxResultRow row)
     {
-        if (!row.HasTerminalStatus)
+        if (!row.HasTerminalStatus && !athlete.HasTerminalStatus)
         {
             return false;
         }
